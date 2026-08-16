@@ -191,6 +191,94 @@ struct NookInlineLoading: View {
   }
 }
 
+enum NookSkeletonLayout {
+  case profileCard
+  case list(rows: Int)
+}
+
+struct NookSkeletonScreen: View {
+  let layout: NookSkeletonLayout
+  @State private var shimmering = false
+
+  var body: some View {
+    Group {
+      switch layout {
+      case .profileCard:
+        profileCard
+      case .list(let rows):
+        list(rows: rows)
+      }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Cargando contenido")
+    .onAppear {
+      withAnimation(.linear(duration: 1.35).repeatForever(autoreverses: false)) {
+        shimmering = true
+      }
+    }
+  }
+
+  private var profileCard: some View {
+    GeometryReader { proxy in
+      VStack(spacing: 0) {
+        skeletonBlock(radius: 30)
+          .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 11) {
+              skeletonBlock(width: proxy.size.width * 0.52, height: 30, radius: 10)
+              skeletonBlock(width: proxy.size.width * 0.72, height: 14, radius: 7)
+              HStack(spacing: 8) {
+                skeletonBlock(width: 76, height: 28, radius: 14)
+                skeletonBlock(width: 96, height: 28, radius: 14)
+              }
+            }.padding(22)
+          }
+      }
+    }
+    .padding(.horizontal, 10).padding(.bottom, 8)
+  }
+
+  private func list(rows: Int) -> some View {
+    ScrollView {
+      LazyVStack(spacing: 14) {
+        ForEach(0..<rows, id: \.self) { index in
+          HStack(spacing: 14) {
+            skeletonBlock(width: 82, height: 92, radius: 19)
+            VStack(alignment: .leading, spacing: 10) {
+              skeletonBlock(width: index.isMultiple(of: 2) ? 154 : 188, height: 19, radius: 7)
+              skeletonBlock(height: 13, radius: 6)
+              skeletonBlock(width: 118, height: 13, radius: 6)
+              skeletonBlock(width: 92, height: 25, radius: 13)
+            }
+            Spacer(minLength: 0)
+          }
+          .padding(12)
+          .background(NookColors.offWhite.opacity(0.46), in: RoundedRectangle(cornerRadius: 23))
+          .overlay(RoundedRectangle(cornerRadius: 23).stroke(NookColors.espresso.opacity(0.05)))
+        }
+      }.padding(.horizontal, 16).padding(.top, 6)
+    }.scrollIndicators(.hidden)
+  }
+
+  private func skeletonBlock(
+    width: CGFloat? = nil, height: CGFloat? = nil, radius: CGFloat
+  ) -> some View {
+    RoundedRectangle(cornerRadius: radius, style: .continuous)
+      .fill(NookColors.espresso.opacity(0.09))
+      .frame(width: width, height: height)
+      .frame(maxWidth: width == nil ? .infinity : nil, maxHeight: height == nil ? .infinity : nil)
+      .overlay {
+        GeometryReader { proxy in
+          LinearGradient(
+            colors: [.clear, NookColors.mocha.opacity(0.17), .clear],
+            startPoint: .leading, endPoint: .trailing
+          )
+          .frame(width: max(90, proxy.size.width * 0.58))
+          .offset(x: shimmering ? proxy.size.width : -max(90, proxy.size.width * 0.58))
+        }.clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+      }
+  }
+}
+
 private struct PressTrackingStyle: ButtonStyle {
   @Binding var isPressed: Bool
   func makeBody(configuration: Configuration) -> some View {

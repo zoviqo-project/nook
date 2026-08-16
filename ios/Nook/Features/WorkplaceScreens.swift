@@ -32,7 +32,7 @@ struct ChatsView: View {
       VStack(spacing: 8) {
         NookHeader(eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés")
         if vm.loading {
-          NookLoadingView()
+          NookSkeletonScreen(layout: .list(rows: 4))
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {

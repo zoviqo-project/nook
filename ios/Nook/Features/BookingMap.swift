@@ -266,11 +266,12 @@ struct CoffeeShopsView: View {
               .foregroundStyle(NookColors.espresso)
           }
           Spacer()
-          if vm.loading {
-            NookInlineLoading(text: "Buscando cafeterías…")
-          }
+          if vm.loading { Text("Buscando…").font(.caption.weight(.semibold)).foregroundStyle(NookColors.warmGray) }
         }.padding(.horizontal, 6).padding(.bottom, 2)
-        if let error = vm.error, !vm.loading {
+        if vm.loading {
+          NookSkeletonScreen(layout: .list(rows: 4))
+            .frame(height: 500).padding(.horizontal, -10)
+        } else if let error = vm.error {
           NookErrorView(message: error) {
             Task { await vm.retry(app.repository) }
           }.frame(maxWidth: .infinity).padding(.top, 28)

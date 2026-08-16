@@ -50,7 +50,7 @@ struct DiscoverView: View {
         header
         Group {
           if vm.loading {
-            NookLoadingView()
+            NookSkeletonScreen(layout: .profileCard)
           } else if let error = vm.error {
             NookErrorView(message: error) { Task { await vm.load(app.repository) } }
           } else if let person = vm.people.first {
