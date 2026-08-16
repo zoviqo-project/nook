@@ -694,18 +694,6 @@ struct ProfileView: View {
       NookBackground()
       ScrollView {
         VStack(spacing: 18) {
-          HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 3) {
-              Text("NOOK").font(.caption.bold()).tracking(2).foregroundStyle(NookColors.mocha)
-              Text("Este eres tú").font(NookTypography.display(35)).tracking(-0.4)
-            }
-            Spacer()
-            HStack(spacing: 7) {
-              Circle().fill(visible ? Color.green : NookColors.oat).frame(width: 7, height: 7)
-              Text(visible ? "Visible" : "En pausa").font(.caption.weight(.semibold))
-            }.foregroundStyle(NookColors.espresso.opacity(0.65))
-          }.padding(.horizontal, 22).padding(.top, 12)
-
           ZStack(alignment: .bottomLeading) {
             ProfileImage(url: app.me?.photos.first?.url, name: app.me?.name ?? "N").frame(
               height: 405)
@@ -836,7 +824,10 @@ struct ProfileView: View {
 
           Button { saveProfile() } label: {
             HStack(spacing: 8) {
-              if saving { ProgressView().tint(.white) }
+              if saving {
+                Image(systemName: "cup.and.saucer.fill")
+                  .symbolEffect(.pulse, options: .repeating)
+              }
               Image(systemName: saved ? "checkmark" : "arrow.down")
               Text(saved ? "Guardado" : "Guardar cambios")
             }.font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(.white)
@@ -846,6 +837,11 @@ struct ProfileView: View {
           Button("Cerrar sesión", role: .destructive) { Task { await app.logout() } }
             .font(.callout.weight(.semibold)).padding(.top, 5)
         }.padding(.bottom, 100)
+      }.safeAreaInset(edge: .top, spacing: 0) {
+        NookHeader(
+          eyebrow: visible ? "PERFIL VISIBLE" : "PERFIL EN PAUSA",
+          title: "Este eres tú"
+        )
       }
     }.alert("No hemos podido guardar", isPresented: Binding(
       get: { profileError != nil }, set: { if !$0 { profileError = nil } }

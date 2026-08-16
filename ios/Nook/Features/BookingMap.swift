@@ -267,7 +267,7 @@ struct CoffeeShopsView: View {
           }
           Spacer()
           if vm.loading {
-            ProgressView().controlSize(.small).tint(NookColors.mocha)
+            NookInlineLoading(text: "Buscando cafeterías…")
           }
         }.padding(.horizontal, 6).padding(.bottom, 2)
         if let error = vm.error, !vm.loading {
@@ -925,10 +925,11 @@ private struct SmartCoffeeSearch: View {
               .foregroundStyle(.white)
             Text(meetingArea ?? midpointLabel)
               .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.72))
-            HStack(spacing: 8) {
-              ProgressView().controlSize(.small).tint(NookColors.mocha)
-              Text("Comparando cafeterías").font(.caption.weight(.semibold))
-            }.foregroundStyle(.white.opacity(0.65)).padding(.top, 5)
+            NookInlineLoading(
+              text: "Comparando cafeterías",
+              foreground: .white.opacity(0.7),
+              accent: NookColors.mocha
+            ).padding(.top, 5)
           }
           Spacer()
           Text("Buscando el lugar que mejor os encaje")

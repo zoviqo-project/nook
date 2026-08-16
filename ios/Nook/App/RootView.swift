@@ -183,11 +183,27 @@ struct CoffeeFoamSpiral: Shape {
 
 struct NookLoadingView: View {
   @State private var floating = false
+  @State private var turning = false
   var body: some View {
-    VStack(spacing: 18) {
-      NookCoffeeLogo(size: 62).offset(y: floating ? -4 : 4)
-      Text("Preparando el café…").font(.callout.weight(.semibold)).foregroundStyle(NookColors.warmGray)
-    }.onAppear { withAnimation(.easeInOut(duration: 1.1).repeatForever()) { floating = true } }
+    VStack(spacing: 20) {
+      ZStack {
+        Circle().stroke(NookColors.oat.opacity(0.22), lineWidth: 4).frame(width: 82, height: 82)
+        Circle().trim(from: 0.08, to: 0.72).stroke(
+          NookColors.mocha, style: StrokeStyle(lineWidth: 4, lineCap: .round)
+        ).frame(width: 82, height: 82).rotationEffect(.degrees(turning ? 360 : 0))
+        NookCoffeeLogo(size: 54).offset(y: floating ? -2 : 2)
+      }
+      VStack(spacing: 5) {
+        Text("Preparando el café…").font(.system(size: 16, weight: .bold, design: .rounded))
+          .foregroundStyle(NookColors.espresso)
+        Text("Un momento, ya casi está").font(.caption.weight(.medium))
+          .foregroundStyle(NookColors.warmGray)
+      }
+    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+      .onAppear {
+        withAnimation(.easeInOut(duration: 1.05).repeatForever()) { floating = true }
+        withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { turning = true }
+      }
   }
 }
 
@@ -413,13 +429,20 @@ struct LoginView: View {
   @State private var error: String?
   var body: some View {
     NavigationStack {
-      ScrollView {
-        VStack(alignment: .leading, spacing: NookSpacing.lg) {
-          NookCoffeeLogo(size: 66).padding(.top, NookSpacing.sm)
-          VStack(alignment: .leading, spacing: 6) {
-            Text("Qué alegría verte").font(NookTypography.hero).tracking(-1.2)
-            Text("Hay café esperándote.").font(.title3).foregroundStyle(NookColors.warmGray)
-          }
+      ZStack {
+        NookBackground()
+        ScrollView {
+          VStack(alignment: .leading, spacing: 18) {
+            HStack {
+              Spacer()
+              NookCoffeeLogo(size: 48, animated: false)
+              Spacer()
+            }.padding(.top, 18)
+            VStack(alignment: .leading, spacing: 4) {
+              Text("Entrar").font(NookTypography.display(36)).tracking(-0.7)
+              Text("Continúa donde lo dejaste.").font(.callout.weight(.medium))
+                .foregroundStyle(NookColors.warmGray)
+            }.padding(.bottom, 4)
           NookTextField(
             label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
           NookTextField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
@@ -429,27 +452,31 @@ struct LoginView: View {
             ).transition(.move(edge: .top).combined(with: .opacity))
           }
           NookButton(
-            title: busy ? "PREPARANDO…" : "ENTRAR",
-            icon: "cup.and.saucer.fill"
+            title: busy ? "ENTRANDO…" : "ENTRAR",
+            icon: "arrow.right"
           ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
             .opacity(busy ? 0.65 : 1)
-          NookButton(title: "CREAR CUENTA", icon: "arrow.right", secondary: true) { app.stage = .registration }
+          Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
+            .foregroundStyle(NookColors.espresso.opacity(0.72)).frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
           #if DEBUG
             Button("Explorar Nook ☕") { Task { await app.enterOfflineDemo() } }.frame(
               maxWidth: .infinity
             ).font(.headline).foregroundStyle(NookColors.mocha).padding(.vertical, 8)
           #endif
-        }.padding(NookSpacing.lg)
-      }.scrollDismissesKeyboard(.interactively).toolbar {
+          }.padding(.horizontal, 22).padding(.bottom, 28)
+        }.scrollDismissesKeyboard(.interactively)
+      }.toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button {
             app.stage = .welcome
           } label: {
             Image(systemName: "chevron.left").font(.headline).frame(width: 42, height: 42)
-              .background(.thinMaterial, in: Circle())
+              .background(NookColors.offWhite.opacity(0.9), in: Circle())
           }
         }
-      }
+      }.toolbarBackground(.hidden, for: .navigationBar)
     }
   }
   private func submit() async {

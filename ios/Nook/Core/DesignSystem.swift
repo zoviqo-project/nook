@@ -161,7 +161,35 @@ struct NookHeader: View {
             .frame(width: 42, height: 42).background(.thinMaterial, in: Circle())
         }.foregroundStyle(NookColors.espresso).accessibilityLabel(actionLabel)
       }
-    }.padding(.horizontal, 18).padding(.vertical, 6)
+    }.padding(.horizontal, 18).padding(.vertical, 9)
+      .background(.ultraThinMaterial)
+      .overlay(alignment: .bottom) {
+        Rectangle().fill(NookColors.espresso.opacity(0.07)).frame(height: 1)
+      }
+  }
+}
+
+struct NookInlineLoading: View {
+  var text = "Preparando…"
+  var foreground = NookColors.warmGray
+  var accent = NookColors.mocha
+  @State private var turning = false
+  var body: some View {
+    HStack(spacing: 10) {
+      ZStack {
+        Circle().stroke(NookColors.oat.opacity(0.28), lineWidth: 3)
+        Circle().trim(from: 0.08, to: 0.72).stroke(
+          accent,
+          style: StrokeStyle(lineWidth: 3, lineCap: .round)
+        ).rotationEffect(.degrees(turning ? 360 : 0))
+        Image(systemName: "cup.and.saucer.fill").font(.system(size: 9, weight: .bold))
+          .foregroundStyle(foreground)
+      }.frame(width: 27, height: 27)
+      Text(text).font(.system(size: 13, weight: .semibold, design: .rounded))
+        .foregroundStyle(foreground)
+    }.onAppear {
+      withAnimation(.linear(duration: 1.05).repeatForever(autoreverses: false)) { turning = true }
+    }
   }
 }
 
