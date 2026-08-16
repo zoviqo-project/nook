@@ -2,6 +2,7 @@ services:
   - type: web
     name: nook-api
     runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /actuator/health
@@ -32,5 +33,6 @@ services:
         sync: false
 databases:
   - name: nook-postgres
+    plan: free
     databaseName: nook
     user: nook
