@@ -1245,18 +1245,22 @@ struct ProposalSheet: View {
                 }
               }
             } else if flowStep == 0 {
-              choiceStep("¿QUÉ DÍA?", shop.openingHours == nil ? "Horario todavía no disponible" : "Solo mostramos días compatibles") {
+              choiceStep("¿QUÉ DÍA?", "Elige el día que mejor os venga") {
                 DatePicker("Fecha", selection: $date, in: Date()..., displayedComponents: .date)
                   .datePickerStyle(.graphical).tint(NookColors.espresso).padding(12)
                   .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: NookRadius.large))
-                  .disabled(shop.openingHours == nil).opacity(shop.openingHours == nil ? 0.4 : 1)
-                if let hours = shop.openingHours { Label(hours, systemImage: "clock").font(.caption.weight(.semibold)).foregroundStyle(NookColors.mocha) }
+                if let hours = shop.openingHours {
+                  Label(hours, systemImage: "clock").font(.caption.weight(.semibold))
+                    .foregroundStyle(NookColors.mocha)
+                } else {
+                  Label("Confirma el horario con la cafetería", systemImage: "info.circle")
+                    .font(.caption.weight(.semibold)).foregroundStyle(NookColors.warmGray)
+                }
               }
             } else if flowStep == 1 {
-              choiceStep("¿A QUÉ HORA?", "Dentro del horario del café") {
+              choiceStep("¿A QUÉ HORA?", shop.openingHours == nil ? "Elige una hora para proponérsela" : "Dentro del horario del café") {
                 DatePicker("Hora", selection: $date, displayedComponents: .hourAndMinute)
                   .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
-                  .disabled(shop.openingHours == nil).opacity(shop.openingHours == nil ? 0.4 : 1)
               }
             } else if flowStep == 2 {
               choiceStep("¿QUIÉN INVITA? ☕", "Sin compromisos raros") {
@@ -1298,7 +1302,7 @@ struct ProposalSheet: View {
                   } catch { sending = false; submitError = error.localizedDescription }
                 }
               }
-            }.disabled((needsPersonChoice && step == 0 && selectedMatch == nil) || ((flowStep == 0 || flowStep == 1) && shop.openingHours == nil))
+            }.disabled(needsPersonChoice && step == 0 && selectedMatch == nil)
           }.padding(24)
           }.navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
             .toolbar {
