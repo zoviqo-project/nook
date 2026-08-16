@@ -144,28 +144,26 @@ struct NookHeader: View {
   var action: (() -> Void)? = nil
 
   var body: some View {
-    HStack(spacing: 14) {
-      HStack(spacing: 10) {
-        NookCoffeeLogo(size: 32, animated: false)
-        VStack(alignment: .leading, spacing: 1) {
-          Text(eyebrow.uppercased()).font(.system(size: 10, weight: .bold, design: .rounded))
-            .tracking(1.5).foregroundStyle(NookColors.mocha)
-          Text(title).font(NookTypography.display(27))
-            .tracking(-0.5).lineLimit(1).minimumScaleFactor(0.78)
+    HStack(alignment: .center, spacing: 16) {
+      VStack(alignment: .leading, spacing: 3) {
+        HStack(spacing: 6) {
+          Circle().fill(NookColors.mocha).frame(width: 5, height: 5)
+          Text(eyebrow.uppercased())
+            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .tracking(1.7).foregroundStyle(NookColors.mocha)
         }
+        Text(title).font(NookTypography.display(30))
+          .tracking(-0.65).lineLimit(1).minimumScaleFactor(0.76)
       }
-      Spacer(minLength: 8)
+      Spacer(minLength: 10)
       if let actionIcon, let action {
         Button(action: action) {
-          Image(systemName: actionIcon).font(.system(size: 16, weight: .bold))
-            .frame(width: 42, height: 42).background(.thinMaterial, in: Circle())
+          Image(systemName: actionIcon).font(.system(size: 15, weight: .semibold))
+            .frame(width: 40, height: 40)
+            .overlay(Circle().stroke(NookColors.espresso.opacity(0.18), lineWidth: 1))
         }.foregroundStyle(NookColors.espresso).accessibilityLabel(actionLabel)
       }
-    }.padding(.horizontal, 18).padding(.vertical, 9)
-      .background(.ultraThinMaterial)
-      .overlay(alignment: .bottom) {
-        Rectangle().fill(NookColors.espresso.opacity(0.07)).frame(height: 1)
-      }
+    }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
   }
 }
 
