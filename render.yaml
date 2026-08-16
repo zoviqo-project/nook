@@ -8,7 +8,7 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: prod,demo-data
+        value: prod
       - key: DB_HOST
         fromDatabase: {name: nook-postgres, property: host}
       - key: DB_PORT

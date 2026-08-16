@@ -170,14 +170,14 @@ actor APIRepository: NookRepository {
     try await call("conversations/\(id)/messages", method: "POST", body: MessageBody(body: text, clientMessageId: UUID()))
   }
   func dates() async throws -> [CoffeeDate] { try await call("coffee-dates") }
-  func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool) async throws
+  func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate
   {
     try await call(
       "coffee-dates", method: "POST",
       body: DateBody(
         matchId: match, coffeeShopId: shop, proposedAt: ISO8601DateFormatter().string(from: date),
-        paymentPreference: payment, nookChoice: nookChoice, idempotencyKey: UUID()))
+        paymentPreference: payment, nookChoice: nookChoice, idempotencyKey: idempotencyKey))
   }
   func updateDate(_ id: UUID, status: CoffeeDateStatus) async throws -> CoffeeDate {
     try await call("coffee-dates/\(id)", method: "PATCH", body: StatusBody(status: status))

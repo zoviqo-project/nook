@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor final class DiscoverVM: ObservableObject {
   @Published var people: [DiscoverProfile] = []
   @Published var match: Match?
-  @Published var loading = false
+  @Published var loading = true
   @Published var error: String?
   func load(_ repo: any NookRepository) async {
     loading = true
@@ -44,11 +44,11 @@ struct DiscoverView: View {
   @State private var showFilters = false
   @State private var selectedProfile: DiscoverProfile?
   var body: some View {
-    ZStack {
-      NookBackground()
-      VStack(spacing: 12) {
-        header
-        Group {
+    NookScreenContainer(
+      eyebrow: "NOOK", title: "¿Un café con…?", actionIcon: "slider.horizontal.3",
+      actionLabel: "Filtros", action: { showFilters = true }
+    ) {
+      Group {
           if vm.loading {
             NookSkeletonScreen(layout: .profileCard)
           } else if let error = vm.error {
@@ -58,8 +58,7 @@ struct DiscoverView: View {
           } else {
             empty
           }
-        }.frame(maxHeight: .infinity)
-      }.padding(.top, 6).padding(.bottom, 84)
+      }.frame(maxHeight: .infinity).padding(.top, 4)
     }
     .task {
       await vm.load(app.repository)
@@ -67,9 +66,6 @@ struct DiscoverView: View {
     }.sheet(item: $vm.match) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
-  }
-  private var header: some View {
-    NookHeader(eyebrow: "NOOK", title: "¿Un café con…?", actionIcon: "slider.horizontal.3", actionLabel: "Filtros") { showFilters = true }
   }
   private func cardStack(_ person: DiscoverProfile) -> some View {
     GeometryReader { proxy in
@@ -690,8 +686,10 @@ struct ProfileView: View {
   @State private var saved = false
   @State private var profileError: String?
   var body: some View {
-    ZStack {
-      NookBackground()
+    NookScreenContainer(
+      eyebrow: visible ? "PERFIL VISIBLE" : "PERFIL EN PAUSA",
+      title: "Este eres tú"
+    ) {
       ScrollView {
         VStack(spacing: 18) {
           ZStack(alignment: .bottomLeading) {
@@ -836,13 +834,8 @@ struct ProfileView: View {
 
           Button("Cerrar sesión", role: .destructive) { Task { await app.logout() } }
             .font(.callout.weight(.semibold)).padding(.top, 5)
-        }.padding(.bottom, 100)
-      }.safeAreaInset(edge: .top, spacing: 0) {
-        NookHeader(
-          eyebrow: visible ? "PERFIL VISIBLE" : "PERFIL EN PAUSA",
-          title: "Este eres tú"
-        )
-      }
+        }.padding(.bottom, 18)
+      }.scrollIndicators(.hidden)
     }.alert("No hemos podido guardar", isPresented: Binding(
       get: { profileError != nil }, set: { if !$0 { profileError = nil } }
     )) { Button("Entendido") { profileError = nil } } message: { Text(profileError ?? "") }

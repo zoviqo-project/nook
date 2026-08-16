@@ -334,7 +334,7 @@ protocol ConversationRepository: Sendable {
 }
 protocol CoffeeDateRepository: Sendable {
   func dates() async throws -> [CoffeeDate]
-  func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool) async throws
+  func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate
   func updateDate(_ id: UUID, status: CoffeeDateStatus) async throws -> CoffeeDate
 }

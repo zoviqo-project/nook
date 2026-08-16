@@ -167,6 +167,49 @@ struct NookHeader: View {
   }
 }
 
+/// Structural shell for tab screens. The system safe area owns the status-bar spacing,
+/// the header is outside the scrolling content, and the tab bar is inserted by MainTabView.
+struct NookScreenContainer<Content: View>: View {
+  let eyebrow: String
+  let title: String
+  var actionIcon: String? = nil
+  var actionLabel = "Acción"
+  var action: (() -> Void)? = nil
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    ZStack {
+      NookBackground()
+      VStack(spacing: 0) {
+        NookHeader(
+          eyebrow: eyebrow, title: title, actionIcon: actionIcon,
+          actionLabel: actionLabel, action: action)
+          .zIndex(1)
+        content().frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
+    }
+  }
+}
+
+struct NookScrollableScreen<Content: View>: View {
+  let eyebrow: String
+  let title: String
+  var actionIcon: String? = nil
+  var actionLabel = "Acción"
+  var action: (() -> Void)? = nil
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    NookScreenContainer(
+      eyebrow: eyebrow, title: title, actionIcon: actionIcon,
+      actionLabel: actionLabel, action: action
+    ) {
+      ScrollView { content().frame(maxWidth: .infinity, alignment: .topLeading) }
+        .scrollIndicators(.hidden)
+    }
+  }
+}
+
 struct NookInlineLoading: View {
   var text = "Preparando…"
   var foreground = NookColors.warmGray

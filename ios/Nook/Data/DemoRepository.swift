@@ -347,7 +347,7 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
       }
       return demoDates
     }
-    func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool) async throws
+    func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
       -> CoffeeDate
     {
       let receiver =

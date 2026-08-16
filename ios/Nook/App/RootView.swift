@@ -231,13 +231,9 @@ struct WelcomeView: View {
           .offset(y: phase >= 5 ? 0 : 42)
           .scaleEffect(phase >= 5 ? 1 : 0.96)
           .blur(radius: phase >= 5 ? 0 : 5)
-        HStack {
-          Button("Ya tengo cuenta") { app.stage = .login }
-          Spacer()
-          #if DEBUG
-            Button("Explorar Nook") { Task { await app.enterOfflineDemo() } }
-          #endif
-        }.font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+        Button("Ya tengo cuenta") { app.stage = .login }
+          .frame(maxWidth: .infinity)
+          .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
           .opacity(phase >= 5 ? 1 : 0)
         Text("Solo para mayores de 18 años").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.48))
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
@@ -269,6 +265,10 @@ private struct QuickAccessView: View {
   @StateObject private var apple = AppleSignInCoordinator()
   @State private var revealed = false
   @State private var brewed = false
+  init(isPresented: Binding<Bool>, startWithPhone: Bool = false) {
+    _isPresented = isPresented
+    _phoneEntry = State(initialValue: startWithPhone)
+  }
   var body: some View {
     ZStack(alignment: .bottom) {
       LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.78), NookColors.warmBlack.opacity(0.98)], startPoint: .top, endPoint: .bottom)
@@ -422,25 +422,29 @@ private struct NookWelcomeGallery: View {
 }
 
 struct LoginView: View {
+  private enum LoginPhase: Equatable { case idle, loading, success, error(String) }
   @EnvironmentObject var app: AppSession
   @State private var email = ""
   @State private var password = ""
-  @State private var busy = false
-  @State private var error: String?
+  @State private var state: LoginPhase = .idle
+  @State private var phoneAccess = false
+  @StateObject private var apple = AppleSignInCoordinator()
+  private var busy: Bool { state == .loading }
+  private var error: String? { if case .error(let message) = state { message } else { nil } }
   var body: some View {
     NavigationStack {
       ZStack {
         NookBackground()
         ScrollView {
-          VStack(alignment: .leading, spacing: 18) {
+          VStack(alignment: .leading, spacing: 16) {
             HStack {
               Spacer()
-              NookCoffeeLogo(size: 48, animated: false)
+              NookCoffeeLogo(size: 54, animated: false)
               Spacer()
             }.padding(.top, 18)
             VStack(alignment: .leading, spacing: 4) {
-              Text("Entrar").font(NookTypography.display(36)).tracking(-0.7)
-              Text("Continúa donde lo dejaste.").font(.callout.weight(.medium))
+              Text("Qué alegría verte").font(NookTypography.display(38)).tracking(-0.8)
+              Text("Entra y retomamos ese café.").font(.callout.weight(.medium))
                 .foregroundStyle(NookColors.warmGray)
             }.padding(.bottom, 4)
           NookTextField(
@@ -453,18 +457,25 @@ struct LoginView: View {
           }
           NookButton(
             title: busy ? "ENTRANDO…" : "ENTRAR",
-            icon: "arrow.right"
+            icon: busy ? "cup.and.saucer.fill" : "arrow.right"
           ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
             .opacity(busy ? 0.65 : 1)
+          HStack(spacing: 12) {
+            Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+            Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
+              .tracking(1.4).foregroundStyle(NookColors.warmGray).fixedSize()
+            Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+          }.padding(.vertical, 4)
+          VStack(spacing: 10) {
+            loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
+            loginProvider("Google", icon: "g.circle") { providerUnavailable("Google") }
+            loginProvider("Facebook", icon: "f.circle") { providerUnavailable("Facebook") }
+            loginProvider("Teléfono", icon: "phone.fill") { phoneAccess = true }
+          }
           Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(NookColors.espresso.opacity(0.72)).frame(maxWidth: .infinity)
             .padding(.vertical, 8)
-          #if DEBUG
-            Button("Explorar Nook ☕") { Task { await app.enterOfflineDemo() } }.frame(
-              maxWidth: .infinity
-            ).font(.headline).foregroundStyle(NookColors.mocha).padding(.vertical, 8)
-          #endif
           }.padding(.horizontal, 22).padding(.bottom, 28)
         }.scrollDismissesKeyboard(.interactively)
       }.toolbar {
@@ -477,14 +488,49 @@ struct LoginView: View {
           }
         }
       }.toolbarBackground(.hidden, for: .navigationBar)
+        .sheet(isPresented: $phoneAccess) {
+          QuickAccessView(isPresented: $phoneAccess, startWithPhone: true)
+        }
     }
   }
   private func submit() async {
-    busy = true
-    defer { busy = false }
+    guard !busy else { return }
+    state = .loading
     do {
       try await app.login(email, password)
-    } catch { withAnimation(NookMotion.spring) { self.error = error.localizedDescription } }
+      state = .success
+      Haptics.success()
+    } catch { withAnimation(NookMotion.spring) { state = .error(friendly(error)) } }
+  }
+  private func signInWithApple() async {
+    guard !busy else { return }
+    state = .loading
+    do {
+      let credential = try await apple.signIn()
+      try await app.federatedLogin(
+        provider: "apple", identityToken: credential.identityToken,
+        displayName: credential.displayName)
+      state = .success
+      Haptics.success()
+    } catch { state = .error(friendly(error)) }
+  }
+  private func providerUnavailable(_ provider: String) {
+    Haptics.selection()
+    state = .error("El acceso con \(provider) necesita configurar sus credenciales externas. Puedes entrar con email, Apple o teléfono.")
+  }
+  private func friendly(_ error: Error) -> String {
+    let message = error.localizedDescription
+    return message.isEmpty ? "No hemos podido iniciar sesión. Inténtalo de nuevo." : message
+  }
+  private func loginProvider(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 12) {
+        Image(systemName: icon).font(.system(size: 17, weight: .semibold)).frame(width: 22)
+        Text("Continuar con \(title)").font(.system(size: 15, weight: .semibold, design: .rounded))
+        Spacer()
+      }.foregroundStyle(NookColors.espresso).padding(.horizontal, 17).frame(height: 50)
+        .overlay(RoundedRectangle(cornerRadius: 17).stroke(NookColors.espresso.opacity(0.16)))
+    }.buttonStyle(.plain).disabled(busy)
   }
 }
 
@@ -771,7 +817,7 @@ struct OnboardingView: View {
 struct MainTabView: View {
   @EnvironmentObject var app: AppSession
   var body: some View {
-    ZStack(alignment: .bottom) {
+    ZStack {
       Group {
         switch app.selectedTab {
         case 0: NavigationStack { DiscoverView() }
@@ -780,10 +826,11 @@ struct MainTabView: View {
         default: NavigationStack { ProfileView() }
         }
       }.id(app.selectedTab).transition(.opacity.combined(with: .scale(scale: 0.985)))
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
       if !app.tabBarHidden {
         NookFloatingTabBar(selection: $app.selectedTab)
           .transition(.move(edge: .bottom).combined(with: .opacity))
-          .zIndex(100)
       }
     }
     .animation(NookMotion.fast, value: app.selectedTab)

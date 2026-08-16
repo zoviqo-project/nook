@@ -75,6 +75,7 @@ enum AppConfiguration {
   @Published var selectedTab = 0
   @Published var selectedCoffeeMatch: UUID?
   @Published var placesReloadID = UUID()
+  @Published private(set) var coffeeDataRevision = 0
   @Published var tabBarHidden = false
   private var deviceToken: String?
   let environment: AppEnvironment
@@ -143,6 +144,7 @@ enum AppConfiguration {
     guard let deviceToken,stage == .app else { return }
     try? await repository.registerDeviceToken(deviceToken)
   }
+  func coffeeProposalPersisted() { coffeeDataRevision += 1 }
   #if DEBUG
     func enterOfflineDemo() async {
       repository = OfflineDemoRepository()

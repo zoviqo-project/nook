@@ -31,11 +31,13 @@ import SwiftUI
 }
 
 @MainActor final class ShopsVM: ObservableObject {
+  enum State: Equatable {
+    case idle, requestingLocation, loading, loaded, empty, error(String)
+  }
   @Published var shops: [CoffeeShop] = []
   @Published var matches: [Match] = []
-  @Published var loading = false
+  @Published private(set) var state: State = .idle
   @Published var meetingArea: String?
-  @Published var error: String?
   @Published var mapLoading = false
   @Published private(set) var origin: CafeSearchOrigin?
   @Published var selectedCafe: CoffeeShop?
@@ -43,6 +45,11 @@ import SwiftUI
   private var searchTask: Task<Void, Never>?
 
   var searchPoint: GeoPoint? { origin?.point }
+  var loading: Bool { state == .loading || state == .requestingLocation }
+  var error: String? { if case .error(let message) = state { message } else { nil } }
+
+  func beginLocationRequest() { if shops.isEmpty { state = .requestingLocation } }
+  func failLocation(_ message: String) { if shops.isEmpty { state = .error(message) } }
 
   func prepare(_ repo: any NookRepository) async {
     if matches.isEmpty { matches = (try? await repo.matches()) ?? [] }
@@ -111,23 +118,23 @@ import SwiftUI
 
   private func search(_ repo: any NookRepository, showMainLoader: Bool = false) async {
     guard let origin else {
-      error = "Necesitamos una ubicación válida para buscar cafeterías."
+      state = .error("Necesitamos una ubicación válida para buscar cafeterías.")
       return
     }
-    if showMainLoader { loading = true } else { mapLoading = true }
-    defer { loading = false; mapLoading = false }
-    error = nil
+    if showMainLoader || shops.isEmpty { state = .loading } else { mapLoading = true }
+    defer { mapLoading = false }
     do {
       let point = origin.point
       let found = try await repo.shops(
         latitude: point.latitude, longitude: point.longitude, radiusKm: radiusKm)
       shops = found.sorted(by: usefulOrder)
+      state = shops.isEmpty ? .empty : .loaded
       #if DEBUG
         print("[NOOK CAFE SEARCH] Origin: \(origin.logName) latitude=\(point.latitude) longitude=\(point.longitude) radius=\(GeographicMath.meters(fromKilometers: radiusKm))m results=\(shops.count)")
       #endif
     } catch {
       shops = []
-      self.error = "No hemos podido obtener cafeterías reales. Comprueba la conexión y vuelve a intentarlo."
+      state = .error("No hemos podido obtener cafeterías reales. Comprueba la conexión y vuelve a intentarlo.")
     }
   }
   private func locality(for coordinate: CLLocationCoordinate2D, fallback: String?) async -> String {
@@ -169,27 +176,32 @@ struct CoffeeShopsView: View {
     ZStack(alignment: .top) {
       NookBackground()
       if searching && app.selectedCoffeeMatch != nil {
-        SmartCoffeeSearch(
-          person: targetPerson, ownName: app.me?.name, ownCity: app.me?.city,
-          ownPhoto: app.me?.photos.first?.url,
-          meetingArea: searchLabel ?? vm.meetingArea,
-          title: searchTitle
-        ).frame(maxWidth: .infinity, maxHeight: .infinity).transition(.opacity)
+        NookScreenContainer(eyebrow: "PUNTO MEDIO", title: "Elige el lugar") {
+          VStack(alignment: .leading, spacing: 12) {
+            NookInlineLoading(text: "Buscando cafeterías reales…")
+              .padding(.horizontal, 18).padding(.top, 8)
+            NookSkeletonScreen(layout: .list(rows: 4))
+          }
+        }.transition(.opacity)
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
         LocationPermissionState(openSettings: location.openSettings)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
           .padding(.bottom, 66)
       } else {
-        VStack(spacing: 8) {
-          placesHeader
+        NookScreenContainer(
+          eyebrow: otherPlaceMode ? "OTRO LUGAR" : (targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO"),
+          title: "Elige el lugar", actionIcon: showMap ? "rectangle.grid.1x2.fill" : "map.fill",
+          actionLabel: showMap ? "Ver lista" : "Ver mapa",
+          action: { withAnimation(NookMotion.spring) { showMap.toggle() } }
+        ) {
+          VStack(spacing: 8) {
           placeModeSelector
             .padding(.horizontal, 12)
           Group {
             if showMap { mapView } else { listView }
           }
+          }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(.bottom, showMap ? 66 : 82)
         .transition(.opacity)
       }
       if let shop = celebratedShop {
@@ -200,6 +212,7 @@ struct CoffeeShopsView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .toolbar(.hidden, for: .navigationBar)
     .task {
+      vm.beginLocationRequest()
       let midpointMode = app.selectedCoffeeMatch != nil
       if midpointMode { withAnimation(NookMotion.fast) { app.tabBarHidden = true } }
       location.request()
@@ -208,7 +221,7 @@ struct CoffeeShopsView: View {
       }
       guard let current = location.location, !location.denied else {
         searching = false
-        if !location.denied { vm.error = location.locationError ?? "Seguimos buscando tu ubicación…" }
+        if !location.denied { vm.failLocation(location.locationError ?? "No hemos podido obtener tu ubicación.") }
         return
       }
       guard !locationHandled else { return }
@@ -246,14 +259,6 @@ struct CoffeeShopsView: View {
     guard let selected = app.selectedCoffeeMatch else { return nil }
     return vm.matches.first(where: { $0.id == selected })?.person
   }
-  private var placesHeader: some View {
-    NookHeader(
-      eyebrow: otherPlaceMode ? "OTRO LUGAR" : (targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO"),
-      title: "Elige el lugar",
-      actionIcon: showMap ? "rectangle.grid.1x2.fill" : "map.fill",
-      actionLabel: showMap ? "Ver lista" : "Ver mapa"
-    ) { withAnimation(NookMotion.spring) { showMap.toggle() } }
-  }
   private var listView: some View {
     ScrollView {
       LazyVStack(spacing: 14) {
@@ -275,7 +280,7 @@ struct CoffeeShopsView: View {
           NookErrorView(message: error) {
             Task { await vm.retry(app.repository) }
           }.frame(maxWidth: .infinity).padding(.top, 28)
-        } else if vm.shops.isEmpty && !vm.loading {
+        } else if vm.state == .empty {
           NookEmptyState(
             icon: location.denied ? "location.slash" : "cup.and.saucer",
             title: location.denied ? "Necesitamos tu zona" : "No encontramos cafeterías",
@@ -456,7 +461,7 @@ struct CoffeeShopsView: View {
       withAnimation(NookMotion.fast) { app.tabBarHidden = true }
       withAnimation(.easeInOut(duration: 0.25)) { searching = true }
       guard let current = location.location else {
-        vm.error = "Todavía no tenemos una ubicación válida."
+        vm.failLocation("Todavía no tenemos una ubicación válida.")
         searching = false
         return
       }
@@ -474,13 +479,13 @@ struct CoffeeShopsView: View {
     do {
       let (point, name) = try await locationSearch.resolve(suggestion)
       await selectResolvedArea(point, name: name)
-    } catch { vm.error = "No hemos podido localizar ese lugar." }
+    } catch { vm.failLocation("No hemos podido localizar ese lugar.") }
   }
   private func selectArea(query: String) async {
     do {
       let (point, name) = try await locationSearch.resolve(query: query)
       await selectResolvedArea(point, name: name)
-    } catch { vm.error = "No hemos podido localizar ese lugar." }
+    } catch { vm.failLocation("No hemos podido localizar ese lugar.") }
   }
   private func selectResolvedArea(_ point: GeoPoint, name: String) async {
     showAreaPicker = false
@@ -1203,6 +1208,7 @@ struct ProposalSheet: View {
   @State private var confirmed = false
   @State private var sending = false
   @State private var submitError: String?
+  @State private var idempotencyKey = UUID()
   var body: some View {
     NavigationStack {
       ZStack {
@@ -1293,7 +1299,9 @@ struct ProposalSheet: View {
                   sending = true
                   do {
                     _ = try await app.repository.propose(
-                      match: match, shop: shop.id, date: date, payment: payment, nookChoice: isNookChoice)
+                      match: match, shop: shop.id, date: date, payment: payment,
+                      nookChoice: isNookChoice, idempotencyKey: idempotencyKey)
+                    app.coffeeProposalPersisted()
                     sending = true
                     Haptics.success()
                     NookSoundManager.shared.play(.proposal)

@@ -2,14 +2,16 @@ import EventKit
 import SwiftUI
 
 @MainActor final class ChatsVM: ObservableObject {
+  enum State: Equatable { case idle, loading, loaded, empty, error(String) }
   @Published var chats: [Conversation] = []
   @Published var dates: [CoffeeDate] = []
   @Published var matches: [Match] = []
-  @Published var loading = false
-  @Published var error: String?
+  @Published private(set) var state: State = .idle
+  @Published private(set) var updating: Set<UUID> = []
+  var loading: Bool { state == .loading }
+  var error: String? { if case .error(let message) = state { message } else { nil } }
   func load(_ repo: any NookRepository, showLoader: Bool = true) async {
-    if showLoader { loading = true }
-    error = nil
+    if showLoader && state == .idle { state = .loading }
     do {
       async let c = repo.conversations()
       async let d = repo.dates()
@@ -17,8 +19,16 @@ import SwiftUI
       chats = try await c
       dates = try await d
       matches = try await m
-    } catch { self.error = error.localizedDescription }
-    if showLoader { loading = false }
+      state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
+    } catch { state = .error("No hemos podido cargar tus cafés. Comprueba la conexión y vuelve a intentarlo.") }
+  }
+  func transition(_ id: UUID, to status: CoffeeDateStatus, repo: any NookRepository) async {
+    guard updating.insert(id).inserted else { return }
+    defer { updating.remove(id) }
+    do {
+      _ = try await repo.updateDate(id, status: status)
+      await load(repo, showLoader: false)
+    } catch { state = .error(error.localizedDescription) }
   }
 }
 
@@ -27,25 +37,18 @@ struct ChatsView: View {
   @StateObject private var vm = ChatsVM()
   @State private var section = 2
   var body: some View {
-    ZStack {
-      NookBackground()
-      VStack(spacing: 8) {
-        NookHeader(eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés")
+    NookScreenContainer(eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés") {
+      Group {
         if vm.loading {
           NookSkeletonScreen(layout: .list(rows: 4))
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
-          CoffeeDatesList(dates: vm.dates, matches: vm.matches) { id, status in
-            Task {
-              do {
-                _ = try await app.repository.updateDate(id, status: status)
-                await vm.load(app.repository)
-              } catch { vm.error = error.localizedDescription }
-            }
+          CoffeeDatesList(dates: vm.dates, matches: vm.matches, updating: vm.updating) { id, status in
+            Task { await vm.transition(id, to: status, repo: app.repository) }
           }
         }
-      }.padding(.top, 8).padding(.bottom, 82)
+      }
     }.task {
       await vm.load(app.repository)
       while !Task.isCancelled {
@@ -54,6 +57,9 @@ struct ChatsView: View {
         await vm.load(app.repository, showLoader: false)
       }
     }.refreshable { await vm.load(app.repository) }
+      .onChange(of: app.coffeeDataRevision) { _, _ in
+        Task { await vm.load(app.repository, showLoader: false) }
+      }
   }
   private var connections: some View {
     ScrollView {
@@ -147,6 +153,8 @@ struct ChatDetail: View {
   @State private var text = ""
   @State private var proposing = false
   @State private var error: String?
+  @State private var initialLoading = true
+  @State private var updatingDates: Set<UUID> = []
   @FocusState private var focused: Bool
   var body: some View {
     ZStack {
@@ -155,7 +163,9 @@ struct ChatDetail: View {
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(spacing: 10) {
-              if messages.isEmpty {
+              if initialLoading {
+                NookSkeletonScreen(layout: .list(rows: 3)).frame(height: 360)
+              } else if messages.isEmpty {
                 Text("Rompe el hielo con un café ☕").font(.callout.weight(.semibold))
                   .foregroundStyle(NookColors.warmGray).padding(.top, 30)
               }
@@ -171,9 +181,12 @@ struct ChatDetail: View {
               ForEach(dates.filter { $0.matchId == conversation.matchId }) { date in
                 NookCoffeeProposalBubble(date: date, canAccept: date.receiverId == app.me?.id) {
                   Task {
+                    guard updatingDates.insert(date.id).inserted else { return }
+                    defer { updatingDates.remove(date.id) }
                     do {
                       _ = try await app.repository.updateDate(date.id, status: .accepted)
                       dates = try await app.repository.dates()
+                      app.coffeeProposalPersisted()
                       NookSoundManager.shared.play(.confirmed)
                     } catch { self.error = error.localizedDescription }
                   }
@@ -220,8 +233,12 @@ struct ChatDetail: View {
         withAnimation(NookMotion.spring) { messages = refreshedMessages }
       }
       dates = refreshedDates
+      initialLoading = false
       if !silent { error = nil }
-    } catch { if !silent { self.error = error.localizedDescription } }
+    } catch {
+      initialLoading = false
+      if !silent { self.error = error.localizedDescription }
+    }
   }
   private var chatStatus: (String, Color) {
     let related = dates.filter { $0.matchId == conversation.matchId }
@@ -251,8 +268,7 @@ struct ChatDetail: View {
       }.scaleEffect(text.isEmpty ? 0.9 : 1).animation(NookMotion.spring, value: text.isEmpty)
       .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
-    }.padding(.horizontal, 12).padding(.top, 8)
-      .padding(.bottom, focused ? 7 : 66)
+    }.padding(.horizontal, 12).padding(.vertical, 8)
       .background(.ultraThinMaterial)
       .animation(NookMotion.fast, value: focused)
   }
@@ -350,12 +366,14 @@ struct ChatCoffeePicker: View {
 }
 
 struct CoffeeDatesList: View {
+  @EnvironmentObject var app: AppSession
   private enum Filter: String, CaseIterable, Identifiable {
     case pending = "Pendientes", upcoming = "Próximos", all = "Todos", finished = "Finalizadas"
     var id: String { rawValue }
   }
   let dates: [CoffeeDate]
   let matches: [Match]
+  let updating: Set<UUID>
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var filter: Filter = .all
   private var upcoming: [CoffeeDate] { dates.filter { $0.status == .accepted } }
@@ -384,13 +402,14 @@ struct CoffeeDatesList: View {
       }.scrollIndicators(.hidden)
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 14) {
-          if filteredDates.isEmpty {
+          if filteredDates.isEmpty && (filter != .all || unplannedMatches.isEmpty) {
             NookEmptyState(icon: emptyIcon, title: emptyTitle, text: emptyText)
               .frame(maxWidth: .infinity)
           } else if filter == .all {
             section("CITAS CONFIRMADAS", upcoming)
             section("ESPERANDO RESPUESTA", pending)
             section("FINALIZADAS", past)
+            matchSection
           } else {
             section(filteredSectionTitle, filteredDates)
           }
@@ -407,11 +426,41 @@ struct CoffeeDatesList: View {
       }
     }
   }
+  @ViewBuilder private var matchSection: some View {
+    if !unplannedMatches.isEmpty {
+      Text("MATCHES SIN PROPUESTA").font(.system(size: 11, weight: .bold, design: .rounded))
+        .tracking(1.6).foregroundStyle(NookColors.mocha).padding(.top, 12).padding(.leading, 4)
+      ForEach(unplannedMatches) { match in
+        Button {
+          app.selectedCoffeeMatch = match.id
+          app.placesReloadID = UUID()
+          app.selectedTab = 1
+        } label: {
+          HStack(spacing: 12) {
+            ProfileImage(url: match.person.photos.first?.url, name: match.person.name)
+              .frame(width: 52, height: 52).clipShape(Circle())
+            VStack(alignment: .leading, spacing: 4) {
+              Text(match.person.name).font(.headline)
+              Text("Elegid una cafetería y proponed un día")
+                .font(.caption).foregroundStyle(NookColors.warmGray)
+            }
+            Spacer()
+            Image(systemName: "arrow.right").font(.caption.bold())
+          }.foregroundStyle(NookColors.espresso).padding(12).minimalListCard()
+        }.buttonStyle(.plain)
+      }
+    }
+  }
   private func ticket(_ date: CoffeeDate) -> some View {
     GeometryReader { proxy in
-      CoffeeTicket(date: date, person: matches.first(where: { $0.id == date.matchId })?.person, action: action)
+      CoffeeTicket(
+        date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
+        isUpdating: updating.contains(date.id), action: action)
         .frame(width: proxy.size.width)
     }.frame(height: 242)
+  }
+  private var unplannedMatches: [Match] {
+    matches.filter { match in !dates.contains(where: { $0.matchId == match.id && ![.declined, .cancelled, .expired, .completed].contains($0.status) }) }
   }
   private var filteredDates: [CoffeeDate] {
     switch filter {
@@ -438,6 +487,7 @@ struct CoffeeTicket: View {
   @EnvironmentObject var app: AppSession
   let date: CoffeeDate
   let person: DiscoverProfile?
+  let isUpdating: Bool
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var safe = false
   @State private var calendarMessage: String?
@@ -550,7 +600,7 @@ struct CoffeeTicket: View {
   private var statusText: String {
     switch date.status {
     case .accepted: "¡CITA CONFIRMADA!"
-    case .pending: "ESPERANDO"
+    case .pending: date.receiverId == app.me?.id ? "TE PROPONEN UN CAFÉ" : "ESPERANDO"
     case .counterProposed: "QUIERE HABLAR"
     case .completed: "COMPLETADO"
     default: statusCopy.uppercased()
@@ -568,8 +618,8 @@ struct CoffeeTicket: View {
     if date.status == .pending {
       if date.receiverId == app.me?.id {
         HStack {
-          Button("Aceptar") { safe = true }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(NookColors.espresso)
-          Button("Rechazar") { action(date.id, .declined) }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.78))
+          Button("Aceptar") { guard !isUpdating else { return }; safe = true }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(NookColors.espresso)
+          Button("Rechazar") { guard !isUpdating else { return }; action(date.id, .declined) }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.78))
         }
       } else {
         Text("Esperando respuesta").font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.8)
@@ -582,11 +632,11 @@ struct CoffeeTicket: View {
             .frame(maxWidth: .infinity).frame(height: 42)
             .foregroundStyle(NookColors.inverseText).background(NookColors.espresso, in: Capsule())
         }
-        Button { action(date.id, .completed) } label: {
+        Button { guard !isUpdating else { return }; action(date.id, .completed) } label: {
           Image(systemName: "checkmark").frame(width: 42, height: 42)
             .background(.ultraThinMaterial, in: Circle())
         }.accessibilityLabel("Completar encuentro")
-      }.buttonStyle(.plain)
+      }.buttonStyle(.plain).disabled(isUpdating)
     } else if date.status == .counterProposed {
       Text("\(person?.name ?? "La otra persona") quiere chatear contigo antes")
         .font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.86)
