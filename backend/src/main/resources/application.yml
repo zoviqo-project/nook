@@ -10,6 +10,9 @@ spring:
     hibernate.ddl-auto: validate
     properties.hibernate.jdbc.time_zone: UTC
   flyway.enabled: true
+  servlet.multipart:
+    max-file-size: 8MB
+    max-request-size: 9MB
 server.port: ${PORT:8080}
 management.endpoints.web.exposure.include: health,info
 management.endpoint.health.probes.enabled: true

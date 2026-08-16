@@ -19,7 +19,7 @@ public class LocalMediaStorageAdapter implements MediaStoragePort {
   }
 
   @Override public StoredMedia storeUserPhoto(UUID id,InputStream input,String contentType) {
-    String extension=switch(contentType){case "image/png"->"png";case "image/heic"->"heic";default->"jpg";};
+    String extension=switch(contentType){case "image/png"->"png";case "image/heic"->"heic";case "image/heif"->"heif";default->"jpg";};
     String filename=id+"."+extension;
     try {
       Files.createDirectories(root);
