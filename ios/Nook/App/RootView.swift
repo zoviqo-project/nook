@@ -817,7 +817,7 @@ struct OnboardingView: View {
 struct MainTabView: View {
   @EnvironmentObject var app: AppSession
   var body: some View {
-    ZStack {
+    VStack(spacing: 0) {
       Group {
         switch app.selectedTab {
         case 0: NavigationStack { DiscoverView() }
@@ -825,9 +825,11 @@ struct MainTabView: View {
         case 2: NavigationStack { ChatsView() }
         default: NavigationStack { ProfileView() }
         }
-      }.id(app.selectedTab).transition(.opacity.combined(with: .scale(scale: 0.985)))
-    }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+      }
+      .id(app.selectedTab)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .clipped()
+      .transition(.opacity.combined(with: .scale(scale: 0.985)))
       if !app.tabBarHidden {
         NookFloatingTabBar(selection: $app.selectedTab)
           .transition(.move(edge: .bottom).combined(with: .opacity))
