@@ -21,16 +21,6 @@ services:
         fromDatabase: {name: nook-postgres, property: password}
       - key: JWT_SECRET
         generateValue: true
-      - key: GOOGLE_PLACES_API_KEY
-        sync: false
-      - key: APPLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: FACEBOOK_APP_ID
-        sync: false
-      - key: FACEBOOK_APP_SECRET
-        sync: false
 databases:
   - name: nook-postgres
     plan: free
