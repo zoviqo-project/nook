@@ -905,10 +905,11 @@ struct FloatingTabBar: View {
     .padding(.horizontal, 26).padding(.top, 7)
     .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
     .background {
-      LinearGradient(
-        colors: [.clear, NookColors.cream.opacity(0.72), NookColors.warmBlack.opacity(0.98)],
-        startPoint: .top, endPoint: .bottom)
+      NookColors.warmBlack
         .ignoresSafeArea(edges: .bottom)
+    }
+    .overlay(alignment: .top) {
+      Rectangle().fill(NookColors.espresso.opacity(0.09)).frame(height: 1)
     }
     .animation(NookMotion.fast, value: selection)
     .task(id: selection) { await refreshNotifications() }
