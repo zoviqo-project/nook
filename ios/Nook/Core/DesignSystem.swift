@@ -1,0 +1,456 @@
+import AudioToolbox
+import SwiftUI
+import UIKit
+import Vision
+
+enum NookColors {
+  static let cream = Color(red: 0.105, green: 0.057, blue: 0.035)
+  static let oat = Color(red: 0.78, green: 0.65, blue: 0.50)
+  static let latte = Color(red: 0.72, green: 0.54, blue: 0.37)
+  static let mocha = Color(red: 0.89, green: 0.67, blue: 0.43)
+  static let espresso = Color(red: 0.96, green: 0.90, blue: 0.80)
+  static let warmBlack = Color(red: 0.075, green: 0.035, blue: 0.021)
+  static let offWhite = Color(red: 0.17, green: 0.095, blue: 0.058)
+  static let inverseText = Color(red: 0.10, green: 0.052, blue: 0.031)
+  static let warmGray = Color(red: 0.73, green: 0.65, blue: 0.57)
+  static let success = Color(red: 0.31, green: 0.48, blue: 0.36)
+  static let amber = Color(red: 0.79, green: 0.47, blue: 0.22)
+}
+
+extension Color {
+  static let nookCream = NookColors.cream
+  static let nookInk = NookColors.espresso
+  static let nookCoffee = NookColors.espresso
+  static let nookCoral = NookColors.mocha
+  static let nookMint = NookColors.oat
+}
+
+enum NookSpacing {
+  static let xs: CGFloat = 6
+  static let sm: CGFloat = 10
+  static let md: CGFloat = 16
+  static let lg: CGFloat = 24
+  static let xl: CGFloat = 34
+  static let xxl: CGFloat = 48
+}
+enum NookRadius {
+  static let small: CGFloat = 14
+  static let medium: CGFloat = 22
+  static let large: CGFloat = 28
+  static let hero: CGFloat = 34
+  static let pill: CGFloat = 999
+}
+enum NookMotion {
+  static let fast = Animation.easeOut(duration: 0.18)
+  static let normal = Animation.easeInOut(duration: 0.34)
+  static let slow = Animation.easeInOut(duration: 0.62)
+  static let spring = Animation.spring(response: 0.48, dampingFraction: 0.78)
+  static let playful = Animation.spring(response: 0.55, dampingFraction: 0.62)
+}
+
+enum NookShadow {
+  static let subtle = Color.black.opacity(0.06)
+  static let card = NookColors.warmBlack.opacity(0.11)
+  static let floating = NookColors.warmBlack.opacity(0.19)
+}
+
+enum NookTypography {
+  static func display(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold) }
+  static func displayItalic(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold).italic() }
+  static let hero = display(44)
+  static let title = display(34)
+  static let subtitle = Font.system(size: 20, weight: .semibold, design: .rounded)
+  static let body = Font.system(size: 17, weight: .medium, design: .rounded)
+  static let caption = Font.system(size: 12, weight: .bold, design: .rounded)
+}
+
+struct NookBackground: View {
+  var body: some View {
+    ZStack {
+      LinearGradient(
+        colors: [NookColors.cream, Color(red: 0.075, green: 0.034, blue: 0.019)],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+      ).ignoresSafeArea()
+      RadialGradient(
+        colors: [NookColors.latte.opacity(0.16), .clear],
+        center: .topTrailing, startRadius: 10, endRadius: 420
+      ).ignoresSafeArea()
+    }
+  }
+}
+
+/// A quieter, more ceremonial coffee surface for focused screens such as filters and settings.
+struct NookRegalCoffeeBackground: View {
+  var body: some View {
+    ZStack {
+      LinearGradient(
+        colors: [
+          Color(red: 0.16, green: 0.075, blue: 0.042),
+          Color(red: 0.075, green: 0.031, blue: 0.018),
+          Color(red: 0.045, green: 0.019, blue: 0.012)
+        ], startPoint: .topLeading, endPoint: .bottomTrailing
+      ).ignoresSafeArea()
+      RadialGradient(
+        colors: [NookColors.mocha.opacity(0.15), .clear], center: .topTrailing,
+        startRadius: 4, endRadius: 360
+      ).ignoresSafeArea()
+      Circle().fill(NookColors.latte.opacity(0.055)).frame(width: 330, height: 330)
+        .blur(radius: 2).offset(x: -150, y: 330)
+    }
+  }
+}
+
+struct NookButton: View {
+  enum Kind { case primary, secondary, quiet }
+  let title: String
+  var icon: String?
+  var secondary = false
+  var kind: Kind?
+  let action: () -> Void
+  @State private var pressed = false
+  private var style: Kind { kind ?? (secondary ? .secondary : .primary) }
+  var body: some View {
+    Button {
+      Haptics.selection()
+      action()
+    } label: {
+      HStack(spacing: 10) {
+        if let icon { Image(systemName: icon) }
+        Text(title).font(.system(size: 17, weight: .bold, design: .rounded))
+      }
+      .frame(maxWidth: .infinity).frame(minHeight: 54)
+      .foregroundStyle(style == .primary ? NookColors.inverseText : NookColors.espresso)
+      .background(backgroundColor, in: Capsule())
+      .overlay(
+        Capsule().stroke(NookColors.latte.opacity(style == .secondary ? 0.35 : 0), lineWidth: 1)
+      )
+      .shadow(
+        color: style == .primary ? NookColors.espresso.opacity(0.22) : .clear, radius: 18, y: 9
+      )
+      .scaleEffect(pressed ? 0.97 : 1)
+    }.buttonStyle(PressTrackingStyle(isPressed: $pressed))
+  }
+  private var backgroundColor: Color {
+    style == .primary
+      ? NookColors.espresso : (style == .secondary ? NookColors.offWhite.opacity(0.9) : .clear)
+  }
+}
+
+struct NookHeader: View {
+  let eyebrow: String
+  let title: String
+  var actionIcon: String? = nil
+  var actionLabel: String = "Acción"
+  var action: (() -> Void)? = nil
+
+  var body: some View {
+    HStack(spacing: 14) {
+      HStack(spacing: 10) {
+        NookCoffeeLogo(size: 32, animated: false)
+        VStack(alignment: .leading, spacing: 1) {
+          Text(eyebrow.uppercased()).font(.system(size: 10, weight: .bold, design: .rounded))
+            .tracking(1.5).foregroundStyle(NookColors.mocha)
+          Text(title).font(NookTypography.display(27))
+            .tracking(-0.5).lineLimit(1).minimumScaleFactor(0.78)
+        }
+      }
+      Spacer(minLength: 8)
+      if let actionIcon, let action {
+        Button(action: action) {
+          Image(systemName: actionIcon).font(.system(size: 16, weight: .bold))
+            .frame(width: 42, height: 42).background(.thinMaterial, in: Circle())
+        }.foregroundStyle(NookColors.espresso).accessibilityLabel(actionLabel)
+      }
+    }.padding(.horizontal, 18).padding(.vertical, 6)
+  }
+}
+
+private struct PressTrackingStyle: ButtonStyle {
+  @Binding var isPressed: Bool
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label.onChange(of: configuration.isPressed) { _, value in
+      withAnimation(NookMotion.fast) { isPressed = value }
+    }
+  }
+}
+
+struct NookTextField: View {
+  let label: String
+  let icon: String
+  @Binding var text: String
+  var secure = false
+  var keyboard: UIKeyboardType = .default
+  @FocusState private var focused: Bool
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text(label.uppercased()).font(.system(size: 12, weight: .bold, design: .rounded)).tracking(
+        1.2
+      ).foregroundStyle(focused ? NookColors.mocha : .secondary)
+      HStack(spacing: 14) {
+        Image(systemName: icon).font(.title3).foregroundStyle(
+          focused ? NookColors.espresso : NookColors.warmGray)
+        Group {
+          if secure {
+            SecureField(label, text: $text)
+          } else {
+            TextField(label, text: $text).keyboardType(keyboard)
+          }
+        }.font(.system(size: 19, weight: .semibold, design: .rounded)).textInputAutocapitalization(
+          keyboard == .emailAddress ? .never : .sentences
+        ).focused($focused)
+      }.padding(.horizontal, 20).frame(minHeight: 66).background(
+        NookColors.offWhite.opacity(0.92),
+        in: RoundedRectangle(cornerRadius: NookRadius.medium, style: .continuous)
+      ).overlay(
+        RoundedRectangle(cornerRadius: NookRadius.medium).stroke(
+          focused ? NookColors.mocha : NookColors.oat.opacity(0.55), lineWidth: focused ? 2 : 1)
+      ).shadow(color: focused ? NookColors.espresso.opacity(0.1) : .clear, radius: 12, y: 5)
+        .animation(NookMotion.fast, value: focused)
+    }
+  }
+}
+
+struct NookChip: View {
+  let title: String
+  let selected: Bool
+  let action: () -> Void
+  var body: some View {
+    Button {
+      Haptics.selection()
+      withAnimation(NookMotion.playful) { action() }
+    } label: {
+      Text(title).font(.system(size: 16, weight: .bold, design: .rounded)).padding(.horizontal, 18)
+        .frame(minHeight: 50).foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso)
+        .background(
+          selected ? NookColors.espresso : NookColors.offWhite.opacity(0.9), in: Capsule()
+        ).overlay(Capsule().stroke(NookColors.latte.opacity(0.4))).scaleEffect(selected ? 1.04 : 1)
+    }.buttonStyle(.plain)
+  }
+}
+
+struct NookCard<Content: View>: View {
+  let content: Content
+  init(@ViewBuilder content: () -> Content) { self.content = content() }
+  var body: some View {
+    content.padding(NookSpacing.lg).background(
+      NookColors.offWhite.opacity(0.94),
+      in: RoundedRectangle(cornerRadius: NookRadius.large, style: .continuous)
+    ).shadow(color: NookColors.espresso.opacity(0.1), radius: 24, y: 12)
+  }
+}
+
+struct CoffeeLogo: View {
+  var size: CGFloat = 70
+  var body: some View {
+    NookCoffeeLogo(size: size)
+  }
+}
+
+struct NookCoffeeLogo: View {
+  var size: CGFloat = 76
+  var animated = true
+  @State private var appeared = false
+  var body: some View {
+    Image("NookBrandMark")
+      .resizable().scaledToFit().frame(width: size, height: size)
+      .clipShape(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
+      .scaleEffect(animated ? (appeared ? 1 : 0.9) : 1)
+      .opacity(animated ? (appeared ? 1 : 0) : 1)
+      .shadow(color: NookColors.warmBlack.opacity(size > 48 ? 0.16 : 0), radius: 14, y: 7)
+      .onAppear {
+        guard animated else { return }
+        withAnimation(NookMotion.spring) { appeared = true }
+      }
+      .accessibilityLabel("Nook")
+    }
+}
+
+struct NookProgressBar: View {
+  let step: Int
+  let total: Int
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .leading) {
+        Capsule().fill(NookColors.oat.opacity(0.32))
+        Capsule().fill(NookColors.espresso).frame(width: proxy.size.width * CGFloat(step + 1) / CGFloat(total))
+      }
+    }.frame(height: 4).animation(NookMotion.spring, value: step)
+  }
+}
+
+typealias NookPrimaryButton = NookButton
+typealias NookLargeTextField = NookTextField
+typealias NookAnswerChip = NookChip
+
+struct NookChatBubble: View {
+  let text: String
+  let outgoing: Bool
+  var body: some View {
+    HStack {
+      if outgoing { Spacer(minLength: 56) }
+      Text(text).font(NookTypography.body).foregroundStyle(outgoing ? NookColors.inverseText : NookColors.espresso)
+        .padding(.horizontal, 17).padding(.vertical, 12)
+        .background(outgoing ? NookColors.espresso : NookColors.offWhite, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+      if !outgoing { Spacer(minLength: 56) }
+    }
+  }
+}
+
+struct NookSystemMessageBubble: View {
+  let title: String
+  let detail: String?
+  var body: some View {
+    VStack(spacing: 7) {
+      Image(systemName: "cup.and.saucer.fill").font(.title3).foregroundStyle(NookColors.mocha)
+      Text(title).font(.system(size: 13, weight: .black, design: .rounded)).tracking(0.7)
+        .multilineTextAlignment(.center)
+      if let detail { Text(detail).font(.caption).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center) }
+    }.frame(maxWidth: .infinity).padding(15)
+      .background(NookColors.oat.opacity(0.22), in: RoundedRectangle(cornerRadius: NookRadius.medium))
+      .overlay(RoundedRectangle(cornerRadius: NookRadius.medium).stroke(NookColors.oat.opacity(0.5)))
+      .padding(.vertical, 6)
+  }
+}
+
+struct NookVibeBadge: View {
+  let vibes: [String]
+  private var copy: (String, String) {
+    switch vibes.first {
+    case "CALM": ("😌 Tranquilo", "Perfecto para hablar")
+    case "LIVELY": ("🎵 Animado", "Más energía y ruido")
+    case "SOCIAL": ("🙂 Con ambiente", "Movimiento, pero se puede conversar")
+    default: ("Vibe sin valorar", "La comunidad aún no lo ha valorado")
+    }
+  }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(copy.0).font(.system(size: 15, weight: .bold, design: .rounded))
+      Text(copy.1).font(.caption)
+    }.foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 10).background(
+      .ultraThinMaterial.opacity(0.82), in: Capsule())
+  }
+}
+
+extension View {
+  func nookFloatingShadow() -> some View {
+    shadow(color: NookColors.espresso.opacity(0.18), radius: 25, y: 14)
+  }
+}
+
+@MainActor private final class NookImageStore {
+  static let shared = NookImageStore()
+  private let cache = NSCache<NSURL, UIImage>()
+  func image(for url: URL) -> UIImage? { cache.object(forKey: url as NSURL) }
+  func insert(_ image: UIImage, for url: URL) { cache.setObject(image, forKey: url as NSURL) }
+}
+
+struct NookRemoteImage<Placeholder: View>: View {
+  let url: URL?
+  let contentMode: ContentMode
+  let alignment: Alignment
+  let faceAware: Bool
+  @ViewBuilder let placeholder: () -> Placeholder
+  @State private var image: UIImage?
+  @State private var detectedAlignment: Alignment?
+
+  init(
+    url: URL?, contentMode: ContentMode = .fill, alignment: Alignment = .center,
+    faceAware: Bool = false,
+    @ViewBuilder placeholder: @escaping () -> Placeholder
+  ) {
+    self.url = url
+    self.contentMode = contentMode
+    self.alignment = alignment
+    self.faceAware = faceAware
+    self.placeholder = placeholder
+  }
+
+  var body: some View {
+    Group {
+      if let image {
+        Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: detectedAlignment ?? alignment)
+          .transition(.opacity.animation(.easeOut(duration: 0.22)))
+      } else { placeholder() }
+    }.task(id: url) { await load() }
+  }
+
+  private func load() async {
+    guard let url else { return }
+    if let cached = NookImageStore.shared.image(for: url) {
+      if faceAware { detectedAlignment = faceAlignment(in: cached) }
+      image = cached
+      return
+    }
+    do {
+      var request = URLRequest(url: url)
+      request.cachePolicy = .returnCacheDataElseLoad
+      let (data, response) = try await URLSession.shared.data(for: request)
+      guard !Task.isCancelled, (response as? HTTPURLResponse)?.statusCode ?? 200 < 300,
+        let value = UIImage(data: data) else { return }
+      NookImageStore.shared.insert(value, for: url)
+      if faceAware { detectedAlignment = faceAlignment(in: value) }
+      withAnimation(NookMotion.fast) { image = value }
+    } catch is CancellationError {} catch {}
+  }
+
+  private func faceAlignment(in image: UIImage) -> Alignment? {
+    guard let cgImage = image.cgImage else { return nil }
+    let request = VNDetectFaceRectanglesRequest()
+    let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up)
+    guard (try? handler.perform([request])) != nil,
+      let face = request.results?.max(by: {
+        $0.boundingBox.width * $0.boundingBox.height < $1.boundingBox.width * $1.boundingBox.height
+      }) else { return nil }
+    let centerY = face.boundingBox.midY
+    if centerY > 0.62 { return .top }
+    if centerY < 0.38 { return .bottom }
+    return .center
+  }
+}
+
+struct NookStatusBadge: View {
+  let icon: String
+  let text: String
+  var color: Color = NookColors.mocha
+  var body: some View {
+    Label(text, systemImage: icon).font(.system(size: 12, weight: .bold, design: .rounded))
+      .foregroundStyle(color).padding(.horizontal, 11).padding(.vertical, 7)
+      .background(color.opacity(0.11), in: Capsule())
+  }
+}
+
+struct NookErrorView: View {
+  let message: String
+  let retry: () -> Void
+  var body: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "wifi.exclamationmark").font(.system(size: 34)).foregroundStyle(NookColors.mocha)
+      Text("Ese café se nos ha resistido").font(.title3.bold())
+      Text(message).font(.callout).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center)
+      Button("Intentarlo otra vez", action: retry).font(.headline).foregroundStyle(NookColors.espresso)
+    }.padding(26).frame(maxWidth: .infinity)
+  }
+}
+
+@MainActor final class NookSoundManager {
+  static let shared = NookSoundManager()
+  var enabled: Bool {
+    get { UserDefaults.standard.object(forKey: "coffeeSoundsEnabled") as? Bool ?? true }
+    set { UserDefaults.standard.set(newValue, forKey: "coffeeSoundsEnabled") }
+  }
+  enum Cue { case intro, coffeeLike, match, searching, proposal, confirmed }
+  func play(_ cue: Cue) {
+    guard enabled else { return }
+    let sound: SystemSoundID
+    switch cue {
+    case .intro: sound = 1104
+    case .coffeeLike: sound = 1105
+    case .match: sound = 1111
+    case .searching: sound = 1103
+    case .proposal: sound = 1109
+    case .confirmed: sound = 1110
+    }
+    AudioServicesPlaySystemSound(sound)
+  }
+}

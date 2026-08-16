@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: nook-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_HOST
+        fromDatabase: {name: nook-postgres, property: host}
+      - key: DB_PORT
+        fromDatabase: {name: nook-postgres, property: port}
+      - key: DB_NAME
+        fromDatabase: {name: nook-postgres, property: database}
+      - key: DB_USER
+        fromDatabase: {name: nook-postgres, property: user}
+      - key: DB_PASSWORD
+        fromDatabase: {name: nook-postgres, property: password}
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: APPLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+databases:
+  - name: nook-postgres
+    databaseName: nook
+    user: nook

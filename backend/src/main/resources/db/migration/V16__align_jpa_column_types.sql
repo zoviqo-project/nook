@@ -1,0 +1,1 @@
+ALTER TABLE user_photos ALTER COLUMN position TYPE INTEGER;

@@ -1,0 +1,5 @@
+springdoc:
+  api-docs.enabled: true
+  swagger-ui.enabled: true
+management.endpoint.health.show-details: when_authorized
+logging.level.com.nook: DEBUG

@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+.vscode/
+target/
+backend/target/
+node_modules/
+.next/
+coverage/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+.env
+*.log

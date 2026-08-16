@@ -1,0 +1,10 @@
+springdoc:
+  api-docs.enabled: false
+  swagger-ui.enabled: false
+management.endpoint.health.show-details: never
+server:
+  forward-headers-strategy: framework
+  shutdown: graceful
+logging.level:
+  root: INFO
+  com.nook: INFO

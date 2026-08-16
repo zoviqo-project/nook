@@ -1,0 +1,863 @@
+import PhotosUI
+import SwiftUI
+import CoreLocation
+
+struct RootView: View {
+  @EnvironmentObject var app: AppSession
+  @Environment(\.scenePhase) private var scenePhase
+  @State private var resumeIntro = false
+  @State private var hasBeenActive = false
+  @State private var backgroundedAt: Date?
+  var body: some View {
+    ZStack {
+      NookBackground()
+      content.transition(.opacity)
+      if resumeIntro && app.stage != .loading {
+        NookIntroView(compact: true).zIndex(20)
+          .transition(.opacity.combined(with: .scale(scale: 1.06)))
+      }
+    }.animation(.easeInOut(duration: 0.56), value: app.stage)
+      .animation(.easeInOut(duration: 0.42), value: resumeIntro)
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .background {
+          backgroundedAt = Date()
+          return
+        }
+        guard phase == .active else { return }
+        let wasAway = backgroundedAt.map { Date().timeIntervalSince($0) > 4 } ?? false
+        if hasBeenActive && wasAway && app.stage != .loading {
+          resumeIntro = true
+          Task {
+            try? await Task.sleep(for: .milliseconds(1_250))
+            withAnimation(.easeInOut(duration: 0.48)) { resumeIntro = false }
+          }
+        }
+        backgroundedAt = nil
+        hasBeenActive = true
+      }
+  }
+  @ViewBuilder private var content: some View {
+    #if DEBUG
+      if app.stage == .app, let route = ProcessInfo.processInfo.environment["NOOK_PREVIEW_SCREEN"] {
+        ReviewRouteView(route: route)
+      } else {
+        stageContent
+      }
+    #else
+      stageContent
+    #endif
+  }
+  @ViewBuilder private var stageContent: some View {
+    switch app.stage {
+    case .loading: NookIntroView()
+    case .welcome: WelcomeView()
+    case .registration: RegistrationFlow()
+    case .login: LoginView()
+    case .onboarding: OnboardingView()
+    case .app: MainTabView()
+    }
+  }
+}
+
+#if DEBUG
+struct ReviewRouteView: View {
+  @EnvironmentObject var app: AppSession
+  let route: String
+  @State private var matches: [Match] = []
+  @State private var shops: [CoffeeShop] = []
+  @State private var chats: [Conversation] = []
+  @Namespace private var namespace
+  var body: some View {
+    NavigationStack {
+      Group {
+        if route == "person", let person = matches.first?.person { PersonProfileView(person: person) }
+        else if route == "shop", let shop = shops.first { CoffeeShopDetail(shop: shop, matches: matches, namespace: namespace) }
+        else if route == "proposal", let shop = shops.first { ProposalSheet(shop: shop, matches: matches) }
+        else if route == "chat", let chat = chats.first { ChatDetail(conversation: chat) }
+        else if route == "settings" { SettingsView() }
+        else { NookLoadingView() }
+      }
+    }.task {
+      async let m = try? app.repository.matches()
+      async let s = try? app.repository.shops(latitude: 41.3874, longitude: 2.1686)
+      async let c = try? app.repository.conversations()
+      matches = await m ?? []; shops = await s ?? []; chats = await c ?? []
+    }
+  }
+}
+#endif
+
+struct NookIntroView: View {
+  var compact = false
+  @State private var appeared = false
+  @State private var beansOpen = false
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack {
+        LinearGradient(
+          colors: [NookColors.cream, NookColors.warmBlack], startPoint: .topLeading,
+          endPoint: .bottomTrailing).ignoresSafeArea()
+        RadialGradient(
+          colors: [NookColors.latte.opacity(0.14), .clear], center: .center,
+          startRadius: 10, endRadius: 260).ignoresSafeArea()
+
+        ZStack {
+          ForEach(0..<7, id: \.self) { index in
+            CoffeeBean()
+              .frame(width: 9, height: 14)
+              .rotationEffect(.degrees(Double(index * 51) + (beansOpen ? 32 : 0)))
+              .offset(
+                x: beansOpen ? cos(Double(index) * .pi / 3.5) * 112 : 0,
+                y: beansOpen ? sin(Double(index) * .pi / 3.5) * 112 : 0)
+              .opacity(beansOpen ? 0.34 : 0)
+              .animation(
+                .spring(response: 0.82, dampingFraction: 0.82).delay(Double(index) * 0.035),
+                value: beansOpen)
+          }
+          VStack(spacing: 15) {
+            NookCoffeeLogo(size: 84, animated: true)
+            Text("NOOK").font(.system(size: 29, weight: .bold, design: .rounded)).tracking(6)
+          }.foregroundStyle(NookColors.espresso)
+        }
+        .scaleEffect(appeared ? 1 : 0.88)
+        .opacity(appeared ? 1 : 0)
+        .frame(width: proxy.size.width, height: proxy.size.height)
+      }
+    }.onAppear {
+      withAnimation(.spring(response: compact ? 0.48 : 0.68, dampingFraction: 0.82)) {
+        appeared = true
+      }
+      withAnimation(.easeOut(duration: compact ? 0.62 : 0.92).delay(0.12)) {
+        beansOpen = true
+      }
+      if !compact { NookSoundManager.shared.play(.intro) }
+    }
+  }
+}
+
+struct TopDownCoffeeCup: View {
+  let foamProgress: CGFloat
+  var body: some View {
+    ZStack {
+      Circle().fill(NookColors.oat.opacity(0.52)).frame(width: 206, height: 206)
+        .shadow(color: NookColors.warmBlack.opacity(0.16), radius: 22, y: 12)
+      Circle().fill(NookColors.offWhite).frame(width: 170, height: 170)
+        .overlay { Circle().stroke(NookColors.oat.opacity(0.55), lineWidth: 2) }
+      Circle().fill(
+        RadialGradient(colors: [NookColors.mocha, NookColors.warmBlack], center: .topLeading, startRadius: 4, endRadius: 85)
+      ).frame(width: 144, height: 144)
+      Circle().trim(from: 0.04, to: 0.32).stroke(NookColors.offWhite, lineWidth: 16)
+        .frame(width: 52, height: 52).offset(x: 94).rotationEffect(.degrees(-18))
+        .shadow(color: NookColors.warmBlack.opacity(0.1), radius: 4, y: 2)
+      CoffeeFoamSpiral(progress: foamProgress)
+        .stroke(NookColors.cream.opacity(0.94), style: StrokeStyle(lineWidth: 7, lineCap: .round))
+        .frame(width: 105, height: 105).rotationEffect(.degrees(foamProgress * 245))
+      Circle().fill(NookColors.cream.opacity(0.9)).frame(width: 11, height: 11)
+        .scaleEffect(foamProgress).opacity(foamProgress)
+    }
+  }
+}
+
+struct CoffeeFoamSpiral: Shape {
+  var progress: CGFloat
+  var animatableData: CGFloat {
+    get { progress }
+    set { progress = newValue }
+  }
+  func path(in rect: CGRect) -> Path {
+    var path = Path()
+    let center = CGPoint(x: rect.midX, y: rect.midY)
+    let turns: CGFloat = 2.7
+    let steps = 180
+    for index in 0...steps {
+      let fraction = CGFloat(index) / CGFloat(steps)
+      guard fraction <= progress else { break }
+      let angle = fraction * turns * .pi * 2
+      let radius = 7 + fraction * min(rect.width, rect.height) * 0.44
+      let point = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
+      if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
+    }
+    return path
+  }
+}
+
+struct NookLoadingView: View {
+  @State private var floating = false
+  var body: some View {
+    VStack(spacing: 18) {
+      NookCoffeeLogo(size: 62).offset(y: floating ? -4 : 4)
+      Text("Preparando el café…").font(.callout.weight(.semibold)).foregroundStyle(NookColors.warmGray)
+    }.onAppear { withAnimation(.easeInOut(duration: 1.1).repeatForever()) { floating = true } }
+  }
+}
+
+struct WelcomeView: View {
+  @EnvironmentObject var app: AppSession
+  @State private var phase = 0
+  @State private var quickAccess = false
+  var body: some View {
+    ZStack(alignment: .bottom) {
+      NookWelcomeGallery(active: phase >= 1)
+      LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.18), NookColors.warmBlack.opacity(0.96)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+      VStack(alignment: .leading, spacing: 18) {
+        HStack(spacing: 10) {
+          NookCoffeeLogo(size: 46, animated: false)
+          Text("NOOK").font(.system(size: 24, weight: .black, design: .rounded)).tracking(2)
+        }.opacity(phase >= 2 ? 1 : 0)
+        VStack(alignment: .leading, spacing: 8) {
+          Text("Todo empieza\npor un café.").font(NookTypography.display(51))
+            .tracking(-1.7).lineSpacing(-3)
+          Text("Conoce a alguien. Elige un sitio. Tomad un café.")
+            .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(.white.opacity(0.76))
+        }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
+        NookButton(title: "EMPEZAR", icon: "arrow.right") { quickAccess = true }
+          .opacity(phase >= 5 ? 1 : 0)
+          .offset(y: phase >= 5 ? 0 : 42)
+          .scaleEffect(phase >= 5 ? 1 : 0.96)
+          .blur(radius: phase >= 5 ? 0 : 5)
+        HStack {
+          Button("Ya tengo cuenta") { app.stage = .login }
+          Spacer()
+          #if DEBUG
+            Button("Explorar Nook") { Task { await app.enterOfflineDemo() } }
+          #endif
+        }.font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+          .opacity(phase >= 5 ? 1 : 0)
+        Text("Solo para mayores de 18 años").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.48))
+      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
+        .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
+      if quickAccess {
+        QuickAccessView(isPresented: $quickAccess)
+          .transition(.move(edge: .bottom).combined(with: .opacity))
+      }
+    }.animation(NookMotion.spring, value: quickAccess)
+      .onAppear {
+      phase = 0
+      withAnimation(.easeOut(duration: 0.35)) { phase = 1 }
+      withAnimation(NookMotion.spring.delay(0.25)) { phase = 2 }
+      withAnimation(.easeOut(duration: 0.45).delay(0.75)) { phase = 4 }
+      withAnimation(.spring(response: 0.62, dampingFraction: 0.78).delay(1.12)) { phase = 5 }
+    }
+  }
+}
+
+private struct QuickAccessView: View {
+  @EnvironmentObject var app: AppSession
+  @Binding var isPresented: Bool
+  @State private var phoneEntry = false
+  @State private var phone = ""
+  @State private var otp = ""
+  @State private var otpChallenge: PhoneOtpChallenge?
+  @State private var busy = false
+  @State private var error: String?
+  @StateObject private var apple = AppleSignInCoordinator()
+  @State private var revealed = false
+  @State private var brewed = false
+  var body: some View {
+    ZStack(alignment: .bottom) {
+      LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.78), NookColors.warmBlack.opacity(0.98)], startPoint: .top, endPoint: .bottom)
+        .ignoresSafeArea().onTapGesture { if !phoneEntry { isPresented = false } }
+      VStack(alignment: .leading, spacing: 18) {
+        HStack {
+          Button {
+            withAnimation(NookMotion.spring) {
+              if phoneEntry { phoneEntry = false } else { isPresented = false }
+            }
+          } label: {
+            Image(systemName: phoneEntry ? "chevron.left" : "xmark")
+              .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
+              .background(.white.opacity(0.14), in: Circle())
+          }
+          Spacer()
+          NookCoffeeLogo(size: 34, animated: false).opacity(0.94)
+        }
+        if phoneEntry {
+          VStack(alignment: .leading, spacing: 14) {
+            Text(otpChallenge == nil ? "Tu número" : "Código de acceso").font(.system(size: 34, weight: .bold, design: .rounded))
+            Text(otpChallenge == nil ? "Te enviaremos un código para confirmar que eres tú." : "Introduce los seis números que acabamos de enviarte.").foregroundStyle(.white.opacity(0.66))
+            if otpChallenge == nil {
+              HStack(spacing: 12) {
+                Text("+34").font(.title3.weight(.semibold))
+                TextField("600 000 000", text: $phone).keyboardType(.phonePad)
+                  .font(.title3.weight(.medium)).padding(.vertical, 13)
+                  .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
+              }
+              accessButton(busy ? "Enviando…" : "Continuar", icon: "arrow.right", primary: true, index: 0) { Task { await requestCode() } }
+                .disabled(busy || phone.filter(\.isNumber).count < 9).opacity(phone.filter(\.isNumber).count < 9 ? 0.4 : 1)
+            } else {
+              TextField("000000", text: $otp).keyboardType(.numberPad).textContentType(.oneTimeCode)
+                .font(.system(size: 28, weight: .bold, design: .monospaced)).tracking(8).padding(.vertical, 13)
+                .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
+              accessButton(busy ? "Comprobando…" : "Entrar", icon: "cup.and.saucer.fill", primary: true, index: 0) { Task { await verifyCode() } }
+                .disabled(busy || otp.count != 6).opacity(otp.count == 6 ? 1 : 0.4)
+            }
+            if let error { Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral) }
+          }.transition(.move(edge: .trailing).combined(with: .opacity))
+        } else {
+          VStack(alignment: .leading, spacing: 7) {
+            Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
+            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
+          }
+          VStack(spacing: 11) {
+            accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
+            accessButton("Continuar con teléfono", icon: "phone", index: 3) { phoneEntry = true }
+          }
+          Button("Crear una cuenta con email") {
+            isPresented = false; app.stage = .registration
+          }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
+            .frame(maxWidth: .infinity).padding(.top, 2)
+          Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
+            .font(.caption).foregroundStyle(.white.opacity(0.48)).multilineTextAlignment(.center)
+        }
+      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
+      CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
+    }.onAppear {
+      withAnimation(.easeOut(duration: 0.42)) { brewed = true }
+      withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
+    }
+  }
+  private func accessButton(_ title: String, icon: String, primary: Bool = false, index: Int, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 13) {
+        Image(systemName: icon).font(.system(size: 18, weight: .medium)).frame(width: 24)
+        Text(title).font(.system(size: 17, weight: .semibold, design: .rounded))
+        Spacer()
+        Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+      }.foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
+        .padding(.horizontal, 18).frame(height: 56)
+        .background(primary ? NookColors.espresso : NookColors.offWhite, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 18).stroke(NookColors.espresso.opacity(primary ? 0 : 0.12), lineWidth: 0.75) }
+    }.buttonStyle(.plain)
+      .opacity(revealed ? 1 : 0)
+      .offset(y: revealed ? 0 : CGFloat(24 + index * 8))
+      .scaleEffect(revealed ? 1 : 0.96)
+      .animation(NookMotion.spring.delay(Double(index) * 0.075), value: revealed)
+  }
+  private func signInWithApple() async {
+    busy = true; defer { busy = false }
+    do { let credential = try await apple.signIn(); try await app.federatedLogin(provider: "apple", identityToken: credential.identityToken, displayName: credential.displayName); isPresented = false }
+    catch { self.error = error.localizedDescription }
+  }
+  private func requestCode() async {
+    busy = true; defer { busy = false }
+    do {
+      let digits = phone.filter(\.isNumber)
+      let challenge = try await app.requestPhoneOtp("+34\(digits)")
+      otpChallenge = challenge
+      #if DEBUG
+        if let code = challenge.developmentCode { otp = code }
+      #endif
+    } catch { self.error = error.localizedDescription }
+  }
+  private func verifyCode() async {
+    guard let challenge = otpChallenge else { return }
+    busy = true; defer { busy = false }
+    do { try await app.verifyPhoneOtp(challengeId: challenge.challengeId, code: otp); isPresented = false }
+    catch { self.error = error.localizedDescription }
+  }
+}
+
+private struct CoffeeAccessReveal: View {
+  let active: Bool
+  var body: some View {
+    ZStack {
+      ForEach(0..<6, id: \.self) { index in
+        Capsule().fill(NookColors.mocha.opacity(0.2)).frame(width: 9, height: 15)
+          .overlay { Capsule().stroke(NookColors.latte.opacity(0.35), lineWidth: 0.7).frame(width: 2, height: 9) }
+          .rotationEffect(.degrees(Double(index * 53) + (active ? 80 : 0)))
+          .offset(
+            x: active ? CGFloat([-138, -86, 112, 145, -118, 126][index]) : 0,
+            y: active ? CGFloat([-210, 170, -155, 92, -24, 232][index]) : 40
+          ).opacity(active ? 0 : 0.65)
+          .animation(.easeOut(duration: 0.9).delay(Double(index) * 0.04), value: active)
+      }
+      VStack(spacing: 4) {
+        ForEach(0..<3, id: \.self) { index in
+          Capsule().stroke(NookColors.mocha.opacity(0.17), lineWidth: 2)
+            .frame(width: 18, height: 34).offset(x: CGFloat(index - 1) * 10, y: active ? -54 : 28)
+            .opacity(active ? 0 : 0.6)
+            .animation(.easeOut(duration: 0.8).delay(Double(index) * 0.08), value: active)
+        }
+      }.offset(y: 210)
+    }
+  }
+}
+
+private struct NookWelcomeGallery: View {
+  let active: Bool
+  private let heroURL = URL(string: "https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=1200&q=85")
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack {
+        Image("NookIntroCoffee").resizable().scaledToFill()
+          .frame(width: proxy.size.width, height: proxy.size.height).clipped()
+        NookRemoteImage(url: heroURL) { Color.clear }
+          .frame(width: proxy.size.width, height: proxy.size.height).clipped()
+          .opacity(active ? 1 : 0)
+          .scaleEffect(active ? 1.045 : 1.02)
+          .animation(.easeInOut(duration: 1.15), value: active)
+        LinearGradient(
+          colors: [NookColors.warmBlack.opacity(0.14), .clear], startPoint: .top,
+          endPoint: .bottom)
+          .frame(width: proxy.size.width, height: proxy.size.height)
+      }
+    }.ignoresSafeArea()
+  }
+}
+
+struct LoginView: View {
+  @EnvironmentObject var app: AppSession
+  @State private var email = ""
+  @State private var password = ""
+  @State private var busy = false
+  @State private var error: String?
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        VStack(alignment: .leading, spacing: NookSpacing.lg) {
+          NookCoffeeLogo(size: 66).padding(.top, NookSpacing.sm)
+          VStack(alignment: .leading, spacing: 6) {
+            Text("Qué alegría verte").font(NookTypography.hero).tracking(-1.2)
+            Text("Hay café esperándote.").font(.title3).foregroundStyle(NookColors.warmGray)
+          }
+          NookTextField(
+            label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
+          NookTextField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
+          if let error {
+            Text(error).font(.callout.weight(.semibold)).foregroundStyle(.red).padding(
+              .horizontal, 4
+            ).transition(.move(edge: .top).combined(with: .opacity))
+          }
+          NookButton(
+            title: busy ? "PREPARANDO…" : "ENTRAR",
+            icon: "cup.and.saucer.fill"
+          ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
+            .opacity(busy ? 0.65 : 1)
+          NookButton(title: "CREAR CUENTA", icon: "arrow.right", secondary: true) { app.stage = .registration }
+          #if DEBUG
+            Button("Explorar Nook ☕") { Task { await app.enterOfflineDemo() } }.frame(
+              maxWidth: .infinity
+            ).font(.headline).foregroundStyle(NookColors.mocha).padding(.vertical, 8)
+          #endif
+        }.padding(NookSpacing.lg)
+      }.scrollDismissesKeyboard(.interactively).toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          Button {
+            app.stage = .welcome
+          } label: {
+            Image(systemName: "chevron.left").font(.headline).frame(width: 42, height: 42)
+              .background(.thinMaterial, in: Circle())
+          }
+        }
+      }
+    }
+  }
+  private func submit() async {
+    busy = true
+    defer { busy = false }
+    do {
+      try await app.login(email, password)
+    } catch { withAnimation(NookMotion.spring) { self.error = error.localizedDescription } }
+  }
+}
+
+struct RegistrationFlow: View {
+  @EnvironmentObject var app: AppSession
+  @State private var step = 0
+  @State private var direction = 1
+  @State private var name = ""
+  @State private var birth = Calendar.current.date(byAdding: .year, value: -25, to: Date())!
+  @State private var gender = Gender.woman
+  @State private var looking = LookingFor.casualCoffee
+  @State private var email = ""
+  @State private var password = ""
+  @State private var busy = false
+  @State private var error: String?
+  private let total = 16
+  var body: some View {
+    ZStack {
+      NookBackground()
+      VStack(spacing: 0) {
+        HStack {
+          Button { back() } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
+          NookProgressBar(step: step, total: total)
+        }.padding(.horizontal, 18).padding(.top, 8)
+        ZStack { currentStep.id(step).transition(stepTransition) }.animation(NookMotion.spring, value: step)
+        NookButton(title: step == 5 ? "CONTINUAR" : "CONTINUAR", icon: "arrow.right") {
+          advance()
+        }.disabled(!canContinue || busy).opacity(canContinue ? 1 : 0.35).padding(.horizontal, 22).padding(.bottom, 14)
+      }
+    }
+  }
+  private var stepTransition: AnyTransition {
+    .asymmetric(
+      insertion: .move(edge: direction > 0 ? .trailing : .leading).combined(with: .opacity),
+      removal: .move(edge: direction > 0 ? .leading : .trailing).combined(with: .opacity))
+  }
+  @ViewBuilder private var currentStep: some View {
+    switch step {
+    case 0: question("¿Cómo te llamas?", "Así te conocerán en Nook.") { MinimalOnboardingField(placeholder: "Tu nombre", text: $name) }
+    case 1: question("¿Cuándo naciste?", "Nook es solo para mayores de 18 años.") {
+      DatePicker("Fecha de nacimiento", selection: $birth, in: ...Calendar.current.date(byAdding: .year, value: -18, to: Date())!, displayedComponents: .date)
+        .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
+    }
+    case 2: question("¿Cómo te identificas?", "Elige la opción que mejor te represente.") { options(Gender.allCases.map { ($0.rawValue, $0.title) }, selected: gender.rawValue) { gender = Gender(rawValue: $0)! } }
+    case 3: question("¿Para qué te apetece quedar?", "Esto aparecerá en tu perfil. Elige lo que mejor encaje contigo ahora.") { options(LookingFor.registrationChoices.map { ($0.rawValue, $0.title) }, selected: looking.rawValue) { looking = LookingFor(rawValue: $0)! } }
+    case 4: question("¿Cuál es tu email?", "Solo lo usaremos para proteger tu cuenta.") { MinimalOnboardingField(placeholder: "nombre@email.com", text: $email, keyboard: .emailAddress) }
+    default: question("Crea una contraseña", "Mínimo 8 caracteres.") {
+      MinimalOnboardingField(placeholder: "Contraseña", text: $password, secure: true)
+      if let error { Text(error).foregroundStyle(.red).font(.callout.weight(.semibold)) }
+    }
+    }
+  }
+  private func question<C: View>(_ title: String, _ subtitle: String, @ViewBuilder content: () -> C) -> some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        Spacer(minLength: 82)
+        Text(title).font(NookTypography.display(43)).tracking(-0.7)
+        Text(subtitle).font(.system(size: 16, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.58))
+        content()
+        Spacer(minLength: 40)
+      }.padding(.horizontal, 24)
+    }.scrollDismissesKeyboard(.interactively)
+  }
+  private func options(_ values: [(String, String)], selected: String, action: @escaping (String) -> Void) -> some View {
+    VStack(alignment: .leading, spacing: 0) {
+      ForEach(values, id: \.0) { item in
+        MinimalChoiceRow(title: item.1, selected: selected == item.0) { action(item.0) }
+      }
+    }
+  }
+  private var canContinue: Bool {
+    switch step { case 0: !name.trimmingCharacters(in: .whitespaces).isEmpty; case 4: email.contains("@"); case 5: password.count >= 8; default: true }
+  }
+  private func advance() {
+    guard canContinue else { return }
+    if step < 5 { direction = 1; withAnimation(NookMotion.spring) { step += 1 }; return }
+    busy = true
+    Task {
+      do { try await app.register(email: email, password: password, name: name, birth: birth, gender: gender, looking: looking) }
+      catch { self.error = error.localizedDescription; busy = false }
+    }
+  }
+  private func back() {
+    if step == 0 { app.stage = .welcome } else { direction = -1; withAnimation(NookMotion.spring) { step -= 1 } }
+  }
+}
+
+private struct MinimalOnboardingField: View {
+  let placeholder: String
+  @Binding var text: String
+  var secure = false
+  var keyboard: UIKeyboardType = .default
+  @FocusState private var focused: Bool
+  var body: some View {
+    Group {
+      if secure { SecureField(placeholder, text: $text) }
+      else { TextField(placeholder, text: $text).keyboardType(keyboard) }
+    }
+    .font(.system(size: 24, weight: .medium, design: .rounded))
+    .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
+    .autocorrectionDisabled(keyboard == .emailAddress)
+    .focused($focused).padding(.vertical, 14)
+    .overlay(alignment: .bottom) {
+      Rectangle().fill(focused ? NookColors.espresso : NookColors.espresso.opacity(0.2))
+        .frame(height: focused ? 2 : 1).animation(NookMotion.fast, value: focused)
+    }
+  }
+}
+
+private struct MinimalChoiceRow: View {
+  let title: String
+  let selected: Bool
+  let action: () -> Void
+  var body: some View {
+    Button {
+      Haptics.selection()
+      withAnimation(NookMotion.fast) { action() }
+    } label: {
+      HStack(spacing: 14) {
+        Text(title).font(.system(size: 18, weight: selected ? .semibold : .medium, design: .rounded))
+        Spacer()
+        Image(systemName: selected ? "checkmark" : "circle")
+          .font(.system(size: 15, weight: .semibold)).opacity(selected ? 1 : 0.22)
+      }.foregroundStyle(NookColors.espresso).frame(minHeight: 54)
+        .contentShape(Rectangle())
+    }.buttonStyle(.plain)
+    Divider().overlay(NookColors.espresso.opacity(0.1))
+  }
+}
+
+struct OnboardingView: View {
+  @EnvironmentObject var app: AppSession
+  @State private var page = 0
+  @State private var direction = 1
+  @State private var photoItem: PhotosPickerItem?
+  @State private var photoData: Data?
+  @State private var uploadingPhoto = false
+  @State private var bio = ""
+  @State private var city = ""
+  @State private var coffee = "MILK_COFFEE"
+  @State private var vibe = "CALM"
+  @State private var coffeesPerDay = 2
+  @State private var moment = "MORNING"
+  @State private var plan = "LONG_TALKS"
+  @State private var minAge = 22.0
+  @State private var maxAge = 38.0
+  @State private var distance = 25.0
+  @State private var error: String?
+  private let coffeeOptions = [
+    ("BLACK", "☕ Solo"), ("CORTADO", "🥛 Cortado"), ("MILK_COFFEE", "☕🥛 Café con leche"),
+    ("ICED_COFFEE", "🧊 Café frío"), ("MATCHA", "🍵 Matcha"), ("TEA", "🫖 Té"),
+  ]
+  private let total = 17
+  private let progressOffset = 6
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 14) {
+        Button { back() } label: { Image(systemName: "chevron.left").frame(width: 42, height: 42) }
+        NookProgressBar(step: page + progressOffset, total: total)
+      }.padding(.horizontal, 18).padding(.top, 8)
+      ZStack { currentQuestion.id(page).transition(stepTransition) }.animation(NookMotion.spring, value: page)
+      NookButton(title: page == 10 ? "ENTRAR EN NOOK ☕" : "CONTINUAR", icon: "arrow.right") {
+        if page < 10 {
+          if page == 0, let photoData {
+            uploadingPhoto = true
+            Task {
+              do {
+                let mimeType = photoItem?.supportedContentTypes.first?.preferredMIMEType ?? "image/jpeg"
+                _ = try await app.repository.uploadPhoto(data: photoData, mimeType: mimeType)
+              } catch {
+                self.error = "No hemos podido subir la foto. Comprueba tu conexión e inténtalo otra vez."
+                uploadingPhoto = false
+                return
+              }
+              uploadingPhoto = false
+              direction = 1
+              withAnimation(NookMotion.spring) { page += 1 }
+            }
+          } else {
+            direction = 1
+            withAnimation(NookMotion.spring) { page += 1 }
+          }
+        } else {
+          Task {
+            let trimmedCity = city.trimmingCharacters(in: .whitespacesAndNewlines)
+            let placemarks = try? await CLGeocoder().geocodeAddressString(trimmedCity)
+            let approximateLocation = placemarks?.first?.location
+            do { try await app.finish(
+              ProfileUpdate(
+                bio: bio, city: trimmedCity, latitude: approximateLocation?.coordinate.latitude,
+                longitude: approximateLocation?.coordinate.longitude, coffeePersonality: coffeeTitle, preferredPlan: plan,
+                preferredVibe: vibe, coffeesPerDay: coffeesPerDay, favoriteCoffeeMoment: moment,
+                minAge: Int(minAge), maxAge: Int(maxAge), maxDistanceKm: Int(distance),
+                coffeePreferences: [coffee], onboardingComplete: true))
+            } catch { self.error = "No hemos podido terminar tu perfil. Inténtalo de nuevo." }
+          }
+        }
+      }.disabled((page == 0 && photoData == nil) || (page == 2 && city.trimmingCharacters(in: .whitespacesAndNewlines).count < 2) || uploadingPhoto)
+        .opacity(((page == 0 && photoData == nil) || (page == 2 && city.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)) ? 0.35 : 1)
+        .padding(.horizontal, 22).padding(.bottom, 14)
+    }.alert("Algo se ha enfriado", isPresented: Binding(
+      get: { error != nil }, set: { if !$0 { error = nil } }
+    )) { Button("Entendido") { error = nil } } message: { Text(error ?? "") }
+      .onChange(of: bio) { _, value in if value.count > 500 { bio = String(value.prefix(500)) } }
+  }
+  private var stepTransition: AnyTransition {
+    .asymmetric(insertion: .move(edge: direction > 0 ? .trailing : .leading).combined(with: .opacity), removal: .move(edge: direction > 0 ? .leading : .trailing).combined(with: .opacity))
+  }
+  @ViewBuilder private var currentQuestion: some View {
+    switch page {
+    case 0: question("Añade una foto", "Una foto clara ayuda a empezar con confianza.") {
+      VStack(spacing: 18) {
+        Group {
+          if let photoData, let image = UIImage(data: photoData) { Image(uiImage: image).resizable().scaledToFill() }
+          else { ZStack { Circle().fill(NookColors.oat.opacity(0.35)); Image(systemName: "person.crop.circle.badge.plus").font(.system(size: 54)).foregroundStyle(NookColors.mocha) } }
+        }.frame(width: 190, height: 190).clipShape(Circle()).frame(maxWidth: .infinity)
+        PhotosPicker(selection: $photoItem, matching: .images) { Text(photoData == nil ? "ELEGIR FOTO" : "CAMBIAR FOTO").font(.headline).foregroundStyle(NookColors.espresso).padding(.horizontal, 24).frame(height: 54).background(NookColors.offWhite, in: Capsule()) }
+      }.onChange(of: photoItem) { _, item in Task { photoData = try? await item?.loadTransferable(type: Data.self) } }
+    }
+    case 1: question("Cuéntanos algo sobre ti", "Dos líneas bastan para empezar.") {
+      TextEditor(text: $bio).font(.title3.weight(.medium)).scrollContentBackground(.hidden).frame(height: 140)
+        .overlay(alignment: .topLeading) { if bio.isEmpty { Text("Arquitectura · conciertos · cafeterías pequeñas").foregroundStyle(NookColors.espresso.opacity(0.32)).padding(.top, 8).allowsHitTesting(false) } }
+        .overlay(alignment: .bottom) { Rectangle().fill(NookColors.espresso.opacity(0.18)).frame(height: 1) }
+    }
+    case 2: question("Necesitamos saber\nde dónde eres", "Con tu ciudad o pueblo es suficiente. No necesitamos ni mostraremos tu ubicación exacta.") {
+      VStack(alignment: .leading, spacing: 18) {
+        HStack(spacing: 13) {
+          Image(systemName: "location.fill").font(.system(size: 18, weight: .semibold)).foregroundStyle(NookColors.mocha)
+          TextField("Ciudad o pueblo", text: $city)
+            .font(.system(size: 22, weight: .semibold, design: .rounded)).textContentType(.addressCity)
+            .textInputAutocapitalization(.words).submitLabel(.continue)
+        }.padding(.vertical, 15).overlay(alignment: .bottom) { Rectangle().fill(NookColors.espresso.opacity(0.2)).frame(height: 1) }
+        Label("Solo utilizaremos una zona aproximada para encontrar personas y calcular puntos medios.", systemImage: "lock.fill")
+          .font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.5)).lineSpacing(3)
+      }
+    }
+    case 3: question("¿Cómo te gusta el café?", "Elige tu taza habitual.") { optionList(coffeeOptions, selected: coffee) { coffee = $0 } }
+    case 4: question("¿Qué ambiente prefieres?", "El lugar también forma parte del encuentro.") { optionList([("CALM", "😌 Tranquila"), ("SOCIAL", "🙂 Con ambiente"), ("LIVELY", "🎵 Animada")], selected: vibe) { vibe = $0 } }
+    case 5: question("¿Cuántos cafés tomas al día?", "Prometemos no juzgar.") { cupsPicker }
+    case 6: question("¿Tu momento favorito?", "¿Cuándo sabe mejor un café?") { optionList([("MORNING", "🌅 Mañana"), ("MIDDAY", "☀️ Mediodía"), ("AFTERWORK", "🌆 Afterwork"), ("EVENING", "🌙 Tarde / noche")], selected: moment) { moment = $0 } }
+    case 7: question("¿Qué plan prefieres?", "Tú marcas el ritmo.") { optionList([("QUICK", "⚡ Café rápido"), ("LONG_TALKS", "💬 Hablar sin prisas"), ("WALK", "🚶 Café y paseo"), ("IMPROVISE", "✨ Improvisar")], selected: plan) { plan = $0 } }
+    case 8: question("¿Hasta dónde nos movemos?", "Puedes cambiarlo cuando quieras.") { slider(value: $distance, title: "Hasta \(Int(distance)) km", range: 1...100) }
+    case 9: question("¿Qué edades buscas?", "Solo mostramos personas adultas.") {
+      VStack(alignment: .leading, spacing: 24) { Text("\(Int(minAge)) — \(Int(maxAge)) años").font(.title.bold()); Slider(value: $minAge, in: 18...60, step: 1); Slider(value: $maxAge, in: minAge...80, step: 1) }.tint(NookColors.espresso)
+    }
+    default: question("Todo listo", "Tu próxima conversación puede empezar con una taza.") { NookCoffeeLogo(size: 120).frame(maxWidth: .infinity).padding(.top, 20) }
+    }
+  }
+  private func question<C: View>(_ title: String, _ subtitle: String, @ViewBuilder content: () -> C) -> some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 20) {
+        Spacer(minLength: 66)
+        Text(title).font(NookTypography.display(43)).tracking(-0.7)
+        Text(subtitle).font(.system(size: 16, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.58))
+        content()
+        Spacer(minLength: 40)
+      }.padding(NookSpacing.lg)
+    }.scrollDismissesKeyboard(.interactively)
+  }
+  private func optionList(_ values: [(String, String)], selected: String, action: @escaping (String) -> Void) -> some View {
+    VStack(alignment: .leading, spacing: 0) { ForEach(values, id: \.0) { item in MinimalChoiceRow(title: item.1, selected: selected == item.0) { action(item.0) } } }
+  }
+  private var cupsPicker: some View {
+    HStack(spacing: 10) {
+      ForEach(0...4, id: \.self) { count in
+        Button {
+          Haptics.selection(); withAnimation(NookMotion.playful) { coffeesPerDay = count }
+        } label: {
+          VStack(spacing: 9) {
+            Text(count == 0 ? "0" : String(repeating: "☕", count: count)).font(.system(size: count > 2 ? 17 : 23)).minimumScaleFactor(0.6)
+            Text(count == 4 ? "4+" : "\(count)").font(.caption.bold())
+          }.frame(maxWidth: .infinity).frame(height: 66).foregroundStyle(coffeesPerDay == count ? NookColors.inverseText : NookColors.espresso).background(coffeesPerDay == count ? NookColors.espresso : .clear, in: Circle()).scaleEffect(coffeesPerDay == count ? 1.04 : 1)
+        }.buttonStyle(.plain)
+      }
+    }
+  }
+  private func slider(value: Binding<Double>, title: String, range: ClosedRange<Double>) -> some View {
+    VStack(alignment: .leading, spacing: 22) { Text(title).font(.title.bold()); Slider(value: value, in: range, step: 1).tint(NookColors.espresso) }
+  }
+  private var coffeeTitle: String { coffeeOptions.first(where: { $0.0 == coffee })?.1 ?? "Coffee person ☕" }
+  private func back() { guard page > 0 else { return }; direction = -1; withAnimation(NookMotion.spring) { page -= 1 } }
+}
+
+struct MainTabView: View {
+  @EnvironmentObject var app: AppSession
+  var body: some View {
+    ZStack(alignment: .bottom) {
+      Group {
+        switch app.selectedTab {
+        case 0: NavigationStack { DiscoverView() }
+        case 1: NavigationStack { CoffeeShopsView().id(app.placesReloadID) }
+        case 2: NavigationStack { ChatsView() }
+        default: NavigationStack { ProfileView() }
+        }
+      }.id(app.selectedTab).transition(.opacity.combined(with: .scale(scale: 0.985)))
+      if !app.tabBarHidden {
+        NookFloatingTabBar(selection: $app.selectedTab)
+          .transition(.move(edge: .bottom).combined(with: .opacity))
+          .zIndex(100)
+      }
+    }
+    .animation(NookMotion.fast, value: app.selectedTab)
+    .animation(NookMotion.fast, value: app.tabBarHidden)
+  }
+}
+
+struct FloatingTabBar: View {
+  @EnvironmentObject var app: AppSession
+  @Binding var selection: Int
+  @State private var coffeeNotifications = 0
+  @State private var hasConfirmedCoffee = false
+  let items = [
+    ("cup.and.saucer", "Descubrir"),
+    ("mappin.and.ellipse", "Lugares"),
+    ("calendar", "Mis cafés"),
+    ("person.crop.circle", "Perfil"),
+  ]
+  var body: some View {
+    HStack(spacing: 0) {
+      ForEach(items.indices, id: \.self) { i in
+        Button {
+          Haptics.selection()
+          if i == 1 {
+            app.selectedCoffeeMatch = nil
+            app.placesReloadID = UUID()
+          }
+          withAnimation(NookMotion.fast) { selection = i }
+        } label: {
+          VStack(spacing: 5) {
+            ZStack {
+            if i == 3, let me = app.me {
+              ProfileImage(url: me.photos.first?.url, name: me.name)
+                .frame(width: 29, height: 29).clipShape(Circle())
+                .overlay(Circle().stroke(
+                  selection == i ? NookColors.mocha : NookColors.espresso.opacity(0.32),
+                  lineWidth: selection == i ? 2 : 1))
+            } else {
+              Image(systemName: items[i].0)
+                .font(.system(size: 22, weight: selection == i ? .medium : .light))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(selection == i ? NookColors.espresso : NookColors.espresso.opacity(0.48))
+                .scaleEffect(selection == i ? 1.04 : 1)
+            }
+            if i == 2 && hasConfirmedCoffee {
+              Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 9, weight: .bold)).foregroundStyle(NookColors.inverseText)
+                .frame(width: 21, height: 21).background(NookColors.mocha, in: Circle())
+                .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
+                .offset(x: 15, y: -13)
+                .symbolEffect(.bounce, value: hasConfirmedCoffee)
+                .accessibilityLabel("Han confirmado un café")
+            } else if i == 2 && coffeeNotifications > 0 {
+              Text(coffeeNotifications > 9 ? "9+" : "\(coffeeNotifications)")
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .foregroundStyle(NookColors.inverseText)
+                .frame(minWidth: 18, minHeight: 18).background(NookColors.mocha, in: Circle())
+                .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
+                .offset(x: 14, y: -12)
+                .accessibilityLabel("\(coffeeNotifications) propuestas pendientes")
+            }
+            }
+            Circle().fill(NookColors.mocha).frame(width: 4, height: 4)
+              .opacity(selection == i ? 1 : 0)
+          }
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityLabel(items[i].1)
+          .accessibilityAddTraits(selection == i ? .isSelected : [])
+      }
+    }
+    .padding(.horizontal, 26).padding(.top, 7)
+    .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
+    .background {
+      LinearGradient(
+        colors: [.clear, NookColors.cream.opacity(0.72), NookColors.warmBlack.opacity(0.98)],
+        startPoint: .top, endPoint: .bottom)
+        .ignoresSafeArea(edges: .bottom)
+    }
+    .animation(NookMotion.fast, value: selection)
+    .task(id: selection) { await refreshNotifications() }
+  }
+  @MainActor private func refreshNotifications() async {
+    guard app.me != nil else {
+      coffeeNotifications = 0; hasConfirmedCoffee = false; return
+    }
+    guard let notifications = try? await app.repository.notifications() else { return }
+    let unread = notifications.filter { !$0.read }
+    let accepted = unread.filter { $0.type == "COFFEE_ACCEPTED" }
+    withAnimation(NookMotion.fast) {
+      coffeeNotifications = unread.filter { $0.type == "COFFEE_PROPOSAL" }.count
+      hasConfirmedCoffee = !accepted.isEmpty
+    }
+    if selection == 2 && !unread.isEmpty {
+      try? await Task.sleep(for: .milliseconds(1_100))
+      for notification in unread where notification.type == "COFFEE_ACCEPTED" || notification.type == "COFFEE_PROPOSAL" {
+        try? await app.repository.markNotificationRead(notification.id)
+      }
+      withAnimation(NookMotion.fast) { hasConfirmedCoffee = false; coffeeNotifications = 0 }
+    }
+  }
+}
+
+typealias NookFloatingTabBar = FloatingTabBar

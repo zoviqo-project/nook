@@ -1,0 +1,1 @@
+package com.nook.service; import com.nook.domain.SocialEntities.CoffeeShop; import java.util.List; public interface PlacesProvider { List<CoffeeShop> nearby(double latitude,double longitude,double radiusKm); }

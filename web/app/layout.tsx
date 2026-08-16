@@ -1,0 +1,1 @@
+import "./style.css";export const metadata={title:"NOOK ☕ — ¿Te invito a un café?",description:"Personas reales. Cafeterías reales. Una forma diferente de conocerse."};export default function Layout({children}:{children:React.ReactNode}){return <html lang="es"><body>{children}</body></html>}

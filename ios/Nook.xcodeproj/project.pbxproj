@@ -1,0 +1,441 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000001 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* NookApp.swift */; };
+		A00000000000000000000002 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* RootView.swift */; };
+		A00000000000000000000003 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* DesignSystem.swift */; };
+		A00000000000000000000004 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* Models.swift */; };
+		A00000000000000000000005 /* DemoRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* DemoRepository.swift */; };
+		A00000000000000000000006 /* HomeAndPeople.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000006 /* HomeAndPeople.swift */; };
+		A00000000000000000000007 /* BookingMap.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* BookingMap.swift */; };
+		A00000000000000000000008 /* AdminEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* AdminEditor.swift */; };
+		A00000000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* Assets.xcassets */; };
+		A00000000000000000000010 /* NookTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000010 /* NookTests.swift */; };
+		A00000000000000000000011 /* AuthenticationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000011 /* AuthenticationStore.swift */; };
+		A00000000000000000000012 /* APIRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000012 /* APIRepository.swift */; };
+		A00000000000000000000013 /* WorkplaceScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* WorkplaceScreens.swift */; };
+		A00000000000000000000014 /* OAuthCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* OAuthCoordinator.swift */; };
+		A00000000000000000000015 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* Localization.swift */; };
+		A00000000000000000000016 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000016 /* Localizable.xcstrings */; };
+		A00000000000000000000017 /* Fraunces.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* Fraunces.ttf */; };
+		A00000000000000000000019 /* OFL-Fraunces.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* OFL-Fraunces.txt */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F00000000000000000000004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F00000000000000000000010 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F00000000000000000000001;
+			remoteInfo = Nook;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		B00000000000000000000001 /* NookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookApp.swift; sourceTree = "<group>"; };
+		B00000000000000000000002 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B00000000000000000000003 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		B00000000000000000000004 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B00000000000000000000005 /* DemoRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoRepository.swift; sourceTree = "<group>"; };
+		B00000000000000000000006 /* HomeAndPeople.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeAndPeople.swift; sourceTree = "<group>"; };
+		B00000000000000000000007 /* BookingMap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingMap.swift; sourceTree = "<group>"; };
+		B00000000000000000000008 /* AdminEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminEditor.swift; sourceTree = "<group>"; };
+		B00000000000000000000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00000000000000000000010 /* NookTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000011 /* AuthenticationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationStore.swift; sourceTree = "<group>"; };
+		B00000000000000000000012 /* APIRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIRepository.swift; sourceTree = "<group>"; };
+		B00000000000000000000013 /* WorkplaceScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkplaceScreens.swift; sourceTree = "<group>"; };
+		B00000000000000000000014 /* OAuthCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCoordinator.swift; sourceTree = "<group>"; };
+		B00000000000000000000015 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		B00000000000000000000016 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		B00000000000000000000017 /* Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
+		B00000000000000000000019 /* OFL-Fraunces.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Fonts/OFL-Fraunces.txt; sourceTree = "<group>"; };
+		C00000000000000000000001 /* Nook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = Nook.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000002 /* NookTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = NookTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E00000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E00000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D00000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000002 /* Nook */,
+				D00000000000000000000003 /* NookTests */,
+				C00000000000000000000001 /* Nook.app */,
+				C00000000000000000000002 /* NookTests.xctest */,
+			);
+			sourceTree = "<group>";
+		};
+		D00000000000000000000002 /* Nook */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000004 /* App */,
+				D00000000000000000000005 /* Core */,
+				D00000000000000000000006 /* Domain */,
+				D00000000000000000000007 /* Data */,
+				D00000000000000000000008 /* Features */,
+				D00000000000000000000009 /* Resources */,
+			);
+			path = Nook;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000003 /* NookTests */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000010 /* NookTests.swift */,
+			);
+			path = NookTests;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000001 /* NookApp.swift */,
+				B00000000000000000000002 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000005 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000003 /* DesignSystem.swift */,
+				B00000000000000000000011 /* AuthenticationStore.swift */,
+				B00000000000000000000014 /* OAuthCoordinator.swift */,
+				B00000000000000000000015 /* Localization.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000006 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000004 /* Models.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000007 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000005 /* DemoRepository.swift */,
+				B00000000000000000000012 /* APIRepository.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000008 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000006 /* HomeAndPeople.swift */,
+				B00000000000000000000007 /* BookingMap.swift */,
+				B00000000000000000000008 /* AdminEditor.swift */,
+				B00000000000000000000013 /* WorkplaceScreens.swift */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000009 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000009 /* Assets.xcassets */,
+				B00000000000000000000016 /* Localizable.xcstrings */,
+				B00000000000000000000017 /* Fraunces.ttf */,
+				B00000000000000000000019 /* OFL-Fraunces.txt */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F00000000000000000000001 /* Nook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000000000011 /* Build configuration list for PBXNativeTarget "Nook" */;
+			buildPhases = (
+				E00000000000000000000001 /* Sources */,
+				E00000000000000000000004 /* Frameworks */,
+				E00000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Nook;
+			productName = Nook;
+			productReference = C00000000000000000000001 /* Nook.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F00000000000000000000002 /* NookTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000000000012 /* Build configuration list for PBXNativeTarget "NookTests" */;
+			buildPhases = (
+				E00000000000000000000002 /* Sources */,
+				E00000000000000000000006 /* Frameworks */,
+				E00000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F00000000000000000000003 /* PBXTargetDependency */,
+			);
+			name = NookTests;
+			productName = NookTests;
+			productReference = C00000000000000000000002 /* NookTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F00000000000000000000010 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					F00000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					F00000000000000000000002 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = F00000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = F00000000000000000000013 /* Build configuration list for PBXProject "Nook" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D00000000000000000000001;
+			productRefGroup = D00000000000000000000001;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F00000000000000000000001 /* Nook */,
+				F00000000000000000000002 /* NookTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E00000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000009 /* Assets.xcassets in Resources */,
+				A00000000000000000000016 /* Localizable.xcstrings in Resources */,
+				A00000000000000000000017 /* Fraunces.ttf in Resources */,
+				A00000000000000000000019 /* OFL-Fraunces.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E00000000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E00000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000001 /* NookApp.swift in Sources */,
+				A00000000000000000000002 /* RootView.swift in Sources */,
+				A00000000000000000000003 /* DesignSystem.swift in Sources */,
+				A00000000000000000000004 /* Models.swift in Sources */,
+				A00000000000000000000005 /* DemoRepository.swift in Sources */,
+				A00000000000000000000006 /* HomeAndPeople.swift in Sources */,
+				A00000000000000000000007 /* BookingMap.swift in Sources */,
+				A00000000000000000000008 /* AdminEditor.swift in Sources */,
+				A00000000000000000000011 /* AuthenticationStore.swift in Sources */,
+				A00000000000000000000012 /* APIRepository.swift in Sources */,
+				A00000000000000000000013 /* WorkplaceScreens.swift in Sources */,
+				A00000000000000000000014 /* OAuthCoordinator.swift in Sources */,
+				A00000000000000000000015 /* Localization.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E00000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000010 /* NookTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F00000000000000000000003 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F00000000000000000000001 /* Nook */;
+			targetProxy = F00000000000000000000004 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		F00000000000000000000101 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F00000000000000000000102 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F00000000000000000000103 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 149;
+				NOOK_API_URL = "http://192.168.1.112:8080/api/v1/";
+				DEVELOPMENT_TEAM = 5VUGP63K3Y;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Nook/Resources/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F00000000000000000000104 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 149;
+				NOOK_API_URL = "http://192.168.1.112:8080/api/v1/";
+				DEVELOPMENT_TEAM = 5VUGP63K3Y;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Nook/Resources/Info.plist;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F00000000000000000000105 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nook.app/Nook";
+			};
+			name = Debug;
+		};
+		F00000000000000000000106 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nook.app/Nook";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F00000000000000000000011 /* Build configuration list for PBXNativeTarget "Nook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000000000103 /* Debug */,
+				F00000000000000000000104 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F00000000000000000000012 /* Build configuration list for PBXNativeTarget "NookTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000000000105 /* Debug */,
+				F00000000000000000000106 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F00000000000000000000013 /* Build configuration list for PBXProject "Nook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000000000101 /* Debug */,
+				F00000000000000000000102 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F00000000000000000000010 /* Project object */;
+}

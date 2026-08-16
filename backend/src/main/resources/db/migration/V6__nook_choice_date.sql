@@ -1,0 +1,2 @@
+ALTER TABLE coffee_date_proposals
+  ADD COLUMN IF NOT EXISTS nook_choice BOOLEAN NOT NULL DEFAULT FALSE;
