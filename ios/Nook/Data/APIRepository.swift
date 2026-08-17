@@ -53,7 +53,14 @@ actor APIRepository: NookRepository {
       "auth/\(provider.lowercased())", method: "POST",
       body: FederatedBody(identityToken: identityToken, displayName: displayName), auth: false)
     try save(response)
-    return response.user
+    do {
+      // A social login is complete only when the issued access token can restore the
+      // authenticated user. This keeps Keychain and the global app state in sync.
+      return try await me()
+    } catch {
+      try? tokens.clear()
+      throw error
+    }
   }
   func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge {
     try await call("auth/phone/request-code", method: "POST", body: PhoneRequestBody(phone: phone), auth: false)

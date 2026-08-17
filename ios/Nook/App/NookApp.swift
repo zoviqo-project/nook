@@ -107,8 +107,10 @@ enum AppConfiguration {
     stage = me?.onboardingComplete == true ? .app : .onboarding
   }
   func federatedLogin(provider: String, identityToken: String, displayName: String?) async throws {
-    me = try await repository.federatedLogin(provider: provider, identityToken: identityToken, displayName: displayName)
-    stage = me?.onboardingComplete == true ? .app : .onboarding
+    let authenticatedUser = try await repository.federatedLogin(
+      provider: provider, identityToken: identityToken, displayName: displayName)
+    me = authenticatedUser
+    stage = authenticatedUser.onboardingComplete ? .app : .onboarding
   }
   func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge { try await repository.requestPhoneOtp(phone) }
   func verifyPhoneOtp(challengeId: UUID, code: String) async throws {

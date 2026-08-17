@@ -1311,7 +1311,11 @@ struct ProposalSheet: View {
               }
             }
             Spacer()
-            NookButton(title: isReview ? "ENVIAR" : "CONTINUAR", icon: isReview ? "paperplane" : "arrow.right") {
+            NookButton(
+              title: sending ? "ENVIANDO PROPUESTA…" : (isReview ? "ENVIAR" : "CONTINUAR"),
+              icon: isReview ? "paperplane" : "arrow.right", isLoading: sending
+            ) {
+              guard !sending else { return }
               if !isReview {
                 withAnimation(NookMotion.spring) { step += 1 }
               } else if let match = selectedMatch {
@@ -1322,7 +1326,6 @@ struct ProposalSheet: View {
                       match: match, shop: shop.id, date: date, payment: payment,
                       nookChoice: isNookChoice, idempotencyKey: idempotencyKey)
                     app.coffeeProposalPersisted()
-                    sending = true
                     Haptics.success()
                     NookSoundManager.shared.play(.proposal)
                     try? await Task.sleep(for: .milliseconds(850))

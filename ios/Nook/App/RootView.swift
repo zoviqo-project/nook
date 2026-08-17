@@ -241,6 +241,7 @@ private struct QuickAccessView: View {
   @State private var otp = ""
   @State private var otpChallenge: PhoneOtpChallenge?
   @State private var busy = false
+  @State private var busyAction: Int?
   @State private var error: String?
   @StateObject private var apple = AppleSignInCoordinator()
   @StateObject private var google = GoogleSignInCoordinator()
@@ -322,25 +323,30 @@ private struct QuickAccessView: View {
         Image(systemName: icon).font(.system(size: 18, weight: .medium)).frame(width: 24)
         Text(title).font(.system(size: 17, weight: .semibold, design: .rounded))
         Spacer()
-        Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+        if busy && busyAction == index {
+          ProgressView().controlSize(.small).tint(primary ? NookColors.inverseText : NookColors.espresso)
+        } else {
+          Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+        }
       }.foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
         .padding(.horizontal, 18).frame(height: 56)
         .background(primary ? NookColors.espresso : NookColors.offWhite, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18).stroke(NookColors.espresso.opacity(primary ? 0 : 0.12), lineWidth: 0.75) }
-    }.buttonStyle(.plain)
+    }.buttonStyle(.plain).disabled(busy)
       .opacity(revealed ? 1 : 0)
       .offset(y: revealed ? 0 : CGFloat(24 + index * 8))
       .scaleEffect(revealed ? 1 : 0.96)
       .animation(NookMotion.spring.delay(Double(index) * 0.075), value: revealed)
   }
   private func signInWithApple() async {
-    busy = true; defer { busy = false }
+    guard !busy else { return }
+    busy = true; busyAction = 0; defer { busy = false; busyAction = nil }
     do { let credential = try await apple.signIn(); try await app.federatedLogin(provider: "apple", identityToken: credential.identityToken, displayName: credential.displayName); isPresented = false }
     catch { self.error = error.localizedDescription }
   }
   private func signInWithGoogle() async {
     guard !busy else { return }
-    busy = true; error = nil; defer { busy = false }
+    busy = true; busyAction = 1; error = nil; defer { busy = false; busyAction = nil }
     do {
       let token = try await google.signIn()
       try await app.federatedLogin(provider: "google", identityToken: token, displayName: nil)
@@ -351,7 +357,8 @@ private struct QuickAccessView: View {
   }
   private func requestCode() async {
     guard let normalizedPhone else { return }
-    busy = true; defer { busy = false }
+    guard !busy else { return }
+    busy = true; busyAction = 0; defer { busy = false; busyAction = nil }
     do {
       let challenge = try await app.requestPhoneOtp(normalizedPhone)
       otpChallenge = challenge
@@ -369,7 +376,8 @@ private struct QuickAccessView: View {
   }
   private func verifyCode() async {
     guard let challenge = otpChallenge else { return }
-    busy = true; defer { busy = false }
+    guard !busy else { return }
+    busy = true; busyAction = 0; defer { busy = false; busyAction = nil }
     do { try await app.verifyPhoneOtp(challengeId: challenge.challengeId, code: otp); isPresented = false }
     catch { self.error = error.localizedDescription }
   }
@@ -431,6 +439,7 @@ struct LoginView: View {
   @State private var state: LoginPhase = .idle
   @State private var phoneAccess = false
   @State private var waitingForServer = false
+  @State private var providerLoading: String?
   @StateObject private var apple = AppleSignInCoordinator()
   @StateObject private var google = GoogleSignInCoordinator()
   private var busy: Bool { state == .loading }
@@ -461,7 +470,7 @@ struct LoginView: View {
           }
           NookButton(
             title: busy ? (waitingForServer ? "DESPERTANDO NOOK…" : "ENTRANDO…") : "ENTRAR",
-            icon: busy ? "cup.and.saucer.fill" : "arrow.right"
+            icon: "arrow.right", isLoading: busy
           ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
             .opacity(busy ? 0.65 : 1)
           HStack(spacing: 12) {
@@ -515,7 +524,8 @@ struct LoginView: View {
   }
   private func signInWithApple() async {
     guard !busy else { return }
-    state = .loading
+    state = .loading; providerLoading = "Apple"
+    defer { providerLoading = nil }
     do {
       let credential = try await apple.signIn()
       try await app.federatedLogin(
@@ -523,11 +533,14 @@ struct LoginView: View {
         displayName: credential.displayName)
       state = .success
       Haptics.success()
+    } catch let value as ASAuthorizationError where value.code == .canceled {
+      state = .idle
     } catch { state = .error(friendly(error)) }
   }
   private func signInWithGoogle() async {
     guard !busy else { return }
-    state = .loading
+    state = .loading; providerLoading = "Google"
+    defer { providerLoading = nil }
     do {
       let token = try await google.signIn()
       try await app.federatedLogin(provider: "google", identityToken: token, displayName: nil)
@@ -548,7 +561,11 @@ struct LoginView: View {
   private func loginProvider(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       HStack(spacing: 12) {
-        Image(systemName: icon).font(.system(size: 17, weight: .semibold)).frame(width: 22)
+        if providerLoading == title {
+          ProgressView().controlSize(.small).tint(NookColors.espresso).frame(width: 22)
+        } else {
+          Image(systemName: icon).font(.system(size: 17, weight: .semibold)).frame(width: 22)
+        }
         Text("Continuar con \(title)").font(.system(size: 15, weight: .semibold, design: .rounded))
         Spacer()
       }.foregroundStyle(NookColors.espresso).padding(.horizontal, 17).frame(height: 50)
@@ -579,7 +596,7 @@ struct RegistrationFlow: View {
           NookProgressBar(step: step, total: total)
         }.padding(.horizontal, 18).padding(.top, 8)
         ZStack { currentStep.id(step).transition(stepTransition) }.animation(NookMotion.spring, value: step)
-        NookButton(title: step == 5 ? "CONTINUAR" : "CONTINUAR", icon: "arrow.right") {
+        NookButton(title: busy ? "CREANDO CUENTA…" : "CONTINUAR", icon: "arrow.right", isLoading: busy) {
           advance()
         }.disabled(!canContinue || busy).opacity(canContinue ? 1 : 0.35).padding(.horizontal, 22).padding(.bottom, 14)
       }
@@ -691,6 +708,7 @@ struct OnboardingView: View {
   @State private var photoItem: PhotosPickerItem?
   @State private var photoData: Data?
   @State private var uploadingPhoto = false
+  @State private var finishing = false
   @State private var bio = ""
   @State private var city = ""
   @State private var coffee = "MILK_COFFEE"
@@ -715,7 +733,10 @@ struct OnboardingView: View {
         NookProgressBar(step: page + progressOffset, total: total)
       }.padding(.horizontal, 18).padding(.top, 8)
       ZStack { currentQuestion.id(page).transition(stepTransition) }.animation(NookMotion.spring, value: page)
-      NookButton(title: page == 10 ? "ENTRAR EN NOOK ☕" : "CONTINUAR", icon: "arrow.right") {
+      NookButton(
+        title: finishing ? "GUARDANDO PERFIL…" : (page == 10 ? "ENTRAR EN NOOK ☕" : "CONTINUAR"),
+        icon: "arrow.right", isLoading: uploadingPhoto || finishing
+      ) {
         if page < 10 {
           if page == 0, let photoData {
             uploadingPhoto = true
@@ -737,6 +758,8 @@ struct OnboardingView: View {
             withAnimation(NookMotion.spring) { page += 1 }
           }
         } else {
+          guard !finishing else { return }
+          finishing = true
           Task {
             let trimmedCity = city.trimmingCharacters(in: .whitespacesAndNewlines)
             let placemarks = try? await CLGeocoder().geocodeAddressString(trimmedCity)
@@ -748,10 +771,13 @@ struct OnboardingView: View {
                 preferredVibe: vibe, coffeesPerDay: coffeesPerDay, favoriteCoffeeMoment: moment,
                 minAge: Int(minAge), maxAge: Int(maxAge), maxDistanceKm: Int(distance),
                 coffeePreferences: [coffee], onboardingComplete: true))
-            } catch { self.error = "No hemos podido terminar tu perfil. Inténtalo de nuevo." }
+            } catch {
+              self.error = "No hemos podido terminar tu perfil. Inténtalo de nuevo."
+              finishing = false
+            }
           }
         }
-      }.disabled((page == 0 && photoData == nil) || (page == 2 && city.trimmingCharacters(in: .whitespacesAndNewlines).count < 2) || uploadingPhoto)
+      }.disabled((page == 0 && photoData == nil) || (page == 2 && city.trimmingCharacters(in: .whitespacesAndNewlines).count < 2) || uploadingPhoto || finishing)
         .opacity(((page == 0 && photoData == nil) || (page == 2 && city.trimmingCharacters(in: .whitespacesAndNewlines).count < 2)) ? 0.35 : 1)
         .padding(.horizontal, 22).padding(.bottom, 14)
     }.alert("Algo se ha enfriado", isPresented: Binding(

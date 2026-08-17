@@ -520,6 +520,7 @@ struct CoffeeTicket: View {
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var safe = false
   @State private var calendarMessage: String?
+  @State private var calendarBusy = false
   @State private var breathing = false
   @State private var celebrating = false
   var body: some View {
@@ -585,6 +586,12 @@ struct CoffeeTicket: View {
       if date.status == .accepted {
         Circle().fill(.white.opacity(breathing ? 0.28 : 0.08)).frame(width: 92, height: 92)
           .blur(radius: 24).offset(x: 22, y: -26).allowsHitTesting(false)
+      }
+    }
+    .overlay {
+      if isUpdating {
+        ProgressView().tint(.white).padding(12)
+          .background(.black.opacity(0.42), in: Circle())
       }
     }
     .scaleEffect(date.status == .accepted ? (celebrating ? 1 : 0.72) : 1)
@@ -655,8 +662,15 @@ struct CoffeeTicket: View {
       }
     } else if date.status == .accepted {
       HStack(spacing: 10) {
-        Button { Task { await addToCalendar() } } label: {
-          Label("Añadir al calendario", systemImage: "calendar.badge.plus")
+        Button {
+          guard !calendarBusy else { return }
+          calendarBusy = true
+          Task { await addToCalendar(); calendarBusy = false }
+        } label: {
+          Group {
+            if calendarBusy { ProgressView().tint(NookColors.inverseText) }
+            else { Label("Añadir al calendario", systemImage: "calendar.badge.plus") }
+          }
             .font(.system(size: 13, weight: .bold, design: .rounded))
             .frame(maxWidth: .infinity).frame(height: 42)
             .foregroundStyle(NookColors.inverseText).background(NookColors.espresso, in: Capsule())
@@ -665,7 +679,7 @@ struct CoffeeTicket: View {
           Image(systemName: "checkmark").frame(width: 42, height: 42)
             .background(.ultraThinMaterial, in: Circle())
         }.accessibilityLabel("Completar encuentro")
-      }.buttonStyle(.plain).disabled(isUpdating)
+      }.buttonStyle(.plain).disabled(isUpdating || calendarBusy)
     } else if date.status == .counterProposed {
       Text("\(person?.name ?? "La otra persona") quiere chatear contigo antes")
         .font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.86)

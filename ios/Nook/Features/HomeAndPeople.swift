@@ -131,10 +131,16 @@ struct DiscoverView: View {
   }
   private func actions(_ person: DiscoverProfile) -> some View {
     HStack(spacing: 30) {
-      CircleAction(icon: "xmark", size: 54) {
-        withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 10) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-          Task { await vm.pass(person, repo: app.repository); drag = .zero }
+      ZStack {
+        CircleAction(icon: "xmark", size: 54) {
+          withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 10) }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            Task { await vm.pass(person, repo: app.repository); drag = .zero }
+          }
+        }
+        if vm.actingOn == person.id && !liking {
+          Circle().fill(NookColors.offWhite).frame(width: 54, height: 54)
+          ProgressView().tint(NookColors.espresso)
         }
       }
       Button {
@@ -147,9 +153,13 @@ struct DiscoverView: View {
         ZStack {
           Circle().fill(NookColors.espresso).frame(width: 76, height: 76).shadow(
             color: NookColors.espresso.opacity(0.3), radius: 20, y: 10)
-          Image(systemName: liking ? "cup.and.saucer.fill" : "cup.and.saucer").font(
-            .system(size: 31, weight: .bold)
-          ).foregroundStyle(NookColors.offWhite).rotationEffect(.degrees(liking ? -10 : 0))
+          if vm.actingOn == person.id && !liking {
+            ProgressView().tint(NookColors.offWhite)
+          } else {
+            Image(systemName: liking ? "cup.and.saucer.fill" : "cup.and.saucer").font(
+              .system(size: 31, weight: .bold)
+            ).foregroundStyle(NookColors.offWhite).rotationEffect(.degrees(liking ? -10 : 0))
+          }
           SteamView(active: liking).offset(y: -47)
         }.scaleEffect(liking ? 1.16 : 1).animation(NookMotion.playful, value: liking)
       }.buttonStyle(.plain).disabled(vm.actingOn != nil)

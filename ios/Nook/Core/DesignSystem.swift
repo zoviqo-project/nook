@@ -106,16 +106,21 @@ struct NookButton: View {
   var icon: String?
   var secondary = false
   var kind: Kind?
+  var isLoading = false
   let action: () -> Void
   @State private var pressed = false
   private var style: Kind { kind ?? (secondary ? .secondary : .primary) }
   var body: some View {
     Button {
+      guard !isLoading else { return }
       Haptics.selection()
       action()
     } label: {
       HStack(spacing: 10) {
-        if let icon { Image(systemName: icon) }
+        if isLoading {
+          ProgressView().controlSize(.small)
+            .tint(style == .primary ? NookColors.inverseText : NookColors.espresso)
+        } else if let icon { Image(systemName: icon) }
         Text(title).font(.system(size: 17, weight: .bold, design: .rounded))
       }
       .frame(maxWidth: .infinity).frame(minHeight: 54)
@@ -129,6 +134,8 @@ struct NookButton: View {
       )
       .scaleEffect(pressed ? 0.97 : 1)
     }.buttonStyle(PressTrackingStyle(isPressed: $pressed))
+      .disabled(isLoading)
+      .accessibilityValue(isLoading ? "Procesando" : "")
   }
   private var backgroundColor: Color {
     style == .primary
