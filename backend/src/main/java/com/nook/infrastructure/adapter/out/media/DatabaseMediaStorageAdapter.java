@@ -14,7 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("prod")
+@Profile("prod & !object-storage")
 public class DatabaseMediaStorageAdapter implements MediaStoragePort {
   private final JdbcTemplate jdbc;
 

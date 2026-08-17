@@ -13,7 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!prod")
+@Profile("!prod & !object-storage")
 public class LocalMediaStorageAdapter implements MediaStoragePort {
   private final Path root;
 

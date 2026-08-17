@@ -21,6 +21,13 @@ nook:
   access-minutes: ${JWT_ACCESS_MINUTES:30}
   refresh-days: ${JWT_REFRESH_DAYS:30}
   photo-storage: ${PHOTO_STORAGE:./data/photos}
+  object-storage:
+    bucket: ${OBJECT_STORAGE_BUCKET:}
+    region: ${OBJECT_STORAGE_REGION:}
+    access-key: ${OBJECT_STORAGE_ACCESS_KEY:}
+    secret-key: ${OBJECT_STORAGE_SECRET_KEY:}
+    endpoint: ${OBJECT_STORAGE_ENDPOINT:}
+    public-base-url: ${OBJECT_STORAGE_PUBLIC_BASE_URL:}
   google-places-api-key: ${GOOGLE_PLACES_API_KEY:}
   cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   auth:
