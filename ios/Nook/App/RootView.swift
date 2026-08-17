@@ -959,9 +959,6 @@ struct FloatingTabBar: View {
       NookColors.warmBlack
         .ignoresSafeArea(edges: .bottom)
     }
-    .overlay(alignment: .top) {
-      Rectangle().fill(NookColors.espresso.opacity(0.09)).frame(height: 1)
-    }
     .animation(NookMotion.fast, value: selection)
     .task(id: selection) { await refreshNotifications() }
   }

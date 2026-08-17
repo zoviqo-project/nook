@@ -704,6 +704,8 @@ struct ProfileView: View {
   @State private var favoriteMoment = "AFTERWORK"
   @State private var preferredPlan = "IMPROVISE"
   @State private var uploading = false
+  @State private var photoOperation: UUID?
+  @State private var photoToDelete: Photo?
   @State private var saving = false
   @State private var saved = false
   @State private var profileError: String?
@@ -715,7 +717,7 @@ struct ProfileView: View {
       ScrollView {
         VStack(spacing: 18) {
           ZStack(alignment: .bottomLeading) {
-            ProfileImage(url: app.me?.photos.first?.url, name: app.me?.name ?? "N").frame(
+            ProfileImage(url: orderedPhotos.first?.url, name: app.me?.name ?? "N").frame(
               height: 405)
             LinearGradient(
               colors: [.clear, NookColors.warmBlack.opacity(0.82)], startPoint: .center,
@@ -728,6 +730,14 @@ struct ProfileView: View {
               }
               .font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.82))
             }.foregroundStyle(.white).padding(24)
+            if orderedPhotos.isEmpty {
+              PhotosPicker(selection: $photoItems, maxSelectionCount: 1, matching: .images) {
+                Label(uploading ? "Subiendo…" : "Añadir foto principal", systemImage: "camera.fill")
+                  .font(.system(size: 14, weight: .bold, design: .rounded))
+                  .foregroundStyle(.white).padding(.horizontal, 15).frame(height: 42)
+                  .background(.black.opacity(0.54), in: Capsule())
+              }.disabled(uploading).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
           }.clipShape(RoundedRectangle(cornerRadius: 30)).padding(.horizontal, 14)
 
           VStack(alignment: .leading, spacing: 12) {
@@ -738,9 +748,41 @@ struct ProfileView: View {
             }
             ScrollView(.horizontal) {
               HStack(spacing: 9) {
-                ForEach(app.me?.photos.sorted(by: { $0.position < $1.position }) ?? []) { photo in
-                  ProfileImage(url: photo.url, name: app.me?.name ?? "N").frame(width: 78, height: 98)
-                    .clipShape(RoundedRectangle(cornerRadius: 17))
+                ForEach(orderedPhotos) { photo in
+                  ZStack(alignment: .topTrailing) {
+                    ProfileImage(url: photo.url, name: app.me?.name ?? "N").frame(width: 86, height: 108)
+                      .clipShape(RoundedRectangle(cornerRadius: 17))
+                      .overlay(alignment: .bottomLeading) {
+                        if photo.isPrimary == true {
+                          Text("PRINCIPAL").font(.system(size: 8, weight: .heavy)).tracking(0.7)
+                            .foregroundStyle(.white).padding(.horizontal, 7).frame(height: 22)
+                            .background(.black.opacity(0.58), in: Capsule()).padding(6)
+                        }
+                      }
+                    Menu {
+                      if photo.isPrimary != true {
+                        Button("Usar como principal", systemImage: "star.fill") {
+                          Task { await makePrimary(photo.id) }
+                        }
+                      }
+                      Button("Mover a la izquierda", systemImage: "arrow.left") {
+                        Task { await move(photo.id, offset: -1) }
+                      }.disabled(orderedPhotos.first?.id == photo.id)
+                      Button("Mover a la derecha", systemImage: "arrow.right") {
+                        Task { await move(photo.id, offset: 1) }
+                      }.disabled(orderedPhotos.last?.id == photo.id)
+                      Button("Eliminar foto", systemImage: "trash", role: .destructive) {
+                        photoToDelete = photo
+                      }
+                    } label: {
+                      Image(systemName: "ellipsis").font(.caption.bold()).foregroundStyle(.white)
+                        .frame(width: 30, height: 30).background(.black.opacity(0.52), in: Circle()).padding(5)
+                    }.disabled(uploading || photoOperation != nil)
+                    if photoOperation == photo.id {
+                      ProgressView().tint(.white).frame(width: 86, height: 108)
+                        .background(.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 17))
+                    }
+                  }
                 }
                 if (app.me?.photos.count ?? 0) < 8 {
                   PhotosPicker(
@@ -861,6 +903,20 @@ struct ProfileView: View {
     }.alert("No hemos podido guardar", isPresented: Binding(
       get: { profileError != nil }, set: { if !$0 { profileError = nil } }
     )) { Button("Entendido") { profileError = nil } } message: { Text(profileError ?? "") }
+    .confirmationDialog(
+      "¿Eliminar esta foto?", isPresented: Binding(
+        get: { photoToDelete != nil }, set: { if !$0 { photoToDelete = nil } }),
+      titleVisibility: .visible
+    ) {
+      Button("Eliminar foto", role: .destructive) {
+        guard let photo = photoToDelete else { return }
+        photoToDelete = nil
+        Task { await deletePhoto(photo.id) }
+      }
+      Button("Cancelar", role: .cancel) { photoToDelete = nil }
+    } message: {
+      Text("Se eliminará de tu perfil de Nook.")
+    }
     .onAppear {
       bio = app.me?.bio ?? ""
       visible = app.me?.visible ?? true
@@ -889,7 +945,7 @@ struct ProfileView: View {
     }
   }
   private func upload(_ items: [PhotosPickerItem]) {
-    guard !items.isEmpty else { return }
+    guard !items.isEmpty, !uploading else { return }
     uploading = true
     Task {
       do {
@@ -902,6 +958,50 @@ struct ProfileView: View {
       } catch { profileError = "No hemos podido añadir todas las fotos. Inténtalo de nuevo." }
       uploading = false; photoItems = []
     }
+  }
+  private var orderedPhotos: [Photo] {
+    (app.me?.photos ?? []).sorted {
+      if ($0.isPrimary == true) != ($1.isPrimary == true) { return $0.isPrimary == true }
+      return $0.position < $1.position
+    }
+  }
+  @MainActor private func refreshPhotos() async throws {
+    app.me = try await app.repository.me()
+  }
+  @MainActor private func makePrimary(_ id: UUID) async {
+    guard photoOperation == nil else { return }
+    photoOperation = id
+    defer { photoOperation = nil }
+    do {
+      _ = try await app.repository.makePrimaryPhoto(id)
+      try await refreshPhotos()
+      Haptics.success()
+    } catch { profileError = "No hemos podido cambiar la foto principal. Inténtalo de nuevo." }
+  }
+  @MainActor private func deletePhoto(_ id: UUID) async {
+    guard photoOperation == nil else { return }
+    photoOperation = id
+    defer { photoOperation = nil }
+    do {
+      try await app.repository.deletePhoto(id)
+      try await refreshPhotos()
+      Haptics.success()
+    } catch { profileError = "No hemos podido eliminar la foto. Inténtalo de nuevo." }
+  }
+  @MainActor private func move(_ id: UUID, offset: Int) async {
+    guard photoOperation == nil else { return }
+    var photos = orderedPhotos
+    guard let from = photos.firstIndex(where: { $0.id == id }) else { return }
+    let destination = min(max(0, from + offset), photos.count - 1)
+    guard from != destination else { return }
+    photos.swapAt(from, destination)
+    photoOperation = id
+    defer { photoOperation = nil }
+    do {
+      _ = try await app.repository.reorderPhotos(photos.map(\.id))
+      try await refreshPhotos()
+      Haptics.selection()
+    } catch { profileError = "No hemos podido reordenar las fotos. Inténtalo de nuevo." }
   }
   private func profileMenu(_ icon: String, _ text: String, values: [(String, String)], select: @escaping (String) -> Void) -> some View {
     Menu {
