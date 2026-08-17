@@ -110,12 +110,12 @@ struct Photo: Codable, Identifiable, Hashable {
 struct Me: Codable {
   let id: UUID
   let email, name: String
-  let age: Int
-  let birthDate: String
-  let gender: Gender
+  let age: Int?
+  let birthDate: String?
+  let gender: Gender?
   let bio: String
   let city: String?
-  let lookingFor: LookingFor
+  let lookingFor: LookingFor?
   let coffeePersonality: String?
   let preferredPlan: String?
   let preferredVibe: String?
@@ -257,6 +257,17 @@ struct CoffeeDate: Codable, Identifiable {
   let status: CoffeeDateStatus
   let createdAt: String
   let nookChoice: Bool?
+  var timeZoneId: String? = nil
+
+  func formattedProposedAt(dateStyle: DateFormatter.Style = .medium) -> String {
+    guard let value = ISO8601DateFormatter.nook.date(from: proposedAt) else { return proposedAt }
+    let formatter = DateFormatter()
+    formatter.locale = .autoupdatingCurrent
+    formatter.dateStyle = dateStyle
+    formatter.timeStyle = .short
+    formatter.timeZone = timeZoneId.flatMap(TimeZone.init(identifier:)) ?? .autoupdatingCurrent
+    return formatter.string(from: value)
+  }
 }
 struct PageResponse<T: Codable>: Codable {
   let content: [T]

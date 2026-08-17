@@ -29,7 +29,7 @@ class CoffeeDateServiceTest {
   @Test void onlyMatchParticipantsCanCreateAProposal(){
     UUID user=UUID.randomUUID(),match=UUID.randomUUID();
     when(repository.matchMember(match,user)).thenReturn(false);
-    var request=new CreateDate(match,UUID.randomUUID(),Instant.now().plusSeconds(3600),PaymentPreference.SPLIT,false,UUID.randomUUID());
+    var request=new CreateDate(match,UUID.randomUUID(),Instant.now().plusSeconds(3600),PaymentPreference.SPLIT,false,UUID.randomUUID(),"Europe/Madrid");
     assertThatThrownBy(()->service().create(user,request)).isInstanceOf(ApiException.class)
         .hasMessageContaining("match");
   }
@@ -79,11 +79,28 @@ class CoffeeDateServiceTest {
     CoffeeShop shop=new CoffeeShop();shop.id=proposal.coffeeShopId;Profile profile=new Profile();
     when(repository.dateByIdempotencyKey(user,key)).thenReturn(Optional.of(proposal));
     when(repository.profile(user)).thenReturn(profile);when(repository.find(CoffeeShop.class,proposal.coffeeShopId)).thenReturn(shop);
-    var request=new CreateDate(proposal.matchId,proposal.coffeeShopId,proposal.proposedAt,PaymentPreference.SPLIT,false,key);
+    var request=new CreateDate(proposal.matchId,proposal.coffeeShopId,proposal.proposedAt,PaymentPreference.SPLIT,false,key,"America/New_York");
 
     var result=service().create(user,request);
 
     assertThat(result.id()).isEqualTo(proposal.id);verify(repository,never()).save(any());
+  }
+
+  @Test void invalidIanaTimeZoneIsRejected(){
+    UUID user=UUID.randomUUID(),matchId=UUID.randomUUID(),shopId=UUID.randomUUID();
+    Match match=new Match();match.id=matchId;match.userOneId=user;match.userTwoId=UUID.randomUUID();
+    CoffeeShop shop=new CoffeeShop();shop.id=shopId;
+    when(repository.matchMember(matchId,user)).thenReturn(true);
+    when(repository.find(Match.class,matchId)).thenReturn(match);
+    when(repository.find(CoffeeShop.class,shopId)).thenReturn(shop);
+    doAnswer(invocation->{CoffeeDateProposal value=invocation.getArgument(0);value.id=UUID.randomUUID();return value;})
+        .when(repository).save(any(CoffeeDateProposal.class));
+    var request=new CreateDate(matchId,shopId,Instant.now().plusSeconds(3600),PaymentPreference.SPLIT,
+        false,UUID.randomUUID(),"Not/A_Time_Zone");
+
+    assertThatThrownBy(()->service().create(user,request)).isInstanceOf(ApiException.class)
+        .hasMessageContaining("Zona horaria");
+    verify(repository,never()).setDateTimeZone(any(),anyString());
   }
 
   @Test void recipientCounterProposalSwapsRolesSoOriginalSenderCanRespond(){

@@ -44,6 +44,8 @@ public class DemoDataInitializer implements CommandLineRunner {
       "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85",
       "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1000&q=85"
     };
+    String[] cities = {"London", "New York", "Tokyo", "Barcelona"};
+    double[][] coordinates = {{51.5074,-0.1278},{40.7128,-74.0060},{35.6762,139.6503},{41.3874,2.1686}};
     List<User> users = new ArrayList<>();
     for (int i = 0; i < names.length; i++) {
       User user = new User();
@@ -57,9 +59,10 @@ public class DemoDataInitializer implements CommandLineRunner {
       profile.birthDate = LocalDate.of(1990 + i % 12, 1 + i % 11, 2 + i % 20);
       profile.gender = i % 3 == 0 ? Gender.MAN : Gender.WOMAN;
       profile.bio = new String[] {"Arquitectura · conciertos · cafeterías pequeñas", "Libros · cerámica · conversaciones largas", "Fotografía · viajes · café por la mañana", "Producto · música · paseos sin prisa"}[i % 4];
-      profile.city = "Barcelona";
-      profile.latitude = 41.3874 + (i % 5) * .003;
-      profile.longitude = 2.1686 + (i % 4) * .003;
+      int region = (i / 5) % cities.length;
+      profile.city = cities[region];
+      profile.latitude = coordinates[region][0] + (i % 5) * .003;
+      profile.longitude = coordinates[region][1] + (i % 4) * .003;
       profile.lookingFor = LookingFor.values()[i % 4];
       profile.coffeePersonality = coffees[i % coffees.length];
       profile.preferredPlan = new String[] {"QUICK", "LONG_TALKS", "WALK", "IMPROVISE"}[i % 4];
@@ -85,6 +88,7 @@ public class DemoDataInitializer implements CommandLineRunner {
       photo.userId = user.id;
       photo.url = photos[i % photos.length];
       photo.position = 0;
+      photo.primary = true;
       repo.save(photo);
       users.add(user);
     }

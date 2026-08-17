@@ -64,6 +64,11 @@ public class CoffeeDateService {
     proposal.paymentPreference = request.paymentPreference();
     proposal.nookChoice = request.nookChoice();
     repo.save(proposal);
+    repo.flush();
+    String timeZoneId = request.timeZoneId() == null || request.timeZoneId().isBlank() ? "UTC" : request.timeZoneId();
+    try { java.time.ZoneId.of(timeZoneId); }
+    catch (java.time.DateTimeException error) { throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TIME_ZONE", "Zona horaria no válida"); }
+    repo.setDateTimeZone(proposal.id, timeZoneId);
     audit.record(me, "PROPOSAL_CREATED", "COFFEE_PROPOSAL", proposal.id);
     notify(proposal.receiverId, proposal, repo.profile(me).name + " te propone un café ☕");
     return dto(proposal, me);
@@ -203,7 +208,8 @@ public class CoffeeDateService {
     Profile profile = repo.profile(me);
     return new DateDto(d.id, d.matchId, d.senderId, d.receiverId,
         mapper.shop(repo.find(CoffeeShop.class, d.coffeeShopId), profile.latitude == null ? 0 : profile.latitude,
-            profile.longitude == null ? 0 : profile.longitude), d.proposedAt, d.paymentPreference, d.status, d.createdAt, d.nookChoice);
+            profile.longitude == null ? 0 : profile.longitude), d.proposedAt, d.paymentPreference, d.status, d.createdAt, d.nookChoice,
+        repo.dateTimeZone(d.id));
   }
   private void notify(UUID user, CoffeeDateProposal d, String title) {
     push.deliver(user,d.status == DateStatus.ACCEPTED ? "COFFEE_ACCEPTED" : "COFFEE_PROPOSAL",

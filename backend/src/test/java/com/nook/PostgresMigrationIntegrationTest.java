@@ -31,7 +31,7 @@ class PostgresMigrationIntegrationTest {
   @Test void flywayCreatesCurrentProductionSchemaAndUniqueConstraints(){
     var jdbc=new JdbcTemplate(dataSource);
     Integer migrations=jdbc.queryForObject("select count(*) from flyway_schema_history where success",Integer.class);
-    assertThat(migrations).isGreaterThanOrEqualTo(18);
+    assertThat(migrations).isGreaterThanOrEqualTo(19);
     assertThat(jdbc.queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name in ('users','matches','coffee_date_proposals','messages','user_settings','media_objects')",Integer.class)).isEqualTo(6);
     assertThat(jdbc.queryForObject("select count(*) from pg_constraint c join pg_class t on t.oid=c.conrelid where c.contype='u' and t.relname in ('matches','coffee_likes')",Integer.class)).isEqualTo(2);
   }

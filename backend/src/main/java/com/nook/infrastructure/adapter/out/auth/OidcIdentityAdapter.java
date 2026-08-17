@@ -34,6 +34,10 @@ public class OidcIdentityAdapter implements ExternalIdentityVerifier {
 
   @Override public VerifiedIdentity verify(AuthProvider provider, String token) {
     try {
+      if (provider == AuthProvider.GOOGLE && googleAudience.isBlank())
+        throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_NOT_CONFIGURED", "Google Login no está configurado");
+      if (provider == AuthProvider.APPLE && appleAudience.isBlank())
+        throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_NOT_CONFIGURED", "Apple Login no está configurado");
       Jwt jwt = switch (provider) {
         case APPLE -> apple().decode(token);
         case GOOGLE -> google().decode(token);
@@ -48,7 +52,8 @@ public class OidcIdentityAdapter implements ExternalIdentityVerifier {
       String email = jwt.getClaimAsString("email");
       Object verifiedClaim = jwt.getClaims().get("email_verified");
       boolean verified = Boolean.TRUE.equals(verifiedClaim) || "true".equalsIgnoreCase(String.valueOf(verifiedClaim));
-      return new VerifiedIdentity(jwt.getSubject(), email, verified, jwt.getClaimAsString("name"));
+      return new VerifiedIdentity(jwt.getSubject(), email, verified, jwt.getClaimAsString("name"),
+          jwt.getClaimAsString("picture"));
     } catch (ApiException e) { throw e; }
     catch (Exception e) {
       throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY_TOKEN", "La credencial de acceso no es válida");
@@ -63,14 +68,17 @@ public class OidcIdentityAdapter implements ExternalIdentityVerifier {
         .retrieve().body(FacebookDebug.class);
     if (response == null || response.data == null || !response.data.is_valid || !facebookAppId.equals(response.data.app_id))
       throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY_TOKEN", "La credencial de Facebook no es válida");
-    FacebookMe me = http.get().uri(uri -> uri.path("/me").queryParam("fields", "id,name,email")
+    FacebookMe me = http.get().uri(uri -> uri.path("/me").queryParam("fields", "id,name,email,picture.type(large)")
         .queryParam("access_token", token).build()).retrieve().body(FacebookMe.class);
     if (me == null || me.id == null) throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_IDENTITY_TOKEN", "La identidad de Facebook no es válida");
-    return new VerifiedIdentity(me.id, me.email, me.email != null, me.name);
+    String picture = me.picture == null || me.picture.data == null ? null : me.picture.data.url;
+    return new VerifiedIdentity(me.id, me.email, me.email != null, me.name, picture);
   }
   private record FacebookDebug(FacebookData data) {}
   private record FacebookData(boolean is_valid, String app_id, String user_id) {}
-  private record FacebookMe(String id, String name, String email) {}
+  private record FacebookMe(String id, String name, String email, FacebookPicture picture) {}
+  private record FacebookPicture(FacebookPictureData data) {}
+  private record FacebookPictureData(String url) {}
 
   private JwtDecoder apple() {
     if (apple == null) apple = JwtDecoders.fromIssuerLocation("https://appleid.apple.com");

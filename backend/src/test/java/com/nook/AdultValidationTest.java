@@ -3,6 +3,7 @@ package com.nook;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.nook.dto.ApiDtos.UpdateMe;
+import com.nook.dto.ApiDtos.PhoneOtpRequest;
 import jakarta.validation.Validation;
 import java.time.*;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,17 @@ class AdultValidationTest {
     try (var factory = Validation.buildDefaultValidatorFactory()) {
       var violations = factory.getValidator().validate(update);
       assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("coffeesPerDay")));
+    }
+  }
+
+  @Test
+  void phoneLoginAcceptsInternationalE164AndRejectsLocalNumbers() {
+    try (var factory = Validation.buildDefaultValidatorFactory()) {
+      var validator = factory.getValidator();
+      assertTrue(validator.validate(new PhoneOtpRequest("+14155552671")).isEmpty());
+      assertTrue(validator.validate(new PhoneOtpRequest("+442071838750")).isEmpty());
+      assertTrue(validator.validate(new PhoneOtpRequest("+819012345678")).isEmpty());
+      assertFalse(validator.validate(new PhoneOtpRequest("600000000")).isEmpty());
     }
   }
 }

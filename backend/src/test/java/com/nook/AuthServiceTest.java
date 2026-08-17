@@ -40,7 +40,8 @@ class AuthServiceTest {
     User user=new User();user.id=userId;user.email="verified@nook.app";
     AuthIdentity identity=new AuthIdentity();identity.userId=userId;identity.provider=AuthProvider.GOOGLE;identity.providerSubject="google-sub";
     when(identities.verify(AuthProvider.GOOGLE,"signed-token")).thenReturn(
-        new ExternalIdentityVerifier.VerifiedIdentity("google-sub","verified@nook.app",true,"Laura"));
+        new ExternalIdentityVerifier.VerifiedIdentity("google-sub","verified@nook.app",true,"Laura",
+            "https://lh3.googleusercontent.com/avatar"));
     when(repository.identity(AuthProvider.GOOGLE,"google-sub")).thenReturn(Optional.of(identity));
     when(repository.user(userId)).thenReturn(user);
     when(jwt.issue(userId)).thenReturn("access");when(jwt.expiresSeconds()).thenReturn(1800L);
@@ -49,6 +50,9 @@ class AuthServiceTest {
 
     assertThat(token.accessToken()).isEqualTo("access");
     verify(identities).verify(AuthProvider.GOOGLE,"signed-token");
+    verify(repository).save(argThat(value -> value instanceof Photo photo
+        && photo.source.equals("SOCIAL") && photo.provider.equals("GOOGLE")
+        && photo.url.equals("https://lh3.googleusercontent.com/avatar")));
     verify(audit).record(userId,"LOGIN","USER",userId);
   }
 
@@ -61,7 +65,7 @@ class AuthServiceTest {
 
   @Test void unverifiedFederatedEmailIsNeverLinkedToAnExistingAccount(){
     when(identities.verify(AuthProvider.GOOGLE,"signed-token")).thenReturn(
-        new ExternalIdentityVerifier.VerifiedIdentity("attacker-sub","victim@nook.app",false,"Coffee"));
+        new ExternalIdentityVerifier.VerifiedIdentity("attacker-sub","victim@nook.app",false,"Coffee",null));
     when(repository.identity(AuthProvider.GOOGLE,"attacker-sub")).thenReturn(Optional.empty());
     when(encoder.encode(anyString())).thenReturn("hash");
     when(jwt.issue(any())).thenReturn("access");

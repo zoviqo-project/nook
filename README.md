@@ -23,7 +23,9 @@ open http://localhost:8080/swagger-ui/index.html
 
 ## Autenticación
 
-Endpoints: Apple, Google, Facebook, teléfono/OTP, refresh, logout y `auth/me`. Apple/Google validan firma OIDC, issuer, audience y expiración en backend. Facebook valida el token con Graph. El perfil `development` permite un OTP efímero dev devuelto solo en esa configuración; producción requiere un adaptador SMS real.
+Endpoints: Apple, Google, Facebook, teléfono/OTP, refresh, logout y `users/me`. Apple/Google validan firma OIDC, issuer, audience y expiración en backend. Facebook valida el token con Graph. El perfil `development` permite un OTP efímero dev devuelto solo en esa configuración; producción requiere un adaptador SMS real.
+
+Google Login usa OAuth 2.0 con PKCE en iOS y valida el `id_token` de nuevo en backend. Configura el mismo client ID iOS en `GOOGLE_IOS_CLIENT_ID` (Xcode) y `GOOGLE_CLIENT_ID` (backend/Render), además del esquema inverso en `GOOGLE_REVERSED_CLIENT_ID`. La URI autorizada es `<esquema-inverso>:/oauth2redirect/google`. Sin esos valores el botón permanece visible y devuelve un error de configuración, sin crear ninguna sesión local.
 
 Variables relevantes: `APPLE_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `JWT_SECRET`, `JWT_ACCESS_MINUTES` y `JWT_REFRESH_DAYS`. Sign in with Apple también exige capability y provisioning profile válidos para el bundle iOS.
 

@@ -335,7 +335,7 @@ struct NookCoffeeProposalBubble: View {
       } else { Text(date.status == .accepted ? "ACEPTADO" : date.status.rawValue).font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
     }.padding(18).foregroundStyle(NookColors.espresso).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 24)).overlay(RoundedRectangle(cornerRadius: 24).stroke(NookColors.oat.opacity(0.45))).padding(.vertical, 4)
   }
-  private var formatted: String { ISO8601DateFormatter.nook.date(from: date.proposedAt)?.formatted(date: .abbreviated, time: .shortened) ?? date.proposedAt }
+  private var formatted: String { date.formattedProposedAt() }
 }
 
 struct ChatCoffeePicker: View {
@@ -560,7 +560,7 @@ struct CoffeeTicket: View {
             }
             HStack(spacing: 7) {
               Image(systemName: "calendar").foregroundStyle(NookColors.mocha).frame(width: 17)
-              Text(formatted(date.proposedAt)).lineLimit(1).minimumScaleFactor(0.85)
+              Text(date.formattedProposedAt(dateStyle: .full)).lineLimit(1).minimumScaleFactor(0.85)
             }.font(.system(size: 12, weight: .semibold, design: .rounded))
               .foregroundStyle(NookColors.espresso.opacity(0.78))
             controls
@@ -683,9 +683,6 @@ struct CoffeeTicket: View {
     case .accepted: "Confirmado"
     case .pending: "Esperando confirmación"
     }
-  }
-  private func formatted(_ raw: String) -> String {
-    ISO8601DateFormatter.nook.date(from: raw)?.formatted(date: .complete, time: .shortened) ?? raw
   }
   private func countdown(_ raw: String) -> String {
     guard let value = ISO8601DateFormatter.nook.date(from: raw) else { return "" }

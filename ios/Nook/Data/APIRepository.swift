@@ -1,4 +1,6 @@
 import Foundation
+import ImageIO
+import UIKit
 
 actor APIRepository: NookRepository {
   private let baseURL: URL
@@ -92,7 +94,22 @@ actor APIRepository: NookRepository {
       capturedAt: ISO8601DateFormatter().string(from: capturedAt)))
   }
   func uploadPhoto(data: Data, mimeType: String) async throws -> Photo {
-    try await performPhotoUpload(data: data, mimeType: mimeType, mayRefresh: true)
+    let optimized = try Self.optimizedJPEG(data)
+    return try await performPhotoUpload(data: optimized, mimeType: "image/jpeg", mayRefresh: true)
+  }
+  private static func optimizedJPEG(_ data: Data) throws -> Data {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+      let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceThumbnailMaxPixelSize: 2048
+      ] as CFDictionary)
+    else { throw URLError(.cannotDecodeContentData) }
+    let rendered = UIImage(cgImage: image)
+    guard let output = rendered.jpegData(compressionQuality: 0.82), output.count <= 8_000_000 else {
+      throw URLError(.dataLengthExceedsMaximum)
+    }
+    return output
   }
   private func performPhotoUpload(data: Data, mimeType: String, mayRefresh: Bool) async throws -> Photo {
     if mayRefresh, let current = try tokens.load(), current.expiresAt.timeIntervalSinceNow < 30 {
@@ -191,7 +208,8 @@ actor APIRepository: NookRepository {
       "coffee-dates", method: "POST",
       body: DateBody(
         matchId: match, coffeeShopId: shop, proposedAt: ISO8601DateFormatter().string(from: date),
-        paymentPreference: payment, nookChoice: nookChoice, idempotencyKey: idempotencyKey))
+        paymentPreference: payment, nookChoice: nookChoice, idempotencyKey: idempotencyKey,
+        timeZoneId: TimeZone.current.identifier))
   }
   func updateDate(_ id: UUID, status: CoffeeDateStatus) async throws -> CoffeeDate {
     try await call("coffee-dates/\(id)", method: "PATCH", body: StatusBody(status: status))
@@ -319,6 +337,7 @@ private struct DateBody: Codable {
   let paymentPreference: PaymentPreference
   let nookChoice: Bool
   let idempotencyKey: UUID
+  let timeZoneId: String
 }
 private struct StatusBody: Codable { let status: CoffeeDateStatus }
 private struct DeviceTokenBody: Codable { let token: String }

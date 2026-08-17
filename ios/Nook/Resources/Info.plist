@@ -24,6 +24,17 @@
     <string>Nook usa tu ubicación para calcular distancias aproximadas y encontrar cafés cercanos. Nunca mostramos tus coordenadas.</string>
     <key>NookAPIURL</key>
     <string>$(NOOK_API_URL)</string>
+    <key>GoogleClientID</key>
+    <string>$(GOOGLE_IOS_CLIENT_ID)</string>
+    <key>GoogleReversedClientID</key>
+    <string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLSchemes</key>
+            <array><string>$(GOOGLE_REVERSED_CLIENT_ID)</string></array>
+        </dict>
+    </array>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Elige fotos para tu perfil de Nook.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>

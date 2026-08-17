@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 import CoreLocation
+import AuthenticationServices
 
 struct RootView: View {
   @EnvironmentObject var app: AppSession
@@ -242,6 +243,7 @@ private struct QuickAccessView: View {
   @State private var busy = false
   @State private var error: String?
   @StateObject private var apple = AppleSignInCoordinator()
+  @StateObject private var google = GoogleSignInCoordinator()
   @State private var revealed = false
   @State private var brewed = false
   init(isPresented: Binding<Bool>, startWithPhone: Bool = false) {
@@ -271,14 +273,13 @@ private struct QuickAccessView: View {
             Text(otpChallenge == nil ? "Tu número" : "Código de acceso").font(.system(size: 34, weight: .bold, design: .rounded))
             Text(otpChallenge == nil ? "Te enviaremos un código para confirmar que eres tú." : "Introduce los seis números que acabamos de enviarte.").foregroundStyle(.white.opacity(0.66))
             if otpChallenge == nil {
-              HStack(spacing: 12) {
-                Text("+34").font(.title3.weight(.semibold))
-                TextField("600 000 000", text: $phone).keyboardType(.phonePad)
-                  .font(.title3.weight(.medium)).padding(.vertical, 13)
-                  .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
-              }
+              TextField("+44 7700 900000", text: $phone).keyboardType(.phonePad)
+                .textContentType(.telephoneNumber).font(.title3.weight(.medium)).padding(.vertical, 13)
+                .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
+              Text("Incluye el prefijo internacional de tu país.").font(.caption)
+                .foregroundStyle(.white.opacity(0.58))
               accessButton(busy ? "Enviando…" : "Continuar", icon: "arrow.right", primary: true, index: 0) { Task { await requestCode() } }
-                .disabled(busy || phone.filter(\.isNumber).count < 9).opacity(phone.filter(\.isNumber).count < 9 ? 0.4 : 1)
+                .disabled(busy || normalizedPhone == nil).opacity(normalizedPhone == nil ? 0.4 : 1)
             } else {
               TextField("000000", text: $otp).keyboardType(.numberPad).textContentType(.oneTimeCode)
                 .font(.system(size: 28, weight: .bold, design: .monospaced)).tracking(8).padding(.vertical, 13)
@@ -295,6 +296,10 @@ private struct QuickAccessView: View {
           }
           VStack(spacing: 11) {
             accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
+            accessButton("Continuar con Google", icon: "g.circle", index: 1) { Task { await signInWithGoogle() } }
+            accessButton("Continuar con Facebook", icon: "f.circle", index: 2) {
+              error = "Facebook Login necesita configurar su aplicación y SDK. No se ha iniciado ninguna sesión."
+            }
             accessButton("Continuar con teléfono", icon: "phone", index: 3) { phoneEntry = true }
           }
           Button("Crear una cuenta con email") {
@@ -333,16 +338,34 @@ private struct QuickAccessView: View {
     do { let credential = try await apple.signIn(); try await app.federatedLogin(provider: "apple", identityToken: credential.identityToken, displayName: credential.displayName); isPresented = false }
     catch { self.error = error.localizedDescription }
   }
+  private func signInWithGoogle() async {
+    guard !busy else { return }
+    busy = true; error = nil; defer { busy = false }
+    do {
+      let token = try await google.signIn()
+      try await app.federatedLogin(provider: "google", identityToken: token, displayName: nil)
+      isPresented = false
+    } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
+      return
+    } catch { self.error = error.localizedDescription }
+  }
   private func requestCode() async {
+    guard let normalizedPhone else { return }
     busy = true; defer { busy = false }
     do {
-      let digits = phone.filter(\.isNumber)
-      let challenge = try await app.requestPhoneOtp("+34\(digits)")
+      let challenge = try await app.requestPhoneOtp(normalizedPhone)
       otpChallenge = challenge
       #if DEBUG
         if let code = challenge.developmentCode { otp = code }
       #endif
     } catch { self.error = error.localizedDescription }
+  }
+  private var normalizedPhone: String? {
+    let value = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard value.hasPrefix("+") else { return nil }
+    let digits = value.filter(\.isNumber)
+    guard (8...15).contains(digits.count), digits.first != "0" else { return nil }
+    return "+\(digits)"
   }
   private func verifyCode() async {
     guard let challenge = otpChallenge else { return }
@@ -409,6 +432,7 @@ struct LoginView: View {
   @State private var phoneAccess = false
   @State private var waitingForServer = false
   @StateObject private var apple = AppleSignInCoordinator()
+  @StateObject private var google = GoogleSignInCoordinator()
   private var busy: Bool { state == .loading }
   private var error: String? { if case .error(let message) = state { message } else { nil } }
   var body: some View {
@@ -448,7 +472,7 @@ struct LoginView: View {
           }.padding(.vertical, 4)
           VStack(spacing: 10) {
             loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
-            loginProvider("Google", icon: "g.circle") { providerUnavailable("Google") }
+            loginProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
             loginProvider("Facebook", icon: "f.circle") { providerUnavailable("Facebook") }
             loginProvider("Teléfono", icon: "phone.fill") { phoneAccess = true }
           }
@@ -499,6 +523,18 @@ struct LoginView: View {
         displayName: credential.displayName)
       state = .success
       Haptics.success()
+    } catch { state = .error(friendly(error)) }
+  }
+  private func signInWithGoogle() async {
+    guard !busy else { return }
+    state = .loading
+    do {
+      let token = try await google.signIn()
+      try await app.federatedLogin(provider: "google", identityToken: token, displayName: nil)
+      state = .success
+      Haptics.success()
+    } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
+      state = .idle
     } catch { state = .error(friendly(error)) }
   }
   private func providerUnavailable(_ provider: String) {
