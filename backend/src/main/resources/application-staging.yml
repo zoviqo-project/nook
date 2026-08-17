@@ -1,5 +1,2 @@
-nook:
-  demo-auto-match: true
-
 # Staging is the only deployed environment allowed to create and interact with demo users.
 # Production runs with the `prod` profile alone and never loads DemoDataInitializer.
