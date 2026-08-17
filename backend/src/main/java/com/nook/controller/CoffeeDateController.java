@@ -22,8 +22,7 @@ public class CoffeeDateController {
   DateDto create(@Valid @RequestBody CreateDate request) { return service.create(CurrentUser.id(), request); }
   @GetMapping List<DateDto> list() { return service.list(CurrentUser.id()); }
   @GetMapping("/{id}") DateDto get(@PathVariable UUID id) {
-    return service.list(CurrentUser.id()).stream().filter(d -> d.id().equals(id)).findFirst()
-        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND));
+    return service.get(CurrentUser.id(), id);
   }
   @PatchMapping("/{id}") DateDto update(@PathVariable UUID id, @Valid @RequestBody UpdateDate request) { return service.update(CurrentUser.id(), id, request); }
   @PostMapping("/{id}/accept") DateDto accept(@PathVariable UUID id) { return service.transition(CurrentUser.id(), id, DateStatus.ACCEPTED); }

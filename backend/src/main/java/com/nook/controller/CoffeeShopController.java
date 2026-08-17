@@ -4,7 +4,6 @@ import com.nook.application.port.out.PlacePhotoPort;
 import com.nook.dto.ApiDtos.ShopDto;
 import com.nook.service.CoffeeShopService;
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -24,15 +23,6 @@ public class CoffeeShopController {
   public CoffeeShopController(CoffeeShopService service, PlacePhotoPort photos) {
     this.service = service;
     this.photos = photos;
-  }
-
-  /** @deprecated Use the canonical /api/v1/cafes/nearby endpoint. */
-  @Deprecated
-  @GetMapping("/nearby")
-  List<ShopDto> nearby(
-      @RequestParam double latitude, @RequestParam double longitude,
-      @RequestParam(defaultValue = "10") double radiusKm) {
-    return service.nearby(latitude, longitude, Math.min(radiusKm, 50));
   }
 
   @GetMapping("/photos/{token}")

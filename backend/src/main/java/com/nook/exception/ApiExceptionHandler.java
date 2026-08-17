@@ -11,8 +11,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -43,6 +49,33 @@ public class ApiExceptionHandler {
     log.info("Database constraint rejected method={} path={}", request.getMethod(), request.getRequestURI());
     return response(HttpStatus.CONFLICT, "DATA_CONFLICT",
         "La operación ya se había realizado o entra en conflicto con el estado actual", request, Map.of());
+  }
+
+  @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+  ResponseEntity<ErrorDto> concurrentUpdate(
+      ObjectOptimisticLockingFailureException exception, HttpServletRequest request) {
+    return response(HttpStatus.CONFLICT, "CONCURRENT_UPDATE",
+        "Los datos han cambiado; vuelve a intentarlo", request, Map.of());
+  }
+
+  @ExceptionHandler({HttpMessageNotReadableException.class,
+      MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+  ResponseEntity<ErrorDto> malformed(Exception exception, HttpServletRequest request) {
+    return response(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
+        "La petición no tiene un formato válido", request, Map.of());
+  }
+
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  ResponseEntity<ErrorDto> uploadTooLarge(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+    return response(HttpStatus.PAYLOAD_TOO_LARGE, "PHOTO_TOO_LARGE",
+        "La foto supera el tamaño permitido", request, Map.of());
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  ResponseEntity<ErrorDto> responseStatus(ResponseStatusException exception, HttpServletRequest request) {
+    HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+    return response(status, "HTTP_" + status.value(),
+        exception.getReason() == null ? status.getReasonPhrase() : exception.getReason(), request, Map.of());
   }
 
   @ExceptionHandler(Exception.class)

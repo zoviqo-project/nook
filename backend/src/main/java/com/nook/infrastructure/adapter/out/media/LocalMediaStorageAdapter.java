@@ -6,11 +6,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
 import java.util.UUID;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!prod")
 public class LocalMediaStorageAdapter implements MediaStoragePort {
   private final Path root;
 
@@ -30,18 +33,24 @@ public class LocalMediaStorageAdapter implements MediaStoragePort {
     }
   }
 
-  @Override public Path resolveUserPhoto(String filename) {
+  @Override public StoredContent resolveUserPhoto(String filename) {
     Path candidate=root.resolve(filename).normalize();
     if(!candidate.startsWith(root)||!Files.isRegularFile(candidate))
       throw new ApiException(HttpStatus.NOT_FOUND,"PHOTO_NOT_FOUND","Foto no encontrada");
-    return candidate;
+    try {
+      String type=Optional.ofNullable(Files.probeContentType(candidate)).orElse("image/jpeg");
+      return new StoredContent(Files.readAllBytes(candidate),type);
+    } catch(IOException error) {
+      throw new ApiException(HttpStatus.NOT_FOUND,"PHOTO_NOT_FOUND","Foto no encontrada");
+    }
   }
 
   @Override public void deleteUserPhoto(String publicUrl) {
     if(publicUrl==null||!publicUrl.startsWith("/api/v1/media/photos/"))return;
     String filename=publicUrl.substring(publicUrl.lastIndexOf('/')+1);
-    try { Files.deleteIfExists(resolveUserPhoto(filename)); }
-    catch(ApiException ignored) { }
+    Path candidate=root.resolve(filename).normalize();
+    if(!candidate.startsWith(root))return;
+    try { Files.deleteIfExists(candidate); }
     catch(IOException ignored) { }
   }
 }

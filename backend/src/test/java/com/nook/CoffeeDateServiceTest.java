@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.nook.domain.SocialEntities.*;
 import com.nook.dto.ApiDtos.CreateDate;
+import com.nook.dto.ApiDtos.UpdateDate;
 import com.nook.exception.ApiException;
 import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
@@ -83,5 +84,29 @@ class CoffeeDateServiceTest {
     var result=service().create(user,request);
 
     assertThat(result.id()).isEqualTo(proposal.id);verify(repository,never()).save(any());
+  }
+
+  @Test void recipientCounterProposalSwapsRolesSoOriginalSenderCanRespond(){
+    UUID originalSender=UUID.randomUUID(),recipient=UUID.randomUUID();
+    CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();
+    proposal.senderId=originalSender;proposal.receiverId=recipient;proposal.matchId=UUID.randomUUID();
+    proposal.coffeeShopId=UUID.randomUUID();proposal.status=DateStatus.PENDING;
+    proposal.proposedAt=Instant.now().plusSeconds(3_600);proposal.paymentPreference=PaymentPreference.SPLIT;
+    Match match=new Match();match.id=proposal.matchId;match.active=true;
+    CoffeeShop shop=new CoffeeShop();shop.id=proposal.coffeeShopId;shop.name="Nook Coffee";
+    Profile recipientProfile=new Profile();recipientProfile.name="Laura";
+    when(repository.find(CoffeeDateProposal.class,proposal.id)).thenReturn(proposal);
+    when(repository.find(Match.class,proposal.matchId)).thenReturn(match);
+    when(repository.find(CoffeeShop.class,proposal.coffeeShopId)).thenReturn(shop);
+    when(repository.profile(recipient)).thenReturn(recipientProfile);
+
+    service().update(recipient,proposal.id,new UpdateDate(
+        null,Instant.now().plusSeconds(7_200),null,null));
+
+    assertThat(proposal.senderId).isEqualTo(recipient);
+    assertThat(proposal.receiverId).isEqualTo(originalSender);
+    assertThat(proposal.status).isEqualTo(DateStatus.COUNTER_PROPOSED);
+    verify(push).deliver(eq(originalSender),eq("COFFEE_PROPOSAL"),contains("cambiado"),
+        eq("Nook Coffee"),eq(proposal.id));
   }
 }

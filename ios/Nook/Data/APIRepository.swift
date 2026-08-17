@@ -141,7 +141,7 @@ actor APIRepository: NookRepository {
     try await call("coffee-likes/\(id)", method: "POST", body: Optional<String>.none)
   }
   func pass(_ id: UUID) async throws {
-    let _: Empty = try await call("coffee-likes/\(id)", method: "DELETE")
+    let _: Empty = try await call("coffee-passes/\(id)", method: "POST")
   }
   func matches() async throws -> [Match] { try await call("matches") }
   func meetingPoint(matchID: UUID) async throws -> GeoPoint {

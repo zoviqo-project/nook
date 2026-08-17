@@ -29,6 +29,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
     if(windows.size()>10_000)windows.entrySet().removeIf(e->e.getValue().minute<minute-2);
     chain.doFilter(req,res);
   }
-  private Rule rule(HttpServletRequest request){String path=request.getRequestURI();if(path.contains("/auth/phone/"))return new Rule("otp",8);if(path.contains("/auth/"))return new Rule("auth",20);if(path.contains("/coffee-likes/"))return new Rule("likes",60);if(path.contains("/messages"))return new Rule("messages",120);if(path.contains("/cafes/nearby")||path.contains("/coffee-shops/nearby"))return new Rule("places",30);return null;}
+  private Rule rule(HttpServletRequest request){String path=request.getRequestURI();if(path.contains("/auth/phone/"))return new Rule("otp",8);if(path.contains("/auth/"))return new Rule("auth",20);if(path.contains("/coffee-likes/"))return new Rule("likes",60);if(path.contains("/messages"))return new Rule("messages",120);if(path.contains("/cafes/nearby"))return new Rule("places",30);return null;}
   private record Rule(String group,int limit){} private record Window(long minute,int count){}
 }

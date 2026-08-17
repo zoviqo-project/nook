@@ -6,6 +6,7 @@ import SwiftUI
   @Published var match: Match?
   @Published var loading = true
   @Published var error: String?
+  @Published private(set) var actingOn: UUID?
   func load(_ repo: any NookRepository) async {
     loading = true
     error = nil
@@ -15,6 +16,9 @@ import SwiftUI
     } catch { self.error = error.localizedDescription }
   }
   func pass(_ person: DiscoverProfile, repo: any NookRepository) async {
+    guard actingOn == nil else { return }
+    actingOn = person.id
+    defer { actingOn = nil }
     do {
       try await repo.pass(person.id)
       withAnimation(NookMotion.spring) { people.removeAll { $0.id == person.id } }
@@ -22,6 +26,9 @@ import SwiftUI
     } catch { self.error = error.localizedDescription }
   }
   func coffee(_ person: DiscoverProfile, repo: any NookRepository) async {
+    guard actingOn == nil else { return }
+    actingOn = person.id
+    defer { actingOn = nil }
     Haptics.coffee()
     NookSoundManager.shared.play(.coffeeLike)
     do {
@@ -63,6 +70,8 @@ struct DiscoverView: View {
     .task {
       await vm.load(app.repository)
       entrance = true
+    }.onChange(of: app.discoveryRevision) { _, _ in
+      Task { await vm.load(app.repository) }
     }.sheet(item: $vm.match) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
@@ -95,9 +104,11 @@ struct DiscoverView: View {
               withAnimation(NookMotion.spring) { drag = .zero }
             }
           }
-          ).scaleEffect(entrance ? 1 : 0.96).offset(y: entrance ? 0 : 28).animation(
+          ).allowsHitTesting(vm.actingOn == nil)
+          .scaleEffect(entrance ? 1 : 0.96).offset(y: entrance ? 0 : 28).animation(
             NookMotion.spring, value: person.id)
         actions(person).padding(.bottom, 22).offset(drag)
+          .allowsHitTesting(vm.actingOn == nil)
       }
     }.padding(.horizontal, 10)
   }
@@ -141,7 +152,7 @@ struct DiscoverView: View {
           ).foregroundStyle(NookColors.offWhite).rotationEffect(.degrees(liking ? -10 : 0))
           SteamView(active: liking).offset(y: -47)
         }.scaleEffect(liking ? 1.16 : 1).animation(NookMotion.playful, value: liking)
-      }.buttonStyle(.plain)
+      }.buttonStyle(.plain).disabled(vm.actingOn != nil)
       CircleAction(icon: "info", size: 54) { selectedProfile = person }
     }.frame(maxWidth: .infinity)
   }
@@ -587,6 +598,7 @@ struct DiscoveryFiltersView: View {
                     maxDistanceKm: Int(distance), discoveryIntentions: Array(intentions),
                     discoveryVibes: Array(vibes), discoveryMoments: Array(moments),
                     discoveryMeetingStyles: Array(plans)))
+                  app.discoveryPreferencesPersisted()
                   NookSoundManager.shared.play(.coffeeLike)
                   dismiss()
                 } catch { self.error = error.localizedDescription; saving = false }
@@ -1034,6 +1046,10 @@ struct SettingsView: View {
   @State private var visible = true
   @State private var pushEnabled = true
   @State private var loaded = false
+  @State private var savingVisibility = false
+  @State private var savingSettings = false
+  @State private var lastSavedSounds = true
+  @State private var lastSavedPush = true
   @State private var errorMessage: String?
   var body: some View {
     NavigationStack {
@@ -1044,13 +1060,13 @@ struct SettingsView: View {
             NookCard {
               VStack(spacing: 0) {
                 Toggle(isOn: $sounds) { Label("Sonidos de café", systemImage: "speaker.wave.2.fill") }
-                  .padding(.vertical, 12)
+                  .padding(.vertical, 12).disabled(!loaded || savingSettings)
                 Divider()
                 Toggle(isOn: $pushEnabled) { Label("Notificaciones", systemImage: "bell.fill") }
-                  .padding(.vertical, 12)
+                  .padding(.vertical, 12).disabled(!loaded || savingSettings)
                 Divider()
                 Toggle(isOn: $visible) { Label("Aparecer en Descubrir", systemImage: "eye.fill") }
-                  .padding(.vertical, 12)
+                  .padding(.vertical, 12).disabled(!loaded || savingVisibility)
               }.font(.headline).tint(NookColors.mocha)
             }
             NookCard {
@@ -1074,30 +1090,61 @@ struct SettingsView: View {
             let remote = try await app.repository.settings()
             sounds = remote.coffeeSoundsEnabled
             pushEnabled = remote.pushEnabled
+            lastSavedSounds = sounds
+            lastSavedPush = pushEnabled
             NookSoundManager.shared.enabled = sounds
           } catch { errorMessage = "No hemos podido cargar tus ajustes." }
           loaded = true
         }
         .onChange(of: visible) { _, value in
           guard loaded else { return }
-          Task { app.me = try? await app.repository.updateProfile(ProfileUpdate(visible: value)) }
+          savingVisibility = true
+          Task {
+            do {
+              app.me = try await app.repository.updateProfile(ProfileUpdate(visible: value))
+              errorMessage = nil
+            } catch {
+              loaded = false
+              visible = app.me?.visible ?? !value
+              loaded = true
+              errorMessage = "No hemos podido guardar este ajuste. Inténtalo de nuevo."
+            }
+            savingVisibility = false
+          }
         }
         .onChange(of: sounds) { _, value in
           NookSoundManager.shared.enabled = value
           guard loaded else { return }
-          Task { await saveSettings(.init(coffeeSoundsEnabled: value)) }
+          savingSettings = true
+          Task {
+            defer { savingSettings = false }
+            do {
+              _ = try await app.repository.updateSettings(.init(coffeeSoundsEnabled: value))
+              lastSavedSounds = value
+              errorMessage = nil
+            } catch {
+              loaded = false; sounds = lastSavedSounds; loaded = true
+              NookSoundManager.shared.enabled = lastSavedSounds
+              errorMessage = "No hemos podido guardar este ajuste. Inténtalo de nuevo."
+            }
+          }
         }
         .onChange(of: pushEnabled) { _, value in
           guard loaded else { return }
-          Task { await saveSettings(.init(pushEnabled: value)) }
+          savingSettings = true
+          Task {
+            defer { savingSettings = false }
+            do {
+              _ = try await app.repository.updateSettings(.init(pushEnabled: value))
+              lastSavedPush = value
+              errorMessage = nil
+            } catch {
+              loaded = false; pushEnabled = lastSavedPush; loaded = true
+              errorMessage = "No hemos podido guardar este ajuste. Inténtalo de nuevo."
+            }
+          }
         }
     }
   }
 
-  @MainActor private func saveSettings(_ update: UserSettingsUpdate) async {
-    do {
-      _ = try await app.repository.updateSettings(update)
-      errorMessage = nil
-    } catch { errorMessage = "No hemos podido guardar este ajuste. Inténtalo de nuevo." }
-  }
 }

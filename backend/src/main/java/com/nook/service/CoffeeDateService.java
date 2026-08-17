@@ -115,6 +115,7 @@ public class CoffeeDateService {
     if (proposal.status != DateStatus.PENDING && proposal.status != DateStatus.COUNTER_PROPOSED) {
       throw new ApiException(HttpStatus.CONFLICT, "PROPOSAL_NOT_ACTIVE", "La propuesta ya no está pendiente");
     }
+    boolean counterProposal = request.proposedAt() != null || request.coffeeShopId() != null;
     if (request.proposedAt() != null) {
       if (request.proposedAt().isBefore(Instant.now())) throw new ApiException(HttpStatus.BAD_REQUEST, "PAST_DATE", "La propuesta debe ser futura");
       proposal.proposedAt = request.proposedAt();
@@ -128,7 +129,16 @@ public class CoffeeDateService {
       proposal.status = DateStatus.COUNTER_PROPOSED;
     }
     if (request.paymentPreference() != null) proposal.paymentPreference = request.paymentPreference();
+    if (counterProposal && !proposal.senderId.equals(me)) {
+      UUID previousSender = proposal.senderId;
+      proposal.senderId = me;
+      proposal.receiverId = previousSender;
+    }
     proposal.updatedAt = Instant.now();
+    if (counterProposal) {
+      audit.record(me, "PROPOSAL_COUNTERED", "COFFEE_PROPOSAL", proposal.id);
+      notify(proposal.receiverId, proposal, repo.profile(me).name + " ha cambiado la propuesta");
+    }
     return dto(proposal, me);
   }
 
@@ -136,6 +146,14 @@ public class CoffeeDateService {
   public List<DateDto> list(UUID me) {
     completeExpiredAcceptedDates();
     return repo.dates(me).stream().map(d -> dto(d, me)).toList();
+  }
+
+  public DateDto get(UUID me, UUID id) {
+    CoffeeDateProposal proposal = repo.find(CoffeeDateProposal.class, id);
+    if (proposal == null || (!proposal.senderId.equals(me) && !proposal.receiverId.equals(me))) {
+      throw new ApiException(HttpStatus.NOT_FOUND, "DATE_NOT_FOUND", "Propuesta no encontrada");
+    }
+    return dto(proposal, me);
   }
 
   @Transactional
