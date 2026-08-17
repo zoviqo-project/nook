@@ -63,7 +63,7 @@ CAFE_ID="$(jq -r '.[0].id' "$TMP_DIR/cafes.json")"
 PROPOSED_AT="$(date -u -v+1d '+%Y-%m-%dT18:30:00Z')"
 PROPOSAL_KEY="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X POST "$API_URL/coffee-dates" \
-  -d "{\"matchId\":\"$MATCH_ID\",\"coffeeShopId\":\"$CAFE_ID\",\"proposedAt\":\"$PROPOSED_AT\",\"paymentPreference\":\"SPLIT\",\"nookChoice\":true,\"idempotencyKey\":\"$PROPOSAL_KEY\"}" > "$TMP_DIR/proposal.json"
+  -d "{\"matchId\":\"$MATCH_ID\",\"coffeeShopId\":\"$CAFE_ID\",\"proposedAt\":\"$PROPOSED_AT\",\"paymentPreference\":\"SPLIT\",\"nookChoice\":true,\"idempotencyKey\":\"$PROPOSAL_KEY\",\"timeZoneId\":\"Europe/Madrid\"}" > "$TMP_DIR/proposal.json"
 PROPOSAL_ID="$(jq -r .id "$TMP_DIR/proposal.json")"
 request -H "Authorization: Bearer $TOKEN_B" -X POST "$API_URL/coffee-dates/$PROPOSAL_ID/accept" > "$TMP_DIR/accepted.json"
 
