@@ -4,37 +4,11 @@ import CoreLocation
 
 struct RootView: View {
   @EnvironmentObject var app: AppSession
-  @Environment(\.scenePhase) private var scenePhase
-  @State private var resumeIntro = false
-  @State private var hasBeenActive = false
-  @State private var backgroundedAt: Date?
   var body: some View {
     ZStack {
       NookBackground()
       content.transition(.opacity)
-      if resumeIntro && app.stage != .loading {
-        NookIntroView(compact: true).zIndex(20)
-          .transition(.opacity.combined(with: .scale(scale: 1.06)))
-      }
     }.animation(.easeInOut(duration: 0.56), value: app.stage)
-      .animation(.easeInOut(duration: 0.42), value: resumeIntro)
-      .onChange(of: scenePhase) { _, phase in
-        if phase == .background {
-          backgroundedAt = Date()
-          return
-        }
-        guard phase == .active else { return }
-        let wasAway = backgroundedAt.map { Date().timeIntervalSince($0) > 4 } ?? false
-        if hasBeenActive && wasAway && app.stage != .loading {
-          resumeIntro = true
-          Task {
-            try? await Task.sleep(for: .milliseconds(1_250))
-            withAnimation(.easeInOut(duration: 0.48)) { resumeIntro = false }
-          }
-        }
-        backgroundedAt = nil
-        hasBeenActive = true
-      }
   }
   @ViewBuilder private var content: some View {
     #if DEBUG
@@ -55,6 +29,11 @@ struct RootView: View {
     case .login: LoginView()
     case .onboarding: OnboardingView()
     case .app: MainTabView()
+    case .startupError(let message):
+      NookErrorView(message: message) {
+        app.stage = .loading
+        Task { await app.restore() }
+      }.padding(.horizontal, 20)
     }
   }
 }

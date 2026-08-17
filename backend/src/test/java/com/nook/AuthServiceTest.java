@@ -59,6 +59,20 @@ class AuthServiceTest {
     verify(otp).send(eq("+34600000000"),matches("[0-9]{6}"));
   }
 
+  @Test void unverifiedFederatedEmailIsNeverLinkedToAnExistingAccount(){
+    when(identities.verify(AuthProvider.GOOGLE,"signed-token")).thenReturn(
+        new ExternalIdentityVerifier.VerifiedIdentity("attacker-sub","victim@nook.app",false,"Coffee"));
+    when(repository.identity(AuthProvider.GOOGLE,"attacker-sub")).thenReturn(Optional.empty());
+    when(encoder.encode(anyString())).thenReturn("hash");
+    when(jwt.issue(any())).thenReturn("access");
+
+    service().federated(AuthProvider.GOOGLE,new FederatedAuth("signed-token",null));
+
+    verify(repository,never()).userByEmail("victim@nook.app");
+    verify(repository).save(argThat(value -> value instanceof User user
+        && user.email.endsWith("@identity.nook.invalid")));
+  }
+
   @Test void validPhoneOtpIsConsumedAndCannotBeReused(){
     UUID challengeId=UUID.randomUUID(),userId=UUID.randomUUID();String code="483921",phone="+34600000000";
     PhoneOtpChallenge challenge=new PhoneOtpChallenge();challenge.id=challengeId;challenge.phone=phone;
@@ -84,6 +98,7 @@ class AuthServiceTest {
     @SuppressWarnings("unchecked") TypedQuery<RefreshToken> query=mock(TypedQuery.class);
     when(entityManager.createQuery(anyString(),eq(RefreshToken.class))).thenReturn(query);
     when(query.setParameter(anyString(),any())).thenReturn(query);
+    when(query.setLockMode(any())).thenReturn(query);
     when(query.getResultStream()).thenReturn(java.util.stream.Stream.of(stored));
     when(repository.user(userId)).thenReturn(user);when(jwt.issue(userId)).thenReturn("new-access");
 

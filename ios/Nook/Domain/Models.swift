@@ -330,7 +330,7 @@ extension CoffeeShopRepository {
 protocol ConversationRepository: Sendable {
   func conversations() async throws -> [Conversation]
   func messages(_ id: UUID) async throws -> [ChatMessage]
-  func send(_ text: String, to id: UUID) async throws -> ChatMessage
+  func send(_ text: String, to id: UUID, clientMessageID: UUID) async throws -> ChatMessage
 }
 protocol CoffeeDateRepository: Sendable {
   func dates() async throws -> [CoffeeDate]

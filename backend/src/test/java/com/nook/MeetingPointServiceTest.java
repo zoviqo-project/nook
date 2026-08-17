@@ -4,11 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.nook.domain.SocialEntities.Match;
-import com.nook.domain.SocialEntities.Profile;
+import com.nook.domain.SocialEntities.UserLocation;
 import com.nook.repository.SocialRepository;
 import com.nook.service.GeographicCalculator;
 import com.nook.service.MeetingPointService;
 import java.util.UUID;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -27,15 +28,17 @@ class MeetingPointServiceTest {
     match.id = matchId;
     match.userOneId = firstId;
     match.userTwoId = secondId;
-    Profile first = new Profile();
+    UserLocation first = new UserLocation();
     first.latitude = 41.3936;
     first.longitude = 2.0093;
-    Profile second = new Profile();
+    first.capturedAt = Instant.now();
+    UserLocation second = new UserLocation();
     second.latitude = 41.3874;
     second.longitude = 2.1686;
+    second.capturedAt = Instant.now();
     when(repository.find(Match.class, matchId)).thenReturn(match);
-    when(repository.profile(firstId)).thenReturn(first);
-    when(repository.profile(secondId)).thenReturn(second);
+    when(repository.location(firstId)).thenReturn(first);
+    when(repository.location(secondId)).thenReturn(second);
 
     var result = new MeetingPointService(repository, new GeographicCalculator())
         .midpoint(matchId, firstId);

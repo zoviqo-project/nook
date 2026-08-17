@@ -5,6 +5,7 @@ actor APIRepository: NookRepository {
   private let session: URLSession
   private let tokens: TokenStore
   private let decoder: JSONDecoder
+  private var refreshTask: Task<Void, Error>?
   init(baseURL: URL, session: URLSession? = nil, tokens: TokenStore = KeychainTokenStore()) {
     self.baseURL = baseURL
     if let session { self.session = session }
@@ -64,7 +65,8 @@ actor APIRepository: NookRepository {
   }
   func restore() async throws -> Me? {
     guard (try? tokens.load()) != nil else { return nil }
-    do { return try await me() } catch {
+    do { return try await me() }
+    catch let error as NookAPIError where error.statusCode == 401 || error.statusCode == 403 {
       try? tokens.clear()
       return nil
     }
@@ -118,11 +120,7 @@ actor APIRepository: NookRepository {
       return try await performPhotoUpload(data: data, mimeType: mimeType, mayRefresh: false)
     }
     guard (200..<300).contains(http.statusCode) else {
-      if let apiError = try? decoder.decode(APIErrorBody.self, from: responseData) {
-        throw NSError(domain: "Nook", code: http.statusCode,
-          userInfo: [NSLocalizedDescriptionKey: apiError.message])
-      }
-      throw URLError(.badServerResponse)
+      throw apiError(from: responseData, statusCode: http.statusCode)
     }
     return try decoder.decode(Photo.self, from: responseData)
   }
@@ -167,8 +165,10 @@ actor APIRepository: NookRepository {
     let p: PageResponse<ChatMessage> = try await call("conversations/\(id)/messages")
     return p.content.reversed()
   }
-  func send(_ text: String, to id: UUID) async throws -> ChatMessage {
-    try await call("conversations/\(id)/messages", method: "POST", body: MessageBody(body: text, clientMessageId: UUID()))
+  func send(_ text: String, to id: UUID, clientMessageID: UUID) async throws -> ChatMessage {
+    try await call(
+      "conversations/\(id)/messages", method: "POST",
+      body: MessageBody(body: text, clientMessageId: clientMessageID))
   }
   func dates() async throws -> [CoffeeDate] { try await call("coffee-dates") }
   func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
@@ -233,17 +233,19 @@ actor APIRepository: NookRepository {
       return try await perform(path, method: method, body: body, auth: auth, mayRefresh: false)
     }
     guard (200..<300).contains(http.statusCode) else {
-      if let e = try? decoder.decode(APIErrorBody.self, from: data) {
-        throw NSError(
-          domain: "Nook", code: (response as? HTTPURLResponse)?.statusCode ?? 0,
-          userInfo: [NSLocalizedDescriptionKey: e.message])
-      }
-      throw URLError(.badServerResponse)
+      throw apiError(from: data, statusCode: http.statusCode)
     }
     if R.self == Empty.self { return Empty() as! R }
     return try decoder.decode(R.self, from: data)
   }
   private func refreshSession(using refreshToken: String) async throws {
+    if let refreshTask { return try await refreshTask.value }
+    let task = Task { try await performRefresh(using: refreshToken) }
+    refreshTask = task
+    defer { refreshTask = nil }
+    try await task.value
+  }
+  private func performRefresh(using refreshToken: String) async throws {
     do {
       let response: TokenResponse = try await perform(
         "auth/refresh", method: "POST", body: RefreshBody(refreshToken: refreshToken),
@@ -252,16 +254,29 @@ actor APIRepository: NookRepository {
         .init(
           accessToken: response.accessToken, refreshToken: response.refreshToken,
           expiresAt: Date().addingTimeInterval(Double(response.expiresIn))))
-    } catch {
+    } catch let error as NookAPIError where error.statusCode == 401 || error.statusCode == 403 {
       try? tokens.clear()
       throw AuthenticationError.invalidCredentials
     }
+  }
+  private func apiError(from data: Data, statusCode: Int) -> NookAPIError {
+    let body = try? decoder.decode(APIErrorBody.self, from: data)
+    return NookAPIError(
+      statusCode: statusCode,
+      code: body?.code ?? "HTTP_\(statusCode)",
+      message: body?.message ?? "No hemos podido completar la operación")
   }
   private func save(_ response: TokenResponse) throws {
     try tokens.save(
       .init(accessToken: response.accessToken, refreshToken: response.refreshToken,
         expiresAt: Date().addingTimeInterval(Double(response.expiresIn))))
   }
+}
+struct NookAPIError: LocalizedError, Sendable {
+  let statusCode: Int
+  let code: String
+  let message: String
+  var errorDescription: String? { message }
 }
 private struct TokenResponse: Codable {
   let accessToken, refreshToken: String

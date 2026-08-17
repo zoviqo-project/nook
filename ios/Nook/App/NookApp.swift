@@ -33,7 +33,6 @@ extension Notification.Name { static let nookDeviceToken=Notification.Name("Nook
   var body: some Scene {
     WindowGroup {
       RootView().environmentObject(app).tint(.nookCoral).preferredColorScheme(.dark).task {
-        try? await Task.sleep(for: .milliseconds(1_650))
         #if DEBUG
           if ProcessInfo.processInfo.environment["NOOK_PREVIEW_ONBOARDING"] == "1" {
             await app.enterOfflineDemo()
@@ -69,7 +68,7 @@ enum AppConfiguration {
       ?? "http://127.0.0.1:8080/api/v1/")!
 }
 @MainActor final class AppSession: ObservableObject {
-  enum Stage { case loading, welcome, registration, onboarding, login, app }
+  enum Stage: Equatable { case loading, welcome, registration, onboarding, login, app, startupError(String) }
   @Published var stage: Stage = .loading
   @Published var me: Me?
   @Published var selectedTab = 0
@@ -97,11 +96,16 @@ enum AppConfiguration {
       stage = .welcome
       return
     }
-    if let m = try? await repository.restore() {
-      me = m
-      stage = m.onboardingComplete ? .app : .onboarding
-    } else {
-      stage = .welcome
+    do {
+      if let m = try await repository.restore() {
+        me = m
+        stage = m.onboardingComplete ? .app : .onboarding
+      } else {
+        stage = .welcome
+      }
+    } catch {
+      stage = .startupError(
+        "No hemos podido conectar con Nook. Tu sesión sigue guardada; vuelve a intentarlo.")
     }
   }
   func login(_ email: String, _ password: String) async throws {

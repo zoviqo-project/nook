@@ -36,8 +36,10 @@ class CoffeeDateServiceTest {
   @Test void onlyRecipientCanAcceptPendingProposal(){
     UUID sender=UUID.randomUUID();
     CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();proposal.senderId=sender;
-    proposal.receiverId=UUID.randomUUID();proposal.status=DateStatus.PENDING;
+    proposal.receiverId=UUID.randomUUID();proposal.status=DateStatus.PENDING;proposal.matchId=UUID.randomUUID();
+    Match match=new Match();match.id=proposal.matchId;match.active=true;
     when(repository.find(CoffeeDateProposal.class,proposal.id)).thenReturn(proposal);
+    when(repository.find(Match.class,proposal.matchId)).thenReturn(match);
     assertThatThrownBy(()->service().transition(sender,proposal.id,DateStatus.ACCEPTED))
         .isInstanceOf(ApiException.class).hasMessageContaining("recibe");
   }
@@ -45,8 +47,10 @@ class CoffeeDateServiceTest {
   @Test void acceptedProposalCannotBeAcceptedTwice(){
     UUID recipient=UUID.randomUUID();
     CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();proposal.senderId=UUID.randomUUID();
-    proposal.receiverId=recipient;proposal.status=DateStatus.ACCEPTED;
+    proposal.receiverId=recipient;proposal.status=DateStatus.ACCEPTED;proposal.matchId=UUID.randomUUID();
+    Match match=new Match();match.id=proposal.matchId;match.active=true;
     when(repository.find(CoffeeDateProposal.class,proposal.id)).thenReturn(proposal);
+    when(repository.find(Match.class,proposal.matchId)).thenReturn(match);
     assertThatThrownBy(()->service().transition(recipient,proposal.id,DateStatus.ACCEPTED))
         .isInstanceOf(ApiException.class).hasMessageContaining("no está pendiente");
   }

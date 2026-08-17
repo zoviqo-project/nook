@@ -16,6 +16,7 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public List<String> coffees(UUID id){return em.createQuery("select c.preference from SocialEntities$CoffeePreference c where c.userId=:u",String.class).setParameter("u",id).getResultList();}
  public void replaceCoffees(UUID id,List<String> values){em.createQuery("delete from SocialEntities$CoffeePreference c where c.userId=:u").setParameter("u",id).executeUpdate(); for(String v:values){var c=new CoffeePreference();c.userId=id;c.preference=v;em.persist(c);}}
  public void remove(Object x){em.remove(x);} public <T> T find(Class<T> type,UUID id){return em.find(type,id);}
+ public void lock(Object value){em.lock(value,LockModeType.PESSIMISTIC_WRITE);}
  public boolean likeExists(UUID a,UUID b){return !em.createQuery("select l.id from SocialEntities$CoffeeLike l where l.senderId=:a and l.receiverId=:b",UUID.class).setParameter("a",a).setParameter("b",b).setMaxResults(1).getResultList().isEmpty();}
  public boolean passExists(UUID a,UUID b){return !em.createQuery("select p.id from SocialEntities$UserPass p where p.senderId=:a and p.receiverId=:b",UUID.class).setParameter("a",a).setParameter("b",b).setMaxResults(1).getResultList().isEmpty();}
  public boolean blocked(UUID a,UUID b){return !em.createQuery("select x.id from SocialEntities$Block x where (x.blockerId=:a and x.blockedId=:b) or (x.blockerId=:b and x.blockedId=:a)",UUID.class).setParameter("a",a).setParameter("b",b).setMaxResults(1).getResultList().isEmpty();}

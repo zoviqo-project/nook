@@ -38,13 +38,17 @@ public class CoffeeDateService {
     if (!repo.matchMember(request.matchId(), me)) {
       throw new ApiException(HttpStatus.FORBIDDEN, "MATCH_REQUIRED", "La propuesta requiere un match");
     }
+    Match match = repo.find(Match.class, request.matchId());
+    repo.lock(match);
+    // A concurrent retry may have committed while this request waited for the match lock.
+    previous=repo.dateByIdempotencyKey(me,request.idempotencyKey()).orElse(null);
+    if(previous!=null)return dto(previous,me);
     if (request.proposedAt().isBefore(Instant.now())) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "PAST_DATE", "La propuesta debe ser futura");
     }
     if (repo.activeDate(request.matchId()).isPresent()) {
       throw new ApiException(HttpStatus.CONFLICT, "ACTIVE_PROPOSAL_EXISTS", "Ya existe una propuesta activa para este match");
     }
-    Match match = repo.find(Match.class, request.matchId());
     CoffeeShop shop = repo.find(CoffeeShop.class, request.coffeeShopId());
     if (shop == null) {
       throw new ApiException(HttpStatus.NOT_FOUND, "SHOP_NOT_FOUND", "Cafetería no encontrada");
@@ -149,6 +153,11 @@ public class CoffeeDateService {
     CoffeeDateProposal proposal = repo.find(CoffeeDateProposal.class, id);
     if (proposal == null || (!proposal.senderId.equals(me) && !proposal.receiverId.equals(me))) {
       throw new ApiException(HttpStatus.NOT_FOUND, "DATE_NOT_FOUND", "Propuesta no encontrada");
+    }
+    repo.lock(proposal);
+    Match match = repo.find(Match.class, proposal.matchId);
+    if (match == null || !match.active || repo.blocked(proposal.senderId, proposal.receiverId)) {
+      throw new ApiException(HttpStatus.FORBIDDEN, "MATCH_INACTIVE", "Esta conexión ya no está activa");
     }
     return proposal;
   }

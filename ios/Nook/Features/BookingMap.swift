@@ -56,9 +56,14 @@ import SwiftUI
   }
 
   func useCurrentLocation(_ location: CLLocation, repo: any NookRepository) async {
-    try? await repo.updateLocation(latitude: location.coordinate.latitude,
-      longitude: location.coordinate.longitude, accuracy: location.horizontalAccuracy,
-      capturedAt: location.timestamp)
+    do {
+      try await repo.updateLocation(latitude: location.coordinate.latitude,
+        longitude: location.coordinate.longitude, accuracy: location.horizontalAccuracy,
+        capturedAt: location.timestamp)
+    } catch {
+      state = .error("No hemos podido guardar tu ubicación actual. Comprueba la conexión y reinténtalo.")
+      return
+    }
     let point = GeoPoint(location.coordinate)
     origin = .currentLocation(point)
     meetingArea = await locality(for: point.coordinate, fallback: "Tu ubicación")
@@ -69,20 +74,20 @@ import SwiftUI
     matchID: UUID, currentLocation: CLLocation, repo: any NookRepository
   ) async {
     await prepare(repo)
-    try? await repo.updateLocation(latitude: currentLocation.coordinate.latitude,
-      longitude: currentLocation.coordinate.longitude, accuracy: currentLocation.horizontalAccuracy,
-      capturedAt: currentLocation.timestamp)
+    do {
+      try await repo.updateLocation(latitude: currentLocation.coordinate.latitude,
+        longitude: currentLocation.coordinate.longitude, accuracy: currentLocation.horizontalAccuracy,
+        capturedAt: currentLocation.timestamp)
+    } catch {
+      state = .error("No hemos podido guardar tu ubicación actual. Comprueba la conexión y reinténtalo.")
+      return
+    }
     let point: GeoPoint
     do {
       point = try await repo.meetingPoint(matchID: matchID)
     } catch {
-      guard let city = matches.first(where: { $0.id == matchID })?.person.city,
-        let place = try? await CLGeocoder().geocodeAddressString(city).first,
-        let other = place.location?.coordinate else {
-        await useCurrentLocation(currentLocation, repo: repo)
-        return
-      }
-      point = GeographicMath.midpoint(GeoPoint(currentLocation.coordinate), GeoPoint(other))
+      state = .error("Aún no podemos calcular vuestro punto medio con ubicaciones reales. Reinténtalo cuando ambos tengáis ubicación disponible.")
+      return
     }
     origin = .midpoint(point)
     meetingArea = await locality(for: point.coordinate, fallback: "Punto medio")
@@ -278,7 +283,19 @@ struct CoffeeShopsView: View {
             .frame(height: 500).padding(.horizontal, -10)
         } else if let error = vm.error {
           NookErrorView(message: error) {
-            Task { await vm.retry(app.repository) }
+            Task {
+              if let current = location.location {
+                if let matchID = app.selectedCoffeeMatch {
+                  await vm.useMidpoint(
+                    matchID: matchID, currentLocation: current, repo: app.repository)
+                } else {
+                  await vm.useCurrentLocation(current, repo: app.repository)
+                }
+              } else {
+                vm.beginLocationRequest()
+                location.request()
+              }
+            }
           }.frame(maxWidth: .infinity).padding(.top, 28)
         } else if vm.state == .empty {
           NookEmptyState(

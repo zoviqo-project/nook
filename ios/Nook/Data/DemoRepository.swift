@@ -326,9 +326,10 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
     }
     func conversations() async throws -> [Conversation] { demoConversations }
     func messages(_ id: UUID) async throws -> [ChatMessage] { demoMessages[id] ?? [] }
-    func send(_ text: String, to id: UUID) async throws -> ChatMessage {
+    func send(_ text: String, to id: UUID, clientMessageID: UUID) async throws -> ChatMessage {
+      if let existing = demoMessages[id]?.first(where: { $0.id == clientMessageID }) { return existing }
       let message = ChatMessage(
-        id: UUID(), senderId: current.id, body: text, type: "TEXT",
+        id: clientMessageID, senderId: current.id, body: text, type: "TEXT",
         createdAt: ISO8601DateFormatter().string(from: Date()))
       demoMessages[id, default: []].append(message)
       return message

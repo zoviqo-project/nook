@@ -151,6 +151,8 @@ struct ChatDetail: View {
   @State private var messages: [ChatMessage] = []
   @State private var dates: [CoffeeDate] = []
   @State private var text = ""
+  @State private var sending = false
+  @State private var pendingMessageID: UUID?
   @State private var proposing = false
   @State private var error: String?
   @State private var initialLoading = true
@@ -263,10 +265,13 @@ struct ChatDetail: View {
       Button {
         send()
       } label: {
-        Image(systemName: "arrow.up").font(.headline.bold()).foregroundStyle(NookColors.inverseText)
+        Group {
+          if sending { ProgressView().tint(NookColors.inverseText) }
+          else { Image(systemName: "arrow.up").font(.headline.bold()) }
+        }.foregroundStyle(NookColors.inverseText)
           .frame(width: 48, height: 48).background(NookColors.espresso, in: Circle())
       }.scaleEffect(text.isEmpty ? 0.9 : 1).animation(NookMotion.spring, value: text.isEmpty)
-      .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
     }.padding(.horizontal, 12).padding(.vertical, 8)
       .background(.ultraThinMaterial)
@@ -274,13 +279,21 @@ struct ChatDetail: View {
   }
   private func send() {
     let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !value.isEmpty else { return }
+    guard !value.isEmpty, !sending else { return }
+    sending = true
+    let clientMessageID = pendingMessageID ?? UUID()
+    pendingMessageID = clientMessageID
     Haptics.selection()
     Task {
+      defer { sending = false }
       do {
-        let message = try await app.repository.send(value, to: conversation.id)
+        let message = try await app.repository.send(
+          value, to: conversation.id, clientMessageID: clientMessageID)
         text = ""
-        withAnimation(NookMotion.spring) { messages.append(message) }
+        pendingMessageID = nil
+        if !messages.contains(where: { $0.id == message.id }) {
+          withAnimation(NookMotion.spring) { messages.append(message) }
+        }
       } catch { self.error = error.localizedDescription }
     }
   }

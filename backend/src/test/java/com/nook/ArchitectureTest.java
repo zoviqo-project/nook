@@ -11,7 +11,8 @@ class ArchitectureTest {
 
   @Test void controllersDoNotAccessPersistenceDirectly() {
     noClasses().that().resideInAPackage("..controller..")
-        .should().dependOnClassesThat().resideInAnyPackage("..repository..", "..persistence..")
+        .should().dependOnClassesThat().resideInAnyPackage(
+            "..repository..", "..persistence..", "..infrastructure.adapter.out..")
         .check(classes);
   }
 
@@ -24,6 +25,12 @@ class ArchitectureTest {
   @Test void lowerLayersNeverDependOnRestControllers() {
     noClasses().that().resideInAnyPackage("..domain..", "..application..", "..service..")
         .should().dependOnClassesThat().resideInAPackage("..controller..")
+        .check(classes);
+  }
+
+  @Test void useCasesDoNotDependOnOutboundAdapters() {
+    noClasses().that().resideInAnyPackage("..service..", "..application..")
+        .should().dependOnClassesThat().resideInAPackage("..infrastructure.adapter.out..")
         .check(classes);
   }
 }
