@@ -24,6 +24,7 @@ public class DemoDataInitializer implements CommandLineRunner {
   @Transactional
   public void run(String... args) {
     if (repo.userByEmail("albert@nook.demo").isPresent()) {
+      refreshDemoPhotoUrls();
       if (!repo.shopProviderExists("barcelona-demo-0")) {
         repo.deactivateSeedShops();
         seedBarcelonaCoffeeShops();
@@ -39,10 +40,10 @@ public class DemoDataInitializer implements CommandLineRunner {
     String[] names = {"Albert", "Laura", "Marta", "Sofía", "Clara", "Emma", "Lucía", "Elena", "Paula", "Carla", "Alex", "Dani", "Hugo", "Marc", "Leo", "Nora", "Irene", "Julia", "Aina", "Valentina"};
     String[] coffees = {"Solo ☕", "Café con leche 🥛", "Matcha 🍵", "Café frío 🧊", "Cortado ☕🥛"};
     String[] photos = {
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=1000&q=85",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1000&q=85",
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85",
-      "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1000&q=85"
+      "/api/v1/demo/photos/0",
+      "/api/v1/demo/photos/1",
+      "/api/v1/demo/photos/2",
+      "/api/v1/demo/photos/3"
     };
     String[] cities = {"London", "New York", "Tokyo", "Barcelona"};
     double[][] coordinates = {{51.5074,-0.1278},{40.7128,-74.0060},{35.6762,139.6503},{41.3874,2.1686}};
@@ -93,6 +94,17 @@ public class DemoDataInitializer implements CommandLineRunner {
       users.add(user);
     }
     return users;
+  }
+
+  private void refreshDemoPhotoUrls() {
+    String[] names = {"Albert", "Laura", "Marta", "Sofía", "Clara", "Emma", "Lucía", "Elena", "Paula", "Carla", "Alex", "Dani", "Hugo", "Marc", "Leo", "Nora", "Irene", "Julia", "Aina", "Valentina"};
+    for (int i = 0; i < names.length; i++) {
+      int photoIndex = i % 4;
+      String email = (i == 0 ? "albert" : names[i].toLowerCase()) + "@nook.demo";
+      repo.userByEmail(email).ifPresent(user -> repo.userPhotos(user.id).forEach(photo -> {
+        photo.url = "/api/v1/demo/photos/" + photoIndex;
+      }));
+    }
   }
 
   private List<CoffeeShop> seedBarcelonaCoffeeShops() {
