@@ -12,8 +12,8 @@ actor APIRepository: NookRepository {
     else {
       let configuration = URLSessionConfiguration.default
       // Render free services can need close to a minute to wake from a cold start.
-      configuration.timeoutIntervalForRequest = 60
-      configuration.timeoutIntervalForResource = 90
+      configuration.timeoutIntervalForRequest = 120
+      configuration.timeoutIntervalForResource = 150
       configuration.requestCachePolicy = .useProtocolCachePolicy
       configuration.urlCache = URLCache(memoryCapacity: 24_000_000, diskCapacity: 80_000_000)
       self.session = URLSession(configuration: configuration)
@@ -134,8 +134,14 @@ actor APIRepository: NookRepository {
     try await call("users/me/photos/\(id)/primary", method: "PATCH", body: Optional<String>.none)
   }
   func discover() async throws -> [DiscoverProfile] {
-    let p: PageResponse<DiscoverProfile> = try await call("discover")
-    return p.content
+    var result: [DiscoverProfile] = []
+    var page = 0
+    while true {
+      let response: PageResponse<DiscoverProfile> = try await call("discover?page=\(page)&size=50")
+      result.append(contentsOf: response.content)
+      guard response.hasMore else { return result }
+      page += 1
+    }
   }
   func like(_ id: UUID) async throws -> LikeResult {
     try await call("coffee-likes/\(id)", method: "POST", body: Optional<String>.none)
@@ -162,8 +168,15 @@ actor APIRepository: NookRepository {
   }
   func conversations() async throws -> [Conversation] { try await call("conversations") }
   func messages(_ id: UUID) async throws -> [ChatMessage] {
-    let p: PageResponse<ChatMessage> = try await call("conversations/\(id)/messages")
-    return p.content.reversed()
+    var newestFirst: [ChatMessage] = []
+    var page = 0
+    while true {
+      let response: PageResponse<ChatMessage> = try await call(
+        "conversations/\(id)/messages?page=\(page)&size=100")
+      newestFirst.append(contentsOf: response.content)
+      guard response.hasMore else { return newestFirst.reversed() }
+      page += 1
+    }
   }
   func send(_ text: String, to id: UUID, clientMessageID: UUID) async throws -> ChatMessage {
     try await call(
@@ -184,8 +197,14 @@ actor APIRepository: NookRepository {
     try await call("coffee-dates/\(id)", method: "PATCH", body: StatusBody(status: status))
   }
   func notifications() async throws -> [NookNotification] {
-    let page: PageResponse<NookNotification> = try await call("notifications")
-    return page.content
+    var result: [NookNotification] = []
+    var page = 0
+    while true {
+      let response: PageResponse<NookNotification> = try await call("notifications?page=\(page)&size=100")
+      result.append(contentsOf: response.content)
+      guard response.hasMore else { return result }
+      page += 1
+    }
   }
   func markNotificationRead(_ id: UUID) async throws {
     let _: Empty = try await call("notifications/\(id)/read", method: "POST")

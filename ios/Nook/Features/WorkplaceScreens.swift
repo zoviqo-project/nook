@@ -181,7 +181,8 @@ struct ChatDetail: View {
                 }.id(message.id).transition(.move(edge: .bottom).combined(with: .opacity))
               }
               ForEach(dates.filter { $0.matchId == conversation.matchId }) { date in
-                NookCoffeeProposalBubble(date: date, canAccept: date.receiverId == app.me?.id) {
+                NookCoffeeProposalBubble(date: date, canAccept: date.receiverId == app.me?.id,
+                  updating: updatingDates.contains(date.id)) {
                   Task {
                     guard updatingDates.insert(date.id).inserted else { return }
                     defer { updatingDates.remove(date.id) }
@@ -274,7 +275,8 @@ struct ChatDetail: View {
       .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
     }.padding(.horizontal, 12).padding(.vertical, 8)
-      .background(.ultraThinMaterial)
+      .background(NookColors.cream)
+      .overlay(alignment: .top) { Divider().opacity(0.18) }
       .animation(NookMotion.fast, value: focused)
   }
   private func send() {
@@ -310,6 +312,7 @@ struct ChatDetail: View {
 struct NookCoffeeProposalBubble: View {
   let date: CoffeeDate
   let canAccept: Bool
+  let updating: Bool
   let accept: () -> Void
   let change: () -> Void
   var body: some View {
@@ -321,9 +324,13 @@ struct NookCoffeeProposalBubble: View {
       Text(date.paymentPreference.title).font(.subheadline).foregroundStyle(NookColors.warmGray)
       if date.status == .pending {
         HStack {
-          if canAccept { Button("Aceptar", action: accept).buttonStyle(.borderedProminent).tint(NookColors.espresso) }
+          if canAccept {
+            Button(updating ? "Aceptando…" : "Aceptar", action: accept)
+              .buttonStyle(.borderedProminent).tint(NookColors.espresso).disabled(updating)
+          }
           else { Text("Esperando respuesta").font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
           Button("Cambiar", action: change).buttonStyle(.bordered).tint(NookColors.espresso)
+            .disabled(updating)
         }
       } else { Text(date.status == .accepted ? "ACEPTADO" : date.status.rawValue).font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
     }.padding(18).foregroundStyle(NookColors.espresso).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 24)).overlay(RoundedRectangle(cornerRadius: 24).stroke(NookColors.oat.opacity(0.45))).padding(.vertical, 4)
