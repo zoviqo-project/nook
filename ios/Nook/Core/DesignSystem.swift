@@ -244,6 +244,7 @@ struct NookInlineLoading: View {
 enum NookSkeletonLayout {
   case profileCard
   case list(rows: Int)
+  case coffeeCards(rows: Int)
 }
 
 struct NookSkeletonScreen: View {
@@ -257,6 +258,8 @@ struct NookSkeletonScreen: View {
         profileCard
       case .list(let rows):
         list(rows: rows)
+      case .coffeeCards(let rows):
+        coffeeCards(rows: rows)
       }
     }
     .accessibilityElement(children: .ignore)
@@ -307,6 +310,24 @@ struct NookSkeletonScreen: View {
         }
       }.padding(.horizontal, 16).padding(.top, 6)
     }.scrollIndicators(.hidden)
+  }
+
+  private func coffeeCards(rows: Int) -> some View {
+    LazyVStack(spacing: 14) {
+      ForEach(0..<rows, id: \.self) { index in
+        skeletonBlock(height: 242, radius: 26)
+          .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 9) {
+              skeletonBlock(width: index.isMultiple(of: 2) ? 190 : 225, height: 23, radius: 8)
+              HStack(spacing: 8) {
+                skeletonBlock(width: 82, height: 25, radius: 13)
+                skeletonBlock(width: 108, height: 25, radius: 13)
+              }
+              skeletonBlock(width: 156, height: 13, radius: 6)
+            }.padding(18)
+          }
+      }
+    }.padding(.horizontal, 12).padding(.top, 4).padding(.bottom, 14)
   }
 
   private func skeletonBlock(
@@ -516,6 +537,7 @@ struct NookRemoteImage<Placeholder: View>: View {
   @ViewBuilder let placeholder: () -> Placeholder
   @State private var image: UIImage?
   @State private var detectedAlignment: Alignment?
+  @State private var loading = false
 
   init(
     url: URL?, contentMode: ContentMode = .fill, alignment: Alignment = .center,
@@ -535,17 +557,28 @@ struct NookRemoteImage<Placeholder: View>: View {
         Image(uiImage: image).resizable().aspectRatio(contentMode: contentMode)
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: detectedAlignment ?? alignment)
           .transition(.opacity.animation(.easeOut(duration: 0.22)))
-      } else { placeholder() }
+      } else {
+        placeholder().overlay {
+          if loading {
+            NookImageLoadingOverlay()
+          }
+        }
+      }
     }.task(id: url) { await load() }
   }
 
   private func load() async {
-    guard let url else { return }
+    image = nil
+    detectedAlignment = nil
+    guard let url else { loading = false; return }
     if let cached = NookImageStore.shared.image(for: url) {
       if faceAware { detectedAlignment = faceAlignment(in: cached) }
       image = cached
+      loading = false
       return
     }
+    loading = true
+    defer { loading = false }
     do {
       var request = URLRequest(url: url)
       request.cachePolicy = .returnCacheDataElseLoad
@@ -570,6 +603,23 @@ struct NookRemoteImage<Placeholder: View>: View {
     if centerY > 0.62 { return .top }
     if centerY < 0.38 { return .bottom }
     return .center
+  }
+}
+
+private struct NookImageLoadingOverlay: View {
+  @State private var moving = false
+  var body: some View {
+    GeometryReader { proxy in
+      LinearGradient(
+        colors: [.clear, NookColors.espresso.opacity(0.18), .clear],
+        startPoint: .leading, endPoint: .trailing
+      )
+      .frame(width: max(80, proxy.size.width * 0.55))
+      .offset(x: moving ? proxy.size.width : -max(80, proxy.size.width * 0.55))
+      .onAppear {
+        withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { moving = true }
+      }
+    }.allowsHitTesting(false).clipped()
   }
 }
 

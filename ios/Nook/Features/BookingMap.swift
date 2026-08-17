@@ -183,9 +183,7 @@ struct CoffeeShopsView: View {
       if searching && app.selectedCoffeeMatch != nil {
         NookScreenContainer(eyebrow: "PUNTO MEDIO", title: "Elige el lugar") {
           VStack(alignment: .leading, spacing: 12) {
-            NookInlineLoading(text: "Buscando cafeterías reales…")
-              .padding(.horizontal, 18).padding(.top, 8)
-            NookSkeletonScreen(layout: .list(rows: 4))
+            NookSkeletonScreen(layout: .coffeeCards(rows: 3))
           }
         }.transition(.opacity)
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
@@ -282,8 +280,8 @@ struct CoffeeShopsView: View {
           if vm.loading { Text("Buscando…").font(.caption.weight(.semibold)).foregroundStyle(NookColors.warmGray) }
         }.padding(.horizontal, 6).padding(.bottom, 2)
         if vm.loading {
-          NookSkeletonScreen(layout: .list(rows: 4))
-            .frame(height: 500).padding(.horizontal, -10)
+          NookSkeletonScreen(layout: .coffeeCards(rows: 3))
+            .padding(.horizontal, -12)
         } else if let error = vm.error {
           NookErrorView(message: error) {
             Task {

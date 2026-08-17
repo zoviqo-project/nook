@@ -93,7 +93,7 @@ enum AppConfiguration {
     do {
       if let m = try await repository.restore() {
         me = m
-        stage = m.onboardingComplete ? .app : .onboarding
+        enterAuthenticated(m)
       } else {
         stage = .welcome
       }
@@ -103,19 +103,16 @@ enum AppConfiguration {
     }
   }
   func login(_ email: String, _ password: String) async throws {
-    me = try await repository.login(email: email, password: password)
-    stage = me?.onboardingComplete == true ? .app : .onboarding
+    enterAuthenticated(try await repository.login(email: email, password: password))
   }
   func federatedLogin(provider: String, identityToken: String, displayName: String?) async throws {
     let authenticatedUser = try await repository.federatedLogin(
       provider: provider, identityToken: identityToken, displayName: displayName)
-    me = authenticatedUser
-    stage = authenticatedUser.onboardingComplete ? .app : .onboarding
+    enterAuthenticated(authenticatedUser)
   }
   func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge { try await repository.requestPhoneOtp(phone) }
   func verifyPhoneOtp(challengeId: UUID, code: String) async throws {
-    me = try await repository.verifyPhoneOtp(challengeId: challengeId, code: code)
-    stage = me?.onboardingComplete == true ? .app : .onboarding
+    enterAuthenticated(try await repository.verifyPhoneOtp(challengeId: challengeId, code: code))
   }
   func register(
     email: String, password: String, name: String, birth: Date, gender: Gender, looking: LookingFor
@@ -133,7 +130,19 @@ enum AppConfiguration {
     if let deviceToken { try? await repository.removeDeviceToken(deviceToken) }
     await repository.logout()
     me = nil
+    resetNavigation()
     stage = .welcome
+  }
+  private func enterAuthenticated(_ user: Me) {
+    me = user
+    resetNavigation()
+    stage = user.onboardingComplete ? .app : .onboarding
+  }
+  private func resetNavigation() {
+    selectedTab = 0
+    selectedCoffeeMatch = nil
+    placesReloadID = UUID()
+    tabBarHidden = false
   }
   func captureDeviceToken(_ token: String) {
     deviceToken=token

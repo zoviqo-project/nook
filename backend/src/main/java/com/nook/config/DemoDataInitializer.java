@@ -10,7 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-@org.springframework.context.annotation.Profile({"demo", "demo-data"})
+@org.springframework.context.annotation.Profile({"demo", "demo-data", "staging"})
 public class DemoDataInitializer implements CommandLineRunner {
   private final SocialRepository repo;
   private final PasswordEncoder encoder;
