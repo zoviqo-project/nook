@@ -8,7 +8,9 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -27,6 +29,7 @@ public class S3MediaStorageAdapter implements MediaStoragePort {
   private final S3Client s3;
   private final String bucket;
   private final String publicBaseUrl;
+  private final JdbcTemplate jdbc;
 
   public S3MediaStorageAdapter(
       @Value("${nook.object-storage.bucket}") String bucket,
@@ -34,9 +37,11 @@ public class S3MediaStorageAdapter implements MediaStoragePort {
       @Value("${nook.object-storage.access-key}") String accessKey,
       @Value("${nook.object-storage.secret-key}") String secretKey,
       @Value("${nook.object-storage.public-base-url}") String publicBaseUrl,
-      @Value("${nook.object-storage.endpoint:}") String endpoint) {
+      @Value("${nook.object-storage.endpoint:}") String endpoint,
+      JdbcTemplate jdbc) {
     this.bucket = required(bucket, "OBJECT_STORAGE_BUCKET");
     this.publicBaseUrl = stripTrailingSlash(required(publicBaseUrl, "OBJECT_STORAGE_PUBLIC_BASE_URL"));
+    this.jdbc = jdbc;
     var builder = S3Client.builder()
         .region(Region.of(required(region, "OBJECT_STORAGE_REGION")))
         .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
@@ -67,7 +72,7 @@ public class S3MediaStorageAdapter implements MediaStoragePort {
       String contentType = object.response().contentType();
       return new StoredContent(object.asByteArray(), contentType == null ? "image/jpeg" : contentType);
     } catch (NoSuchKeyException error) {
-      throw new ApiException(HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada");
+      return legacyContent(filename);
     } catch (RuntimeException error) {
       throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "PHOTO_STORAGE_ERROR", "No se pudo cargar la foto");
     }
@@ -75,12 +80,26 @@ public class S3MediaStorageAdapter implements MediaStoragePort {
 
   @Override
   public void deleteUserPhoto(String publicUrl) {
+    if (publicUrl != null && publicUrl.startsWith("/api/v1/media/photos/")) {
+      String filename = publicUrl.substring(publicUrl.lastIndexOf('/') + 1);
+      jdbc.update("delete from media_objects where filename=?", filename);
+      return;
+    }
     String prefix = publicBaseUrl + "/" + PREFIX;
     if (publicUrl == null || !publicUrl.startsWith(prefix)) return;
     String filename = publicUrl.substring(prefix.length());
     if (filename.isBlank() || filename.contains("/")) return;
     try { s3.deleteObject(request -> request.bucket(bucket).key(PREFIX + filename)); }
     catch (RuntimeException ignored) { }
+  }
+
+  private StoredContent legacyContent(String filename) {
+    try {
+      return jdbc.queryForObject("select content,content_type from media_objects where filename=?",
+          (result, row) -> new StoredContent(result.getBytes("content"), result.getString("content_type")), filename);
+    } catch (EmptyResultDataAccessException error) {
+      throw new ApiException(HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada");
+    }
   }
 
   private static String extension(String contentType) {

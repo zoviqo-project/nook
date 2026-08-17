@@ -50,6 +50,7 @@ class AuthServiceTest {
 
     assertThat(token.accessToken()).isEqualTo("access");
     verify(identities).verify(AuthProvider.GOOGLE,"signed-token");
+    verify(repository).lockAuthIdentityKey(AuthProvider.GOOGLE,"google-sub");
     verify(repository).save(argThat(value -> value instanceof Photo photo
         && photo.source.equals("SOCIAL") && photo.provider.equals("GOOGLE")
         && photo.url.equals("https://lh3.googleusercontent.com/avatar")));

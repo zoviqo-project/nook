@@ -6,6 +6,7 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public User user(UUID id){return em.find(User.class,id);} public Optional<User> userByEmail(String email){return em.createQuery("select u from SocialEntities$User u where lower(u.email)=lower(:e)",User.class).setParameter("e",email).getResultStream().findFirst();}
  @Override public boolean isActive(UUID id){User value=user(id);return value!=null&&value.active;}
  public Optional<AuthIdentity> identity(AuthProvider provider,String subject){return em.createQuery("select i from SocialEntities$AuthIdentity i where i.provider=:p and i.providerSubject=:s",AuthIdentity.class).setParameter("p",provider).setParameter("s",subject).getResultStream().findFirst();}
+ public void lockAuthIdentityKey(AuthProvider provider,String subject){em.createNativeQuery("select pg_advisory_xact_lock(hashtextextended(:identity,0))").setParameter("identity",provider.name()+":"+subject).getSingleResult();}
  public Optional<PhoneOtpChallenge> otp(UUID id){return Optional.ofNullable(em.find(PhoneOtpChallenge.class,id));}
  public Profile profile(UUID id){return em.find(Profile.class,id);} public Preference preference(UUID id){return em.find(Preference.class,id);}
  public UserSetting settings(UUID id){return em.find(UserSetting.class,id);}
