@@ -34,7 +34,10 @@ if ! request -H "Authorization: Bearer $TOKEN_A" -X POST "$API_URL/users/me/phot
 fi
 PHOTO_URL="$(jq -r .url "$TMP_DIR/photo.json")"
 API_ORIGIN="${API_URL%/api/v1}"
-request "$API_ORIGIN$PHOTO_URL" > "$TMP_DIR/photo-content"
+if ! request -H 'Accept: image/*' "$API_ORIGIN$PHOTO_URL" > "$TMP_DIR/photo-content"; then
+  print -r -- "Photo retrieval failed for path: $PHOTO_URL"
+  exit 1
+fi
 
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X PATCH "$API_URL/users/me" \
   -d '{"bio":"Cuenta de validación end-to-end","city":"Sant Vicenç dels Horts","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true}' >/dev/null

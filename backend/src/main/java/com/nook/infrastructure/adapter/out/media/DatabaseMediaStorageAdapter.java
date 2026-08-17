@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -39,11 +40,13 @@ public class DatabaseMediaStorageAdapter implements MediaStoragePort {
   }
 
   @Override public StoredContent resolveUserPhoto(String filename) {
-    return jdbc.query("select content,content_type from media_objects where filename=?", result -> {
-      if (!result.next()) throw new ApiException(
-          HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada");
-      return new StoredContent(result.getBytes("content"), result.getString("content_type"));
-    }, filename);
+    try {
+      return jdbc.queryForObject("select content,content_type from media_objects where filename=?",
+          (result, row) -> new StoredContent(
+              result.getBytes("content"), result.getString("content_type")), filename);
+    } catch (EmptyResultDataAccessException error) {
+      throw new ApiException(HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada");
+    }
   }
 
   @Override public void deleteUserPhoto(String publicUrl) {
