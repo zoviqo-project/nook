@@ -22,7 +22,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: 87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com
 databases:
   - name: nook-postgres
     plan: free
