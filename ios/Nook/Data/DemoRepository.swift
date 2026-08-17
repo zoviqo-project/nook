@@ -45,6 +45,12 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
     UIApplication.shared.open(url)
   }
+  func stop() {
+    settlingTask?.cancel()
+    settlingTask = nil
+    manager.stopUpdatingLocation()
+    locating = false
+  }
   func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
     authorizationStatus = manager.authorizationStatus
     if manager.authorizationStatus == .authorizedWhenInUse

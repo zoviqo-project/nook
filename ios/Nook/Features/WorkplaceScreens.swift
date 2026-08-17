@@ -346,6 +346,7 @@ struct ChatCoffeePicker: View {
   @State private var shops: [CoffeeShop] = []
   @State private var selected: CoffeeShop?
   @State private var locationMessage: String?
+  @State private var loading = true
   var body: some View {
     NavigationStack {
       ZStack {
@@ -353,6 +354,12 @@ struct ChatCoffeePicker: View {
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 14) {
             Text("Elige vuestro café").font(NookTypography.title).padding(.bottom, 8)
+            if loading {
+              NookSkeletonScreen(layout: .list(rows: 4))
+            } else if shops.isEmpty && locationMessage == nil {
+              NookEmptyState(icon: "cup.and.saucer", title: "No encontramos cafeterías",
+                text: "Prueba de nuevo desde otra zona.")
+            }
             ForEach(shops) { shop in
               Button { selected = shop } label: {
                 HStack(spacing: 14) {
@@ -367,6 +374,7 @@ struct ChatCoffeePicker: View {
         }
       }.toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cerrar") { dismiss() } } }
         .task {
+          defer { loading = false }
           location.request()
           for _ in 0..<80 where location.location == nil && !location.denied {
             try? await Task.sleep(for: .milliseconds(100))
@@ -381,6 +389,7 @@ struct ChatCoffeePicker: View {
         .sheet(item: $selected) { shop in
           ProposalSheet(shop: shop, matches: [Match(id: conversation.matchId, person: conversation.person, matchedAt: conversation.updatedAt, conversationId: conversation.id)])
         }
+        .onDisappear { location.stop() }
     }
   }
 }

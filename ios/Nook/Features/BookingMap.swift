@@ -244,7 +244,10 @@ struct CoffeeShopsView: View {
       ProposalSheet(shop: shop, matches: vm.matches, isNookChoice: shop.id == vm.shops.first?.id)
     }
     .sheet(isPresented: $showAreaPicker) { areaPicker }
-    .onDisappear { app.tabBarHidden = false }
+    .onDisappear {
+      location.stop()
+      app.tabBarHidden = false
+    }
     .onChange(of: location.location?.timestamp) { _, timestamp in
       guard timestamp != nil, !locationHandled, vm.origin == nil, let current = location.location else { return }
       locationHandled = true

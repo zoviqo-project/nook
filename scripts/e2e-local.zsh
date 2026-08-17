@@ -10,7 +10,7 @@ TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 request() {
-  curl --fail --silent --show-error --connect-timeout 3 --max-time 20 "$@"
+  curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 150 "$@"
 }
 
 register() {
@@ -25,6 +25,16 @@ TOKEN_A="$(jq -r .accessToken "$TMP_DIR/a.json")"
 TOKEN_B="$(jq -r .accessToken "$TMP_DIR/b.json")"
 USER_A="$(jq -r .user.id "$TMP_DIR/a.json")"
 USER_B="$(jq -r .user.id "$TMP_DIR/b.json")"
+
+if ! request -H "Authorization: Bearer $TOKEN_A" -X POST "$API_URL/users/me/photos" \
+  -F "file=@ios/Nook/Resources/Assets.xcassets/NookBrandMark.imageset/NookBrandMark.png;type=image/png" \
+  > "$TMP_DIR/photo.json"; then
+  jq '{status,code,message,path}' "$TMP_DIR/photo.json"
+  exit 1
+fi
+PHOTO_URL="$(jq -r .url "$TMP_DIR/photo.json")"
+API_ORIGIN="${API_URL%/api/v1}"
+request "$API_ORIGIN$PHOTO_URL" > "$TMP_DIR/photo-content"
 
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X PATCH "$API_URL/users/me" \
   -d '{"bio":"Cuenta de validación end-to-end","city":"Sant Vicenç dels Horts","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true}' >/dev/null
@@ -72,4 +82,5 @@ jq -n \
   --arg message "$(jq -r 'if any(.content[]; .body == "Mensaje persistente E2E ☕") then "persisted" else "missing" end' "$TMP_DIR/messages.json")" \
   --arg cafes "$(jq -r 'if length > 0 then "real-results" else "missing" end' "$TMP_DIR/cafes.json")" \
   --arg midpoint "$(jq -r 'if (.latitude > 41.38 and .latitude < 41.41 and .longitude > 2.07 and .longitude < 2.10) then "geographic" else "invalid" end' "$TMP_DIR/midpoint.json")" \
-  '{authentication:$auth,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,message:$message}'
+  --arg photo "$([[ -s "$TMP_DIR/photo-content" ]] && echo persisted || echo missing)" \
+  '{authentication:$auth,photo:$photo,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,message:$message}'

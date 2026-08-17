@@ -1,23 +1,24 @@
 package com.nook.infrastructure.adapter.out.media;
 
 import com.nook.application.port.out.MediaStoragePort;
-import com.nook.domain.SocialEntities.MediaObject;
 import com.nook.exception.ApiException;
-import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 @Profile("prod")
 public class DatabaseMediaStorageAdapter implements MediaStoragePort {
-  private final EntityManager entityManager;
+  private final JdbcTemplate jdbc;
 
-  public DatabaseMediaStorageAdapter(EntityManager entityManager) {
-    this.entityManager = entityManager;
+  public DatabaseMediaStorageAdapter(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
   }
 
   @Override public StoredMedia storeUserPhoto(UUID id, InputStream input, String contentType) {
@@ -29,11 +30,8 @@ public class DatabaseMediaStorageAdapter implements MediaStoragePort {
     };
     String filename = id + "." + extension;
     try {
-      MediaObject value = new MediaObject();
-      value.filename = filename;
-      value.contentType = contentType;
-      value.content = input.readAllBytes();
-      entityManager.persist(value);
+      jdbc.update("insert into media_objects(id,filename,content_type,content,created_at) values(?,?,?,?,?)",
+          id, filename, contentType, input.readAllBytes(), Timestamp.from(Instant.now()));
       return new StoredMedia("/api/v1/media/photos/" + filename, filename);
     } catch (IOException error) {
       throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_PHOTO", "No se pudo leer la foto");
@@ -41,18 +39,16 @@ public class DatabaseMediaStorageAdapter implements MediaStoragePort {
   }
 
   @Override public StoredContent resolveUserPhoto(String filename) {
-    MediaObject value = entityManager.createQuery(
-            "select m from SocialEntities$MediaObject m where m.filename=:filename", MediaObject.class)
-        .setParameter("filename", filename).getResultStream().findFirst()
-        .orElseThrow(() -> new ApiException(
-            HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada"));
-    return new StoredContent(value.content, value.contentType);
+    return jdbc.query("select content,content_type from media_objects where filename=?", result -> {
+      if (!result.next()) throw new ApiException(
+          HttpStatus.NOT_FOUND, "PHOTO_NOT_FOUND", "Foto no encontrada");
+      return new StoredContent(result.getBytes("content"), result.getString("content_type"));
+    }, filename);
   }
 
   @Override public void deleteUserPhoto(String publicUrl) {
     if (publicUrl == null || !publicUrl.startsWith("/api/v1/media/photos/")) return;
     String filename = publicUrl.substring(publicUrl.lastIndexOf('/') + 1);
-    entityManager.createQuery("delete from SocialEntities$MediaObject m where m.filename=:filename")
-        .setParameter("filename", filename).executeUpdate();
+    jdbc.update("delete from media_objects where filename=?", filename);
   }
 }

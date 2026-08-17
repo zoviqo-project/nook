@@ -90,13 +90,6 @@ enum AppConfiguration {
     #endif
   }
   func restore() async {
-    let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
-    let lastPresentedBuild = UserDefaults.standard.string(forKey: "nook.lastPresentedBuild")
-    if lastPresentedBuild != build {
-      UserDefaults.standard.set(build, forKey: "nook.lastPresentedBuild")
-      stage = .welcome
-      return
-    }
     do {
       if let m = try await repository.restore() {
         me = m
