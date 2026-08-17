@@ -81,7 +81,8 @@ final class GoogleSignInCoordinator: NSObject, ObservableObject,
     let verifier = Self.randomURLSafe(bytes: 48)
     let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
     let state = Self.randomURLSafe(bytes: 24)
-    let redirectURI = "\(callbackScheme):/oauth2redirect/google"
+    // Google installed-app clients expect the standard native callback path.
+    let redirectURI = "\(callbackScheme):/oauthredirect"
     var components = URLComponents(string: "https://accounts.google.com/o/oauth2/v2/auth")!
     components.queryItems = [
       .init(name: "client_id", value: clientID), .init(name: "redirect_uri", value: redirectURI),

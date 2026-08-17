@@ -25,7 +25,7 @@ open http://localhost:8080/swagger-ui/index.html
 
 Endpoints: Apple, Google, Facebook, teléfono/OTP, refresh, logout y `users/me`. Apple/Google validan firma OIDC, issuer, audience y expiración en backend. Facebook valida el token con Graph. El perfil `development` permite un OTP efímero dev devuelto solo en esa configuración; producción requiere un adaptador SMS real.
 
-Google Login usa OAuth 2.0 con PKCE en iOS y valida el `id_token` de nuevo en backend. Configura el mismo client ID iOS en `GOOGLE_IOS_CLIENT_ID` (Xcode) y `GOOGLE_CLIENT_ID` (backend/Render), además del esquema inverso en `GOOGLE_REVERSED_CLIENT_ID`. La URI autorizada es `<esquema-inverso>:/oauth2redirect/google`. Sin esos valores el botón permanece visible y devuelve un error de configuración, sin crear ninguna sesión local.
+Google Login usa OAuth 2.0 con PKCE en iOS y valida el `id_token` de nuevo en backend. Configura el mismo client ID iOS en `GOOGLE_IOS_CLIENT_ID` (Xcode) y `GOOGLE_CLIENT_ID` (backend/Render), además del esquema inverso en `GOOGLE_REVERSED_CLIENT_ID`. La URI nativa es `<esquema-inverso>:/oauthredirect`. Sin esos valores el botón permanece visible y devuelve un error de configuración, sin crear ninguna sesión local.
 
 Las fotos se sirven mediante `MediaStoragePort`. Desarrollo usa disco local. Para producción en almacenamiento de objetos activa los perfiles `prod,object-storage` y configura `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY` y `OBJECT_STORAGE_PUBLIC_BASE_URL`; `OBJECT_STORAGE_ENDPOINT` solo es necesario para proveedores S3-compatible como R2. Sin el perfil `object-storage`, el adaptador PostgreSQL existente se mantiene únicamente como compatibilidad de despliegue.
 
