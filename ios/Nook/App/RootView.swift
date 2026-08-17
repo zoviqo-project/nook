@@ -428,6 +428,7 @@ struct LoginView: View {
   @State private var password = ""
   @State private var state: LoginPhase = .idle
   @State private var phoneAccess = false
+  @State private var waitingForServer = false
   @StateObject private var apple = AppleSignInCoordinator()
   private var busy: Bool { state == .loading }
   private var error: String? { if case .error(let message) = state { message } else { nil } }
@@ -456,7 +457,7 @@ struct LoginView: View {
             ).transition(.move(edge: .top).combined(with: .opacity))
           }
           NookButton(
-            title: busy ? "ENTRANDO…" : "ENTRAR",
+            title: busy ? (waitingForServer ? "DESPERTANDO NOOK…" : "ENTRANDO…") : "ENTRAR",
             icon: busy ? "cup.and.saucer.fill" : "arrow.right"
           ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
             .opacity(busy ? 0.65 : 1)
@@ -496,6 +497,13 @@ struct LoginView: View {
   private func submit() async {
     guard !busy else { return }
     state = .loading
+    waitingForServer = false
+    let waitingTask = Task {
+      try? await Task.sleep(for: .seconds(4))
+      guard !Task.isCancelled else { return }
+      await MainActor.run { waitingForServer = true }
+    }
+    defer { waitingTask.cancel(); waitingForServer = false }
     do {
       try await app.login(email, password)
       state = .success

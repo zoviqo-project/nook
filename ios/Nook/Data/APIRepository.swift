@@ -10,8 +10,9 @@ actor APIRepository: NookRepository {
     if let session { self.session = session }
     else {
       let configuration = URLSessionConfiguration.default
-      configuration.timeoutIntervalForRequest = 10
-      configuration.timeoutIntervalForResource = 15
+      // Render free services can need close to a minute to wake from a cold start.
+      configuration.timeoutIntervalForRequest = 60
+      configuration.timeoutIntervalForResource = 90
       configuration.requestCachePolicy = .useProtocolCachePolicy
       configuration.urlCache = URLCache(memoryCapacity: 24_000_000, diskCapacity: 80_000_000)
       self.session = URLSession(configuration: configuration)
