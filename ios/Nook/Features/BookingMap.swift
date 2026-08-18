@@ -1111,7 +1111,7 @@ struct ShopImage: View {
   let url: String?
   let seed: String
   var body: some View {
-    NookRemoteImage(url: URL(string: url ?? "")) {
+    NookRemoteImage(url: resolvedURL) {
       ZStack {
           LinearGradient(
             colors: [NookColors.mocha, NookColors.espresso], startPoint: .topLeading,
@@ -1120,6 +1120,17 @@ struct ShopImage: View {
             NookColors.latte.opacity(0.65))
       }
     }.clipped()
+  }
+  private var resolvedURL: URL? {
+    guard let url, !url.isEmpty else { return nil }
+    if url.hasPrefix("/") {
+      guard var components = URLComponents(
+        url: AppConfiguration.apiURL, resolvingAgainstBaseURL: false) else { return nil }
+      components.path = url
+      components.query = nil
+      return components.url
+    }
+    return URL(string: url)
   }
 }
 

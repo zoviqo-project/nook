@@ -60,7 +60,10 @@ struct ChatsView: View {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
           CoffeeDatesList(dates: vm.dates, matches: vm.matches, updating: vm.updating) { id, status in
-            Task { await vm.transition(id, to: status, repo: app.repository) }
+            Task {
+              await vm.transition(id, to: status, repo: app.repository)
+              app.coffeeProposalPersisted()
+            }
           }
         }
       }
@@ -540,6 +543,7 @@ struct CoffeeTicket: View {
   @State private var calendarBusy = false
   @State private var breathing = false
   @State private var celebrating = false
+  @State private var managing = false
   var body: some View {
     ZStack {
       ZStack(alignment: .bottomLeading) {
@@ -558,6 +562,10 @@ struct CoffeeTicket: View {
             }
             Spacer(minLength: 8)
             statusLabel
+            Button { managing = true } label: {
+              Image(systemName: "ellipsis").font(.caption.bold())
+                .frame(width: 28, height: 28).background(.black.opacity(0.28), in: Circle())
+            }.buttonStyle(.plain).accessibilityLabel("Gestionar cita")
           }
           Spacer(minLength: 8)
           VStack(alignment: .leading, spacing: 7) {
@@ -616,6 +624,7 @@ struct CoffeeTicket: View {
       color: date.status == .accepted ? NookColors.espresso.opacity(breathing ? 0.22 : 0.12) : NookColors.warmBlack.opacity(0.13),
       radius: date.status == .accepted ? 12 : 10, y: 5)
     .animation(.spring(response: 0.58, dampingFraction: 0.62), value: celebrating)
+    .onTapGesture { managing = true }
     .onAppear {
       guard date.status == .accepted else { return }
       Haptics.success()
@@ -634,9 +643,27 @@ struct CoffeeTicket: View {
         action(date.id, .accepted)
         safe = false
       }
+      .confirmationDialog(
+        date.coffeeShop.name, isPresented: $managing, titleVisibility: .visible
+      ) {
+        if canCancel {
+          Button("Ya no quiero quedar", role: .destructive) {
+            action(date.id, cancellationStatus)
+          }
+        }
+        Button("Cerrar", role: .cancel) {}
+      } message: {
+        Text("\(date.formattedProposedAt(dateStyle: .full)) · \(statusCopy)")
+      }
     }
   }
   private var cardHeight: CGFloat { 242 }
+  private var canCancel: Bool {
+    [.pending, .counterProposed, .accepted].contains(date.status) && !isUpdating
+  }
+  private var cancellationStatus: CoffeeDateStatus {
+    date.status == .pending && date.receiverId == app.me?.id ? .declined : .cancelled
+  }
   private var statusLabel: some View {
     HStack(spacing: 5) {
       Image(systemName: statusIcon)

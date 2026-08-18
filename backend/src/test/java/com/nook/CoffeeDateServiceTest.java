@@ -56,6 +56,28 @@ class CoffeeDateServiceTest {
         .isInstanceOf(ApiException.class).hasMessageContaining("no está pendiente");
   }
 
+  @Test void eitherParticipantCanCancelAnAcceptedCoffee(){
+    UUID sender=UUID.randomUUID();
+    CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();proposal.senderId=sender;
+    proposal.receiverId=UUID.randomUUID();proposal.status=DateStatus.ACCEPTED;proposal.matchId=UUID.randomUUID();
+    proposal.coffeeShopId=UUID.randomUUID();
+    Match match=new Match();match.id=proposal.matchId;match.active=true;
+    CoffeeShop shop=new CoffeeShop();shop.id=proposal.coffeeShopId;shop.name="Tempo";
+    Conversation conversation=new Conversation();conversation.id=UUID.randomUUID();
+    Profile profile=new Profile();
+    when(repository.find(CoffeeDateProposal.class,proposal.id)).thenReturn(proposal);
+    when(repository.find(Match.class,proposal.matchId)).thenReturn(match);
+    when(repository.find(CoffeeShop.class,proposal.coffeeShopId)).thenReturn(shop);
+    when(repository.profile(sender)).thenReturn(profile);
+    when(repository.conversationByMatch(proposal.matchId)).thenReturn(conversation);
+
+    service().transition(sender,proposal.id,DateStatus.CANCELLED);
+
+    assertThat(proposal.status).isEqualTo(DateStatus.CANCELLED);
+    verify(repository).save(argThat(value->value instanceof Message message
+        && "COFFEE_CANCELLED".equals(message.messageType)));
+  }
+
   @Test void schedulerCompletesAcceptedCoffeeAfterTwentyFourHoursOnlyOnce(){
     CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();
     proposal.status=DateStatus.ACCEPTED;proposal.proposedAt=Instant.now().minusSeconds(90_000);

@@ -886,6 +886,7 @@ struct MainTabView: View {
     }
     .animation(NookMotion.fast, value: app.selectedTab)
     .animation(NookMotion.fast, value: app.tabBarHidden)
+    .background { NookBackground() }
   }
 }
 
@@ -894,6 +895,7 @@ struct FloatingTabBar: View {
   @Binding var selection: Int
   @State private var coffeeNotifications = 0
   @State private var hasConfirmedCoffee = false
+  @State private var profileRingTurning = false
   let items = [
     ("cup.and.saucer", "Descubrir"),
     ("mappin.and.ellipse", "Lugares"),
@@ -916,9 +918,13 @@ struct FloatingTabBar: View {
             if i == 3, let me = app.me {
               ProfileImage(url: me.photos.first?.url, name: me.name)
                 .frame(width: 29, height: 29).clipShape(Circle())
-                .overlay(Circle().stroke(
-                  selection == i ? NookColors.mocha : NookColors.espresso.opacity(0.32),
-                  lineWidth: selection == i ? 2 : 1))
+                .overlay {
+                  Circle().stroke(
+                    AngularGradient(
+                      colors: [NookColors.mocha, NookColors.latte, NookColors.espresso, NookColors.mocha],
+                      center: .center), lineWidth: selection == i ? 2.4 : 1.5)
+                    .rotationEffect(.degrees(profileRingTurning ? 360 : 0))
+                }
             } else {
               Image(systemName: items[i].0)
                 .font(.system(size: 22, weight: selection == i ? .medium : .light))
@@ -956,29 +962,48 @@ struct FloatingTabBar: View {
     .padding(.horizontal, 26).padding(.top, 7)
     .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
     .background {
-      NookColors.warmBlack
-        .ignoresSafeArea(edges: .bottom)
+      if selection != 0 {
+        NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
+      }
     }
     .animation(NookMotion.fast, value: selection)
-    .task(id: selection) { await refreshNotifications() }
+    .task(id: selection + app.coffeeDataRevision * 10) { await refreshNotifications() }
+    .onAppear {
+      withAnimation(.linear(duration: 3.8).repeatForever(autoreverses: false)) {
+        profileRingTurning = true
+      }
+    }
   }
   @MainActor private func refreshNotifications() async {
     guard app.me != nil else {
       coffeeNotifications = 0; hasConfirmedCoffee = false; return
     }
-    guard let notifications = try? await app.repository.notifications() else { return }
+    async let notificationRequest = try? app.repository.notifications()
+    async let dateRequest = try? app.repository.dates()
+    let notifications = await notificationRequest ?? []
+    let dates = await dateRequest ?? []
     let unread = notifications.filter { !$0.read }
-    let accepted = unread.filter { $0.type == "COFFEE_ACCEPTED" }
     withAnimation(NookMotion.fast) {
-      coffeeNotifications = unread.filter { $0.type == "COFFEE_PROPOSAL" }.count
-      hasConfirmedCoffee = !accepted.isEmpty
+      coffeeNotifications = dates.filter {
+        ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == app.me?.id
+      }.count
+      hasConfirmedCoffee = dates.contains { $0.status == .accepted }
     }
     if selection == 2 && !unread.isEmpty {
       try? await Task.sleep(for: .milliseconds(1_100))
       for notification in unread where notification.type == "COFFEE_ACCEPTED" || notification.type == "COFFEE_PROPOSAL" {
         try? await app.repository.markNotificationRead(notification.id)
       }
-      withAnimation(NookMotion.fast) { hasConfirmedCoffee = false; coffeeNotifications = 0 }
+      await refreshDatesOnly()
+    }
+  }
+  @MainActor private func refreshDatesOnly() async {
+    guard let dates = try? await app.repository.dates() else { return }
+    withAnimation(NookMotion.fast) {
+      coffeeNotifications = dates.filter {
+        ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == app.me?.id
+      }.count
+      hasConfirmedCoffee = dates.contains { $0.status == .accepted }
     }
   }
 }

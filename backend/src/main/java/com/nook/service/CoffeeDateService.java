@@ -77,7 +77,9 @@ public class CoffeeDateService {
   @Transactional
   public DateDto transition(UUID me, UUID id, DateStatus next) {
     CoffeeDateProposal proposal = participant(me, id);
-    if (proposal.status != DateStatus.PENDING && proposal.status != DateStatus.COUNTER_PROPOSED) {
+    boolean cancellingAccepted = next == DateStatus.CANCELLED && proposal.status == DateStatus.ACCEPTED;
+    if (proposal.status != DateStatus.PENDING && proposal.status != DateStatus.COUNTER_PROPOSED
+        && !cancellingAccepted) {
       throw new ApiException(HttpStatus.CONFLICT, "PROPOSAL_NOT_ACTIVE", "La propuesta ya no está pendiente");
     }
     if ((next == DateStatus.ACCEPTED || next == DateStatus.DECLINED) && !proposal.receiverId.equals(me)) {
@@ -94,6 +96,10 @@ public class CoffeeDateService {
     }
     if(next==DateStatus.ACCEPTED)audit.record(me,"PROPOSAL_ACCEPTED","COFFEE_PROPOSAL",proposal.id);
     if(next==DateStatus.DECLINED)audit.record(me,"PROPOSAL_REJECTED","COFFEE_PROPOSAL",proposal.id);
+    if(next==DateStatus.CANCELLED){
+      audit.record(me,"PROPOSAL_CANCELLED","COFFEE_PROPOSAL",proposal.id);
+      addCoffeeEvent(proposal,"COFFEE_CANCELLED","LA CITA SE HA CANCELADO");
+    }
     notify(other(me, proposal), proposal, next == DateStatus.ACCEPTED ? "CAFÉ CONFIRMADO ☕" : "Propuesta actualizada");
     return dto(proposal, me);
   }
