@@ -576,11 +576,53 @@ extension View {
   }
 }
 
-@MainActor private final class NookImageStore {
+@MainActor final class NookImageStore {
   static let shared = NookImageStore()
   private let cache = NSCache<NSURL, UIImage>()
-  func image(for url: URL) -> UIImage? { cache.object(forKey: url as NSURL) }
+  private var inFlight = Set<URL>()
+  #if DEBUG
+    private var hits = 0
+    private var misses = 0
+  #endif
+  func image(for url: URL) -> UIImage? {
+    let value = cache.object(forKey: url as NSURL)
+    #if DEBUG
+      if value == nil { misses += 1 } else { hits += 1 }
+      if (hits + misses).isMultiple(of: 20) {
+        print("[PERF] Images cache hit: \(hits)/\(hits + misses)")
+      }
+    #endif
+    return value
+  }
   func insert(_ image: UIImage, for url: URL) { cache.setObject(image, forKey: url as NSURL) }
+  func prefetch(_ urls: [URL]) {
+    for url in urls.prefix(12) where cache.object(forKey: url as NSURL) == nil && !inFlight.contains(url) {
+      inFlight.insert(url)
+      Task {
+        defer { inFlight.remove(url) }
+        var request = URLRequest(url: url)
+        request.cachePolicy = .returnCacheDataElseLoad
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+          (response as? HTTPURLResponse)?.statusCode ?? 200 < 300,
+          let image = UIImage(data: data) else { return }
+        insert(image, for: url)
+      }
+    }
+  }
+}
+
+@MainActor enum NookImagePrefetch {
+  static func schedule<S: Sequence>(_ values: S) where S.Element == String {
+    NookImageStore.shared.prefetch(values.compactMap(resolve))
+  }
+  private static func resolve(_ value: String) -> URL? {
+    guard !value.isEmpty else { return nil }
+    guard value.hasPrefix("/") else { return URL(string: value) }
+    guard var components = URLComponents(url: AppConfiguration.apiURL, resolvingAgainstBaseURL: false) else { return nil }
+    components.path = value
+    components.query = nil
+    return components.url
+  }
 }
 
 struct NookRemoteImage<Placeholder: View>: View {

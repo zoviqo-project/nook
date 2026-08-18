@@ -11,8 +11,7 @@ import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -156,7 +155,16 @@ public class CoffeeDateService {
   @Transactional
   public List<DateDto> list(UUID me) {
     completeExpiredAcceptedDates();
-    return repo.dates(me).stream().map(d -> dto(d, me)).toList();
+    List<CoffeeDateProposal> dates=repo.dates(me);
+    if(dates.isEmpty())return List.of();
+    Profile profile=repo.profile(me);
+    Set<UUID> shopIds=dates.stream().map(d->d.coffeeShopId).collect(java.util.stream.Collectors.toSet());
+    Set<UUID> dateIds=dates.stream().map(d->d.id).collect(java.util.stream.Collectors.toSet());
+    Map<UUID,CoffeeShop> shops=repo.shopsByIds(shopIds);
+    Map<UUID,List<String>> vibes=repo.vibesByShopIds(shopIds);
+    Map<UUID,String> zones=repo.dateTimeZones(dateIds);
+    return dates.stream().map(d->dto(d,profile,shops.get(d.coffeeShopId),
+        vibes.getOrDefault(d.coffeeShopId,List.of()),zones.getOrDefault(d.id,"UTC"))).toList();
   }
 
   public DateDto get(UUID me, UUID id) {
@@ -212,10 +220,14 @@ public class CoffeeDateService {
   private UUID other(UUID me, CoffeeDateProposal d) { return d.senderId.equals(me) ? d.receiverId : d.senderId; }
   private DateDto dto(CoffeeDateProposal d, UUID me) {
     Profile profile = repo.profile(me);
-    return new DateDto(d.id, d.matchId, d.senderId, d.receiverId,
-        mapper.shop(repo.find(CoffeeShop.class, d.coffeeShopId), profile.latitude == null ? 0 : profile.latitude,
-            profile.longitude == null ? 0 : profile.longitude), d.proposedAt, d.paymentPreference, d.status, d.createdAt, d.nookChoice,
-        repo.dateTimeZone(d.id));
+    CoffeeShop shop=repo.find(CoffeeShop.class,d.coffeeShopId);
+    return dto(d,profile,shop,repo.vibes(shop.id),repo.dateTimeZone(d.id));
+  }
+  private DateDto dto(CoffeeDateProposal d,Profile profile,CoffeeShop shop,List<String> vibes,String zone) {
+    return new DateDto(d.id,d.matchId,d.senderId,d.receiverId,
+        mapper.shop(shop,profile.latitude==null?0:profile.latitude,
+            profile.longitude==null?0:profile.longitude,vibes),d.proposedAt,d.paymentPreference,d.status,
+        d.createdAt,d.nookChoice,zone);
   }
   private void notify(UUID user, CoffeeDateProposal d, String title) {
     push.deliver(user,d.status == DateStatus.ACCEPTED ? "COFFEE_ACCEPTED" : "COFFEE_PROPOSAL",

@@ -34,6 +34,8 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public List<Message> messages(UUID c,int page,int size){return em.createQuery("select m from SocialEntities$Message m where m.conversationId=:c order by m.createdAt desc",Message.class).setParameter("c",c).setFirstResult(page*size).setMaxResults(size).getResultList();}
  public Optional<Message> messageByClientId(UUID conversation,UUID clientId){return em.createQuery("select m from SocialEntities$Message m where m.conversationId=:c and m.clientMessageId=:i",Message.class).setParameter("c",conversation).setParameter("i",clientId).getResultStream().findFirst();}
  public List<CoffeeShop> shops(){return em.createQuery("select s from SocialEntities$CoffeeShop s where s.active=true",CoffeeShop.class).getResultList();} public List<String> vibes(UUID id){return em.createQuery("select v.vibe from SocialEntities$CoffeeShopVibe v where v.coffeeShopId=:s",String.class).setParameter("s",id).getResultList();}
+ public Map<UUID,CoffeeShop> shopsByIds(Set<UUID> ids){if(ids.isEmpty())return Map.of();Map<UUID,CoffeeShop> result=new HashMap<>();em.createQuery("select s from SocialEntities$CoffeeShop s where s.id in :ids",CoffeeShop.class).setParameter("ids",ids).getResultList().forEach(s->result.put(s.id,s));return result;}
+ public Map<UUID,List<String>> vibesByShopIds(Set<UUID> ids){if(ids.isEmpty())return Map.of();Map<UUID,List<String>> result=new HashMap<>();for(Object[] row:em.createQuery("select v.coffeeShopId,v.vibe from SocialEntities$CoffeeShopVibe v where v.coffeeShopId in :ids",Object[].class).setParameter("ids",ids).getResultList())result.computeIfAbsent((UUID)row[0],ignored->new ArrayList<>()).add((String)row[1]);return result;}
  public boolean shopProviderExists(String providerId){return !em.createQuery("select s.id from SocialEntities$CoffeeShop s where s.providerId=:p",UUID.class).setParameter("p",providerId).setMaxResults(1).getResultList().isEmpty();}
  public Optional<CoffeeShop> shopByProviderId(String providerId){return em.createQuery("select s from SocialEntities$CoffeeShop s where s.providerId=:p",CoffeeShop.class).setParameter("p",providerId).getResultStream().findFirst();}
  public void deactivateSeedShops(){em.createQuery("update SocialEntities$CoffeeShop s set s.active=false where s.provider='SEED'").executeUpdate();}
@@ -44,6 +46,13 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public Optional<CoffeeDateProposal> dateByIdempotencyKey(UUID sender,UUID key){return em.createQuery("select d from SocialEntities$CoffeeDateProposal d where d.senderId=:sender and d.idempotencyKey=:key",CoffeeDateProposal.class).setParameter("sender",sender).setParameter("key",key).getResultStream().findFirst();}
  public void setDateTimeZone(UUID proposal,String timeZoneId){em.createNativeQuery("update coffee_date_proposals set time_zone_id=:zone where id=:id").setParameter("zone",timeZoneId).setParameter("id",proposal).executeUpdate();}
  public String dateTimeZone(UUID proposal){Object value=em.createNativeQuery("select time_zone_id from coffee_date_proposals where id=:id").setParameter("id",proposal).getSingleResult();return String.valueOf(value);}
+ public Map<UUID,String> dateTimeZones(Set<UUID> proposals){
+  if(proposals.isEmpty())return Map.of();
+  Map<UUID,String> result=new HashMap<>();
+  List<?> rows=em.createNativeQuery("select id,time_zone_id from coffee_date_proposals where id in (:ids)").setParameter("ids",proposals).getResultList();
+  for(Object value:rows){Object[] row=(Object[])value;result.put((UUID)row[0],String.valueOf(row[1]));}
+  return result;
+ }
  public List<Notification> notifications(UUID u,int page,int size){return em.createQuery("select n from SocialEntities$Notification n where n.userId=:u order by n.createdAt desc",Notification.class).setParameter("u",u).setFirstResult(page*size).setMaxResults(size).getResultList();}
  public Optional<DeviceToken> deviceToken(String token){return em.createQuery("select d from SocialEntities$DeviceToken d where d.token=:t",DeviceToken.class).setParameter("t",token).getResultStream().findFirst();}
  public List<DeviceToken> deviceTokens(UUID user){return em.createQuery("select d from SocialEntities$DeviceToken d where d.userId=:u",DeviceToken.class).setParameter("u",user).getResultList();}

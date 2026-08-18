@@ -67,6 +67,16 @@ enum AppConfiguration {
       ?? Bundle.main.object(forInfoDictionaryKey: "NookAPIURL") as? String
       ?? "http://127.0.0.1:8080/api/v1/")!
 }
+struct MyCafesSnapshot {
+  let chats: [Conversation]
+  let dates: [CoffeeDate]
+  let matches: [Match]
+  let loadedAt: Date
+}
+struct DiscoverSnapshot {
+  let people: [DiscoverProfile]
+  let loadedAt: Date
+}
 @MainActor final class AppSession: ObservableObject {
   private struct StartupTimeout: LocalizedError {
     var errorDescription: String? { "El servidor está tardando demasiado en responder." }
@@ -80,6 +90,8 @@ enum AppConfiguration {
   @Published private(set) var coffeeDataRevision = 0
   @Published private(set) var recentlyPersistedCoffeeDates: [CoffeeDate] = []
   @Published private(set) var discoveryRevision = 0
+  private(set) var myCafesCache: MyCafesSnapshot?
+  private(set) var discoverCache: DiscoverSnapshot?
   @Published var tabBarHidden = false
   private var deviceToken: String?
   let environment: AppEnvironment
@@ -161,6 +173,8 @@ enum AppConfiguration {
     placesReloadID = UUID()
     tabBarHidden = false
     recentlyPersistedCoffeeDates = []
+    myCafesCache = nil
+    discoverCache = nil
   }
   func captureDeviceToken(_ token: String) {
     deviceToken=token
@@ -177,6 +191,20 @@ enum AppConfiguration {
       recentlyPersistedCoffeeDates.insert(date, at: 0)
     }
     coffeeDataRevision += 1
+  }
+  func cacheMyCafes(chats: [Conversation], dates: [CoffeeDate], matches: [Match]) {
+    myCafesCache = MyCafesSnapshot(
+      chats: chats, dates: dates, matches: matches, loadedAt: Date())
+  }
+  func cacheDiscover(_ people: [DiscoverProfile]) {
+    discoverCache = DiscoverSnapshot(people: people, loadedAt: Date())
+  }
+  func upsertCachedCoffeeDate(_ date: CoffeeDate) {
+    guard let cache = myCafesCache else { return }
+    var dates = cache.dates
+    if let index = dates.firstIndex(where: { $0.id == date.id }) { dates[index] = date }
+    else { dates.insert(date, at: 0) }
+    cacheMyCafes(chats: cache.chats, dates: dates, matches: cache.matches)
   }
   func discoveryPreferencesPersisted() { discoveryRevision += 1 }
   #if DEBUG

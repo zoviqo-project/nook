@@ -7,13 +7,22 @@ import SwiftUI
   @Published var loading = true
   @Published var error: String?
   @Published private(set) var actingOn: UUID?
-  func load(_ repo: any NookRepository) async {
-    loading = true
+  func seed(_ snapshot: DiscoverSnapshot) {
+    guard people.isEmpty else { return }
+    people = snapshot.people
+    loading = false
+  }
+  func load(_ repo: any NookRepository, showLoader: Bool = true) async {
+    let startedAt = Date()
+    if showLoader { loading = true }
     error = nil
     defer { loading = false }
     do {
       people = try await repo.discover()
     } catch { self.error = error.localizedDescription }
+    #if DEBUG
+      print("[PERF] Discover API + decode: \(Int(Date().timeIntervalSince(startedAt) * 1_000))ms")
+    #endif
   }
   func pass(_ person: DiscoverProfile, repo: any NookRepository) async {
     guard actingOn == nil else { return }
@@ -59,25 +68,36 @@ struct DiscoverView: View {
       actionLabel: "Filtros", action: { showFilters = true }
     ) {
       Group {
-          if vm.loading {
+          if vm.loading && vm.people.isEmpty {
             NookSkeletonScreen(layout: .profileCard)
-          } else if let error = vm.error {
-            NookErrorView(message: error) { Task { await vm.load(app.repository) } }
           } else if let person = vm.people.first {
             cardStack(person)
+          } else if let error = vm.error {
+            NookErrorView(message: error) { Task { await vm.load(app.repository) } }
           } else {
             empty
           }
       }.frame(maxHeight: .infinity).padding(.top, 4)
     }
     .task {
-      await vm.load(app.repository)
+      if let cache = app.discoverCache { vm.seed(cache) }
+      await vm.load(app.repository, showLoader: app.discoverCache == nil)
+      app.cacheDiscover(vm.people)
+      NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       entrance = true
     }.onChange(of: app.discoveryRevision) { _, _ in
-      Task { await vm.load(app.repository) }
+      Task {
+        await vm.load(app.repository, showLoader: false)
+        app.cacheDiscover(vm.people)
+        NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
+      }
     }.sheet(item: $vm.match) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
+      .onChange(of: vm.people) { _, people in
+        app.cacheDiscover(people)
+        NookImagePrefetch.schedule(people.prefix(3).flatMap { $0.photos.map(\.url) })
+      }
   }
   private func cardStack(_ person: DiscoverProfile) -> some View {
     GeometryReader { proxy in

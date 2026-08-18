@@ -16,14 +16,22 @@ import SwiftUI
     dates = merged(server: dates, recent: persisted)
     state = .loaded
   }
+  func seed(_ snapshot: MyCafesSnapshot) {
+    chats = snapshot.chats
+    dates = snapshot.dates
+    matches = snapshot.matches
+    state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
+  }
   func load(_ repo: any NookRepository, showLoader: Bool = true) async {
+    let startedAt = Date()
     if showLoader && state == .idle { state = .loading }
     do {
       // Coffee dates are the source of truth for this screen. A temporary failure
       // loading chats or matches must never hide a proposal already persisted.
-      dates = unique(try await repo.dates())
+      async let d = repo.dates()
       async let c = try? repo.conversations()
       async let m = try? repo.matches()
+      dates = unique(try await d)
       if let loadedChats = await c { chats = loadedChats }
       if let loadedMatches = await m { matches = loadedMatches }
       state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
@@ -32,6 +40,9 @@ import SwiftUI
         ? .error("No hemos podido cargar tus cafés. Comprueba la conexión y vuelve a intentarlo.")
         : .loaded
     }
+    #if DEBUG
+      print("[PERF] MyCafes parallel API + decode: \(Int(Date().timeIntervalSince(startedAt) * 1_000))ms")
+    #endif
   }
   private func merged(server: [CoffeeDate], recent: [CoffeeDate]) -> [CoffeeDate] {
     var result = server
@@ -42,13 +53,21 @@ import SwiftUI
     var seen = Set<UUID>()
     return values.filter { seen.insert($0.id).inserted }
   }
-  func transition(_ id: UUID, to status: CoffeeDateStatus, repo: any NookRepository) async {
-    guard updating.insert(id).inserted else { return }
+  func transition(
+    _ id: UUID, to status: CoffeeDateStatus, repo: any NookRepository
+  ) async -> CoffeeDate? {
+    guard updating.insert(id).inserted else { return nil }
     defer { updating.remove(id) }
     do {
-      _ = try await repo.updateDate(id, status: status)
-      await load(repo, showLoader: false)
-    } catch { state = .error(error.localizedDescription) }
+      let updated = try await repo.updateDate(id, status: status)
+      if let index = dates.firstIndex(where: { $0.id == id }) { dates[index] = updated }
+      else { dates.insert(updated, at: 0) }
+      state = .loaded
+      return updated
+    } catch {
+      state = .error(error.localizedDescription)
+      return nil
+    }
   }
 }
 
@@ -69,25 +88,41 @@ struct ChatsView: View {
             updating: vm.updating
           ) { id, status in
             Task {
-              await vm.transition(id, to: status, repo: app.repository)
-              app.coffeeProposalPersisted()
+              if let updated = await vm.transition(id, to: status, repo: app.repository) {
+                app.upsertCachedCoffeeDate(updated)
+                app.coffeeProposalPersisted(updated)
+              }
             }
           }
         }
       }
     }.task {
+      if let cache = app.myCafesCache { vm.seed(cache) }
       vm.seed(app.recentlyPersistedCoffeeDates)
-      await vm.load(app.repository)
+      await vm.load(app.repository, showLoader: app.myCafesCache == nil)
+      app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
       while !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(20))
+        try? await Task.sleep(for: .seconds(60))
         guard !Task.isCancelled else { break }
         await vm.load(app.repository, showLoader: false)
+        app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
       }
-    }.refreshable { await vm.load(app.repository) }
+    }.refreshable {
+      await vm.load(app.repository, showLoader: false)
+      app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+    }
       .onChange(of: app.coffeeDataRevision) { _, _ in
         vm.seed(app.recentlyPersistedCoffeeDates)
-        Task { await vm.load(app.repository, showLoader: false) }
+        Task {
+          await vm.load(app.repository, showLoader: false)
+          app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+        }
       }
+      .onChange(of: vm.dates.count) { _, _ in prefetchImages() }
+  }
+  private func prefetchImages() {
+    NookImagePrefetch.schedule(vm.dates.compactMap { $0.coffeeShop.photoUrl })
+    NookImagePrefetch.schedule(vm.matches.prefix(8).flatMap { $0.person.photos.map(\.url) })
   }
   private var connections: some View {
     ScrollView {
@@ -498,13 +533,13 @@ struct CoffeeDatesList: View {
             ProfileImage(url: match.person.photos.first?.url, name: match.person.name)
               .frame(width: 52, height: 52).clipShape(Circle())
             VStack(alignment: .leading, spacing: 4) {
-              Text(match.person.name).font(.headline)
+              Text(match.person.name).font(.headline).lineLimit(1).truncationMode(.tail)
               Text("Elegid una cafetería y proponed un día")
-                .font(.caption).foregroundStyle(NookColors.warmGray)
+                .font(.caption).foregroundStyle(NookColors.warmGray).lineLimit(1)
             }
             Spacer()
             Image(systemName: "arrow.right").font(.caption.bold())
-          }.foregroundStyle(NookColors.espresso).padding(12).minimalListCard()
+          }.foregroundStyle(NookColors.espresso).padding(12).frame(height: 78).minimalListCard()
         }.buttonStyle(.plain)
       }
     }
@@ -609,9 +644,10 @@ struct CoffeeTicket: View {
         CoffeeCheersAnimation(active: celebrating).allowsHitTesting(false)
       }
     }
-    .frame(maxWidth: .infinity, maxHeight: cardHeight).foregroundStyle(.white)
+    .frame(maxWidth: .infinity).frame(height: cardHeight).foregroundStyle(.white)
     .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
     .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+    .dynamicTypeSize(.xSmall ... .xLarge)
     .overlay {
       RoundedRectangle(cornerRadius: 25, style: .continuous)
         .stroke(.white.opacity(date.status == .accepted ? 0.78 : 0.2), lineWidth: date.status == .accepted ? 1.6 : 0.8)

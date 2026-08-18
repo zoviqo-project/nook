@@ -49,9 +49,12 @@ public class SocialMapper {
         repo.coffees(profile.userId), repo.photos(profile.userId).stream().map(this::photo).toList());
   }
   public ShopDto shop(CoffeeShop shop, double latitude, double longitude) {
+    return shop(shop,latitude,longitude,repo.vibes(shop.id));
+  }
+  public ShopDto shop(CoffeeShop shop, double latitude, double longitude,List<String> vibes) {
     return new ShopDto(shop.id, shop.name, shop.address, shop.neighborhood,
         distance(latitude, longitude, shop.latitude, shop.longitude), shop.photoUrl,
-        shop.openingHours, shop.rating, shop.description, repo.vibes(shop.id), shop.latitude,
+        shop.openingHours, shop.rating, shop.description, vibes, shop.latitude,
         shop.longitude, shop.providerId, shop.reviewCount, shop.openNow, shop.priceLevel,
         shop.website, shop.phone, shop.mapsUrl,
         shop.types == null ? List.of() : Arrays.asList(shop.types.split(",")),
