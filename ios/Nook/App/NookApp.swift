@@ -68,6 +68,9 @@ enum AppConfiguration {
       ?? "http://127.0.0.1:8080/api/v1/")!
 }
 @MainActor final class AppSession: ObservableObject {
+  private struct StartupTimeout: LocalizedError {
+    var errorDescription: String? { "El servidor está tardando demasiado en responder." }
+  }
   enum Stage: Equatable { case loading, welcome, registration, onboarding, login, app, startupError(String) }
   @Published var stage: Stage = .loading
   @Published var me: Me?
@@ -92,15 +95,28 @@ enum AppConfiguration {
   }
   func restore() async {
     do {
-      if let m = try await repository.restore() {
+      let restored = try await withThrowingTaskGroup(of: Me?.self) { group in
+        let repository = self.repository
+        group.addTask { try await repository.restore() }
+        group.addTask {
+          try await Task.sleep(for: .seconds(18))
+          throw StartupTimeout()
+        }
+        guard let first = try await group.next() else { throw StartupTimeout() }
+        group.cancelAll()
+        return first
+      }
+      if let m = restored {
         me = m
         enterAuthenticated(m)
       } else {
         stage = .welcome
       }
+    } catch is CancellationError {
+      return
     } catch {
       stage = .startupError(
-        "No hemos podido conectar con Nook. Tu sesión sigue guardada; vuelve a intentarlo.")
+        "Nook está tardando en despertar. Tu sesión sigue guardada; comprueba la conexión y vuelve a intentarlo.")
     }
   }
   func login(_ email: String, _ password: String) async throws {
