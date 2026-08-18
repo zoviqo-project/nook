@@ -529,36 +529,38 @@ struct CoffeeDatesList: View {
       Text("MATCHES SIN PROPUESTA").font(.system(size: 11, weight: .bold, design: .rounded))
         .tracking(1.6).foregroundStyle(NookColors.mocha).padding(.top, 12).padding(.leading, 4)
       ForEach(unplannedMatches) { match in
-        Button {
-          app.selectedCoffeeMatch = match.id
-          app.placesReloadID = UUID()
-          app.selectedTab = 1
-        } label: {
-          HStack(spacing: 12) {
-            ProfileImage(url: match.person.photos.first?.url, name: match.person.name)
-              .frame(width: 52, height: 52).clipShape(Circle())
-            VStack(alignment: .leading, spacing: 4) {
-              Text(match.person.name).font(.headline).lineLimit(1).truncationMode(.tail)
-              Text("Elegid una cafetería y proponed un día")
-                .font(.caption).foregroundStyle(NookColors.warmGray).lineLimit(1)
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "arrow.right").font(.caption.bold())
-          }
-          .foregroundStyle(NookColors.espresso)
-          .padding(12)
-          .frame(maxWidth: .infinity)
-          .frame(height: 78)
-          .minimalListCard()
-        }.buttonStyle(.plain).frame(maxWidth: .infinity)
+        MyCafesCardFrame(height: 78) {
+          Button {
+            app.selectedCoffeeMatch = match.id
+            app.placesReloadID = UUID()
+            app.selectedTab = 1
+          } label: {
+            HStack(spacing: 12) {
+              ProfileImage(url: match.person.photos.first?.url, name: match.person.name)
+                .frame(width: 52, height: 52).clipShape(Circle())
+              VStack(alignment: .leading, spacing: 4) {
+                Text(match.person.name).font(.headline).lineLimit(1).truncationMode(.tail)
+                Text("Elegid una cafetería y proponed un día")
+                  .font(.caption).foregroundStyle(NookColors.warmGray).lineLimit(1)
+              }.frame(maxWidth: .infinity, alignment: .leading)
+              Image(systemName: "arrow.right").font(.caption.bold())
+            }
+            .foregroundStyle(NookColors.espresso)
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .minimalListCard()
+          }.buttonStyle(.plain).frame(maxWidth: .infinity)
+        }
       }
     }
   }
   private func ticket(_ date: CoffeeDate) -> some View {
-    CoffeeTicket(
-      date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
-      conversation: conversations.first(where: { $0.matchId == date.matchId }),
-      isUpdating: updating.contains(date.id), action: action)
-      .frame(maxWidth: .infinity).frame(height: 242)
+    MyCafesCardFrame(height: 242) {
+      CoffeeTicket(
+        date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
+        conversation: conversations.first(where: { $0.matchId == date.matchId }),
+        isUpdating: updating.contains(date.id), action: action)
+    }
   }
   private var unplannedMatches: [Match] {
     matches.filter { match in !dates.contains(where: { $0.matchId == match.id && ![.declined, .cancelled, .expired, .completed].contains($0.status) }) }
@@ -582,6 +584,21 @@ struct CoffeeDatesList: View {
   private var emptyIcon: String { filter == .upcoming ? "calendar" : filter == .finished ? "clock.arrow.circlepath" : "cup.and.saucer" }
   private var emptyTitle: String { filter == .all ? "Tu primera cita espera" : "Nada por aquí todavía" }
   private var emptyText: String { filter == .all ? "Elige una cafetería después de hacer match." : "Tus cafés aparecerán aquí cuando cambien de estado." }
+}
+
+/// Gives every My Cafes row the exact width proposed by the vertical scroll view.
+/// Intrinsic text/button sizes can no longer expand an individual card beyond the screen.
+private struct MyCafesCardFrame<Content: View>: View {
+  let height: CGFloat
+  @ViewBuilder let content: () -> Content
+  var body: some View {
+    GeometryReader { proxy in
+      content()
+        .frame(width: proxy.size.width, height: height)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(height: height)
+  }
 }
 
 struct CoffeeTicket: View {
