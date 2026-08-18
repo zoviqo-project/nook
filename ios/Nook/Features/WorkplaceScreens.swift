@@ -653,9 +653,16 @@ struct CoffeeTicket: View {
   @ViewBuilder private var controls: some View {
     if date.status == .pending {
       if date.receiverId == app.me?.id {
-        HStack {
-          Button("Aceptar") { guard !isUpdating else { return }; safe = true }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(NookColors.espresso)
-          Button("Rechazar") { guard !isUpdating else { return }; action(date.id, .declined) }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.78))
+        if isUpdating {
+          HStack(spacing: 8) {
+            ProgressView().tint(.white)
+            Text("Actualizando…").font(.system(size: 12, weight: .semibold, design: .rounded))
+          }.frame(height: 34)
+        } else {
+          HStack {
+            Button("Aceptar") { safe = true }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(NookColors.espresso)
+            Button("Rechazar") { action(date.id, .declined) }.buttonStyle(.plain).foregroundStyle(.white.opacity(0.78))
+          }
         }
       } else {
         Text("Esperando respuesta").font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.8)

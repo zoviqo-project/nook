@@ -219,7 +219,7 @@ struct CoffeeShopsView: View {
       let midpointMode = app.selectedCoffeeMatch != nil
       if midpointMode { withAnimation(NookMotion.fast) { app.tabBarHidden = true } }
       location.request()
-      for _ in 0..<50 where location.location == nil && !location.denied {
+      for _ in 0..<150 where location.location == nil && !location.denied {
         try? await Task.sleep(for: .milliseconds(100))
       }
       guard let current = location.location, !location.denied else {
@@ -494,16 +494,26 @@ struct CoffeeShopsView: View {
     }
   }
   private func selectSuggestion(_ suggestion: MKLocalSearchCompletion) async {
+    showAreaPicker = false
+    searching = true
     do {
       let (point, name) = try await locationSearch.resolve(suggestion)
       await selectResolvedArea(point, name: name)
-    } catch { vm.failLocation("No hemos podido localizar ese lugar.") }
+    } catch {
+      searching = false
+      vm.failLocation("No hemos podido localizar ese lugar.")
+    }
   }
   private func selectArea(query: String) async {
+    showAreaPicker = false
+    searching = true
     do {
       let (point, name) = try await locationSearch.resolve(query: query)
       await selectResolvedArea(point, name: name)
-    } catch { vm.failLocation("No hemos podido localizar ese lugar.") }
+    } catch {
+      searching = false
+      vm.failLocation("No hemos podido localizar ese lugar.")
+    }
   }
   private func selectResolvedArea(_ point: GeoPoint, name: String) async {
     showAreaPicker = false

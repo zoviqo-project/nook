@@ -12,14 +12,16 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
   private var retryCount = 0
   private var bestCandidate: CLLocation?
   private var settlingTask: Task<Void, Never>?
-  private let targetAccuracy: CLLocationAccuracy = 50
-  private let maximumAcceptedAccuracy: CLLocationAccuracy = 150
+  private let targetAccuracy: CLLocationAccuracy = 75
+  // Indoor GPS often settles between 200 m and 1 km. That is still sufficient
+  // for a nearby-cafe search and avoids making the app unusable inside a venue.
+  private let maximumAcceptedAccuracy: CLLocationAccuracy = 1_000
   var denied: Bool { authorizationStatus == .denied || authorizationStatus == .restricted }
   var servicesDisabled: Bool { !CLLocationManager.locationServicesEnabled() }
   override init() {
     super.init()
     manager.delegate = self
-    manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+    manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
     manager.distanceFilter = kCLDistanceFilterNone
     manager.activityType = .otherNavigation
     manager.pausesLocationUpdatesAutomatically = false
@@ -62,7 +64,7 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
   }
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     let candidates = locations
-      .filter { isValid($0, maximumAge: 10) }
+      .filter { isValid($0, maximumAge: 60) }
       .min(by: { $0.horizontalAccuracy < $1.horizontalAccuracy })
     guard let candidate = candidates else {
       locationError = "Todavía no tenemos una ubicación suficientemente precisa."
@@ -78,15 +80,15 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
     locationError = "Afinando tu ubicación…"
     if settlingTask == nil {
       settlingTask = Task { [weak self] in
-        try? await Task.sleep(for: .seconds(3))
+        try? await Task.sleep(for: .seconds(4))
         guard !Task.isCancelled, let self else { return }
         if let best = self.bestCandidate,
           best.horizontalAccuracy <= self.maximumAcceptedAccuracy,
-          self.isValid(best, maximumAge: 10)
+          self.isValid(best, maximumAge: 60)
         {
           self.finish(with: best)
         } else {
-          self.locationError = "Necesitamos una señal GPS más precisa. Inténtalo de nuevo al aire libre."
+          self.locationError = "No hemos podido fijar tu zona. Puedes reintentar o buscar otro lugar manualmente."
         }
       }
     }
