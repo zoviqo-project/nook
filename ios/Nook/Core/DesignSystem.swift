@@ -179,6 +179,7 @@ struct NookHeader: View {
 struct NookScreenContainer<Content: View>: View {
   let eyebrow: String
   let title: String
+  var solidBackground: Color? = nil
   var actionIcon: String? = nil
   var actionLabel = "Acción"
   var action: (() -> Void)? = nil
@@ -186,7 +187,11 @@ struct NookScreenContainer<Content: View>: View {
 
   var body: some View {
     ZStack {
-      NookBackground()
+      if let solidBackground {
+        solidBackground.ignoresSafeArea()
+      } else {
+        NookBackground()
+      }
       VStack(spacing: 0) {
         NookHeader(
           eyebrow: eyebrow, title: title, actionIcon: actionIcon,

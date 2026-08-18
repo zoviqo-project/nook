@@ -886,7 +886,10 @@ struct MainTabView: View {
     }
     .animation(NookMotion.fast, value: app.selectedTab)
     .animation(NookMotion.fast, value: app.tabBarHidden)
-    .background { NookBackground() }
+    .background {
+      if app.selectedTab == 0 { NookColors.cream.ignoresSafeArea() }
+      else { NookBackground() }
+    }
   }
 }
 
