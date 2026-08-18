@@ -20,6 +20,7 @@ public final class ApiDtos { private ApiDtos(){}
  public record UpdateDate(DateStatus status,Instant proposedAt,UUID coffeeShopId,PaymentPreference paymentPreference){}
  public record DateDto(UUID id,UUID matchId,UUID senderId,UUID receiverId,ShopDto coffeeShop,Instant proposedAt,PaymentPreference paymentPreference,DateStatus status,Instant createdAt,boolean nookChoice,String timeZoneId){}
  public record ConversationDto(UUID id,UUID matchId,DiscoverProfile person,String lastMessage,Instant updatedAt){}
+ public record MyCafeDto(UUID matchId,DiscoverProfile person,Instant matchedAt,UUID conversationId,DateDto proposal,List<String> availableActions){}
  public record SendMessage(@NotBlank @Size(max=2000) String body,@NotNull UUID clientMessageId){} public record MessageDto(UUID id,UUID senderId,String body,String type,Instant createdAt){}
  public record ReportRequest(@NotBlank String reason,@Size(max=1000) String details){} public record NotificationDto(UUID id,String type,String title,String body,UUID resourceId,Instant createdAt,boolean read){}
  public record DeviceTokenRequest(@NotBlank @Size(max=300) String token){}

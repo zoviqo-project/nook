@@ -68,9 +68,7 @@ enum AppConfiguration {
       ?? "http://127.0.0.1:8080/api/v1/")!
 }
 struct MyCafesSnapshot {
-  let chats: [Conversation]
-  let dates: [CoffeeDate]
-  let matches: [Match]
+  let items: [MyCafeItem]
   let loadedAt: Date
 }
 struct DiscoverSnapshot {
@@ -192,19 +190,19 @@ struct DiscoverSnapshot {
     }
     coffeeDataRevision += 1
   }
-  func cacheMyCafes(chats: [Conversation], dates: [CoffeeDate], matches: [Match]) {
-    myCafesCache = MyCafesSnapshot(
-      chats: chats, dates: dates, matches: matches, loadedAt: Date())
+  func cacheMyCafes(_ items: [MyCafeItem]) {
+    myCafesCache = MyCafesSnapshot(items: items, loadedAt: Date())
   }
   func cacheDiscover(_ people: [DiscoverProfile]) {
     discoverCache = DiscoverSnapshot(people: people, loadedAt: Date())
   }
   func upsertCachedCoffeeDate(_ date: CoffeeDate) {
     guard let cache = myCafesCache else { return }
-    var dates = cache.dates
-    if let index = dates.firstIndex(where: { $0.id == date.id }) { dates[index] = date }
-    else { dates.insert(date, at: 0) }
-    cacheMyCafes(chats: cache.chats, dates: dates, matches: cache.matches)
+    var items = cache.items
+    if let index = items.firstIndex(where: { $0.matchId == date.matchId }) {
+      items[index].proposal = date
+    }
+    cacheMyCafes(items)
   }
   func discoveryPreferencesPersisted() { discoveryRevision += 1 }
   #if DEBUG

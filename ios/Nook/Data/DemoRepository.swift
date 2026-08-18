@@ -356,6 +356,26 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
       }
       return demoDates
     }
+    func myCafes() async throws -> [MyCafeItem] {
+      let currentDates = try await dates()
+      return demoMatches.map { match in
+        let proposal = currentDates.filter { $0.matchId == match.id }.max { lhs, rhs in
+          lhs.createdAt < rhs.createdAt
+        }
+        let actions: [String]
+        switch proposal?.status {
+        case nil: actions = ["PROPOSE", "CHAT"]
+        case .pending, .counterProposed:
+          actions = proposal?.receiverId == current.id ? ["ACCEPT", "DECLINE", "CHAT"] : ["CANCEL", "CHAT"]
+        case .accepted: actions = ["DETAIL", "CHAT", "CANCEL", "COMPLETE"]
+        case .completed: actions = ["DETAIL", "CHAT"]
+        case .cancelled, .declined, .expired: actions = ["PROPOSE", "CHAT"]
+        }
+        return MyCafeItem(
+          matchId: match.id, person: match.person, matchedAt: match.matchedAt,
+          conversationId: match.conversationId, proposal: proposal, availableActions: actions)
+      }
+    }
     func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
       -> CoffeeDate
     {

@@ -269,6 +269,15 @@ struct CoffeeDate: Codable, Identifiable {
     return formatter.string(from: value)
   }
 }
+struct MyCafeItem: Codable, Identifiable {
+  var id: UUID { matchId }
+  let matchId: UUID
+  let person: DiscoverProfile
+  let matchedAt: String
+  let conversationId: UUID
+  var proposal: CoffeeDate?
+  var availableActions: [String]
+}
 struct PageResponse<T: Codable>: Codable {
   let content: [T]
   let page, size: Int
@@ -344,6 +353,7 @@ protocol ConversationRepository: Sendable {
   func send(_ text: String, to id: UUID, clientMessageID: UUID) async throws -> ChatMessage
 }
 protocol CoffeeDateRepository: Sendable {
+  func myCafes() async throws -> [MyCafeItem]
   func dates() async throws -> [CoffeeDate]
   func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate

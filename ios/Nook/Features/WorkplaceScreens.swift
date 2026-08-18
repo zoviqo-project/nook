@@ -7,6 +7,7 @@ import SwiftUI
   @Published var chats: [Conversation] = []
   @Published var dates: [CoffeeDate] = []
   @Published var matches: [Match] = []
+  @Published var items: [MyCafeItem] = []
   @Published private(set) var state: State = .idle
   @Published private(set) var updating: Set<UUID> = []
   var loading: Bool { state == .loading }
@@ -17,24 +18,13 @@ import SwiftUI
     state = .loaded
   }
   func seed(_ snapshot: MyCafesSnapshot) {
-    chats = snapshot.chats
-    dates = snapshot.dates
-    matches = snapshot.matches
-    state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
+    apply(snapshot.items)
   }
   func load(_ repo: any NookRepository, showLoader: Bool = true) async {
     let startedAt = Date()
     if showLoader && state == .idle { state = .loading }
     do {
-      // Coffee dates are the source of truth for this screen. A temporary failure
-      // loading chats or matches must never hide a proposal already persisted.
-      async let d = repo.dates()
-      async let c = try? repo.conversations()
-      async let m = try? repo.matches()
-      dates = unique(try await d)
-      if let loadedChats = await c { chats = loadedChats }
-      if let loadedMatches = await m { matches = loadedMatches }
-      state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
+      apply(try await repo.myCafes())
     } catch {
       state = dates.isEmpty
         ? .error("No hemos podido cargar tus cafés. Comprueba la conexión y vuelve a intentarlo.")
@@ -43,6 +33,18 @@ import SwiftUI
     #if DEBUG
       print("[PERF] MyCafes parallel API + decode: \(Int(Date().timeIntervalSince(startedAt) * 1_000))ms")
     #endif
+  }
+  private func apply(_ values: [MyCafeItem]) {
+    var seen = Set<UUID>()
+    items = values.filter { seen.insert($0.matchId).inserted }
+    dates = items.compactMap(\.proposal)
+    matches = items.map {
+      Match(id: $0.matchId, person: $0.person, matchedAt: $0.matchedAt, conversationId: $0.conversationId)
+    }
+    chats = items.map {
+      Conversation(id: $0.conversationId, matchId: $0.matchId, person: $0.person, lastMessage: "", updatedAt: $0.matchedAt)
+    }
+    state = items.isEmpty ? .empty : .loaded
   }
   private func merged(server: [CoffeeDate], recent: [CoffeeDate]) -> [CoffeeDate] {
     var result = server
@@ -62,6 +64,15 @@ import SwiftUI
       let updated = try await repo.updateDate(id, status: status)
       if let index = dates.firstIndex(where: { $0.id == id }) { dates[index] = updated }
       else { dates.insert(updated, at: 0) }
+      if let index = items.firstIndex(where: { $0.matchId == updated.matchId }) {
+        items[index].proposal = updated
+        switch updated.status {
+        case .accepted: items[index].availableActions = ["DETAIL", "CHAT", "CANCEL", "COMPLETE"]
+        case .cancelled, .declined, .expired: items[index].availableActions = ["PROPOSE", "CHAT"]
+        case .completed: items[index].availableActions = ["DETAIL", "CHAT"]
+        case .pending, .counterProposed: break
+        }
+      }
       state = .loaded
       return updated
     } catch {
@@ -83,9 +94,8 @@ struct ChatsView: View {
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
-          CoffeeDatesList(
-            dates: vm.dates, matches: vm.matches, conversations: vm.chats,
-            updating: vm.updating
+          MyCafesUnifiedList(
+            items: vm.items, updating: vm.updating
           ) { id, status in
             Task {
               if let updated = await vm.transition(id, to: status, repo: app.repository) {
@@ -100,22 +110,22 @@ struct ChatsView: View {
       if let cache = app.myCafesCache { vm.seed(cache) }
       vm.seed(app.recentlyPersistedCoffeeDates)
       await vm.load(app.repository, showLoader: app.myCafesCache == nil)
-      app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+      app.cacheMyCafes(vm.items)
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(60))
         guard !Task.isCancelled else { break }
         await vm.load(app.repository, showLoader: false)
-        app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+        app.cacheMyCafes(vm.items)
       }
     }.refreshable {
       await vm.load(app.repository, showLoader: false)
-      app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+      app.cacheMyCafes(vm.items)
     }
       .onChange(of: app.coffeeDataRevision) { _, _ in
         vm.seed(app.recentlyPersistedCoffeeDates)
         Task {
           await vm.load(app.repository, showLoader: false)
-          app.cacheMyCafes(chats: vm.chats, dates: vm.dates, matches: vm.matches)
+          app.cacheMyCafes(vm.items)
         }
       }
       .onChange(of: vm.dates.count) { _, _ in prefetchImages() }
@@ -455,6 +465,153 @@ struct ChatCoffeePicker: View {
         .onDisappear { location.stop() }
     }
   }
+}
+
+struct MyCafesUnifiedList: View {
+  @EnvironmentObject private var app: AppSession
+  let items: [MyCafeItem]
+  let updating: Set<UUID>
+  let action: (UUID, CoffeeDateStatus) -> Void
+  var body: some View {
+    ScrollView {
+      LazyVStack(spacing: 14) {
+        if items.isEmpty {
+          NookEmptyState(icon: "cup.and.saucer", title: "Tu primer café te espera", text: "Descubre personas y conecta para proponer un café.")
+          Button("Descubrir personas") { app.selectedTab = 0 }
+            .buttonStyle(.borderedProminent).tint(NookColors.mocha)
+        } else {
+          ForEach(items) { item in
+            MyCafeUnifiedCard(item: item, isUpdating: item.proposal.map { updating.contains($0.id) } ?? false, action: action)
+          }
+        }
+      }.containerRelativeFrame(.horizontal).padding(.vertical, 8)
+    }.contentMargins(.horizontal, 16, for: .scrollContent).scrollIndicators(.hidden)
+  }
+}
+
+private struct MyCafeUnifiedCard: View {
+  @EnvironmentObject private var app: AppSession
+  let item: MyCafeItem
+  let isUpdating: Bool
+  let action: (UUID, CoffeeDateStatus) -> Void
+  @State private var showingDetail = false
+  var body: some View {
+    MyCafesCardFrame {
+      ZStack(alignment: .bottomLeading) {
+        cardImage
+        LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.42), NookColors.warmBlack], startPoint: .top, endPoint: .bottom)
+        VStack(alignment: .leading, spacing: 0) {
+          HStack(spacing: 8) {
+            statusBadge
+            Spacer(minLength: 4)
+            if item.availableActions.contains("CHAT") { chatButton }
+            if item.proposal != nil {
+              Button { showingDetail = true } label: {
+                Image(systemName: "ellipsis").frame(width: 30, height: 30).background(.black.opacity(0.28), in: Circle())
+              }.buttonStyle(.plain).accessibilityLabel("Ver detalle")
+            }
+          }
+          Spacer(minLength: 8)
+          HStack(spacing: 10) {
+            ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
+              .frame(width: 44, height: 44).clipShape(Circle()).overlay(Circle().stroke(NookColors.mocha, lineWidth: 2))
+            Text("\(item.person.name), \(item.person.age)").font(NookTypography.display(28))
+              .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.7)
+          }.frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 7)
+          context
+          actionRow.padding(.top, 10)
+        }.padding(14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      }.foregroundStyle(.white)
+        .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+        .onTapGesture { primaryTap() }
+        .overlay { if isUpdating { ProgressView().tint(.white).padding(12).background(.black.opacity(0.48), in: Circle()) } }
+        .sheet(isPresented: $showingDetail) {
+          if let proposal = item.proposal {
+            CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
+          }
+        }
+    }.dynamicTypeSize(.xSmall ... .xLarge)
+  }
+  @ViewBuilder private var cardImage: some View {
+    if let proposal = item.proposal {
+      ShopImage(url: proposal.coffeeShop.photoUrl, seed: proposal.coffeeShop.name).frame(maxWidth: .infinity, maxHeight: .infinity)
+    } else {
+      ProfileImage(url: item.person.photos.first?.url, name: item.person.name).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+  }
+  private var statusBadge: some View {
+    Label(statusText, systemImage: statusIcon).font(.system(size: 10, weight: .bold, design: .rounded))
+      .lineLimit(1).minimumScaleFactor(0.64).allowsTightening(true).padding(.horizontal, 10).frame(height: 28)
+      .background(statusColor, in: Capsule()).foregroundStyle(statusForeground)
+      .frame(maxWidth: .infinity, alignment: .leading)
+  }
+  @ViewBuilder private var context: some View {
+    if let proposal = item.proposal {
+      VStack(alignment: .leading, spacing: 5) {
+        Label(proposal.coffeeShop.name, systemImage: "mappin.and.ellipse").font(.system(size: 15, weight: .bold, design: .rounded))
+        Label(proposal.formattedProposedAt(dateStyle: .medium), systemImage: "calendar")
+          .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+      }.lineLimit(1).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading)
+    } else {
+      Text("Aún no habéis propuesto un café").font(.system(size: 13, weight: .semibold, design: .rounded))
+        .foregroundStyle(.white.opacity(0.84)).lineLimit(1).truncationMode(.tail)
+    }
+  }
+  @ViewBuilder private var actionRow: some View {
+    if item.availableActions.contains("ACCEPT"), let proposal = item.proposal {
+      HStack(spacing: 8) {
+        actionButton("Aceptar", icon: "checkmark", primary: true) { action(proposal.id, .accepted) }
+        actionButton("Rechazar", icon: "xmark", primary: false) { action(proposal.id, .declined) }
+      }
+    } else if item.availableActions.contains("PROPOSE") {
+      actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
+    } else if item.proposal?.status == .accepted {
+      actionButton("Ver cita confirmada", icon: "checkmark.circle.fill", primary: true) { showingDetail = true }
+    } else {
+      Text(statusDetail).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+        .lineLimit(1).truncationMode(.tail).frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+    }
+  }
+  private func actionButton(_ title: String, icon: String, primary: Bool, perform: @escaping () -> Void) -> some View {
+    Button(action: perform) {
+      Label(title, systemImage: icon).font(.system(size: 12, weight: .bold, design: .rounded)).lineLimit(1)
+        .minimumScaleFactor(0.72).frame(maxWidth: .infinity).frame(height: 38)
+        .foregroundStyle(primary ? NookColors.inverseText : .white)
+        .background(primary ? NookColors.espresso : .white.opacity(0.16), in: Capsule())
+    }.buttonStyle(.plain).disabled(isUpdating)
+  }
+  private var chatButton: some View {
+    NavigationLink { ChatDetail(conversation: conversation) } label: {
+      Image(systemName: "bubble.left.fill").font(.caption).frame(width: 30, height: 30).background(.black.opacity(0.28), in: Circle())
+    }.buttonStyle(.plain).accessibilityLabel("Abrir chat")
+  }
+  private var conversation: Conversation {
+    Conversation(id: item.conversationId, matchId: item.matchId, person: item.person, lastMessage: "", updatedAt: item.matchedAt)
+  }
+  private func primaryTap() { item.proposal == nil ? propose() : (showingDetail = true) }
+  private func propose() { app.selectedCoffeeMatch = item.matchId; app.placesReloadID = UUID(); app.selectedTab = 1 }
+  private var statusText: String {
+    guard let proposal = item.proposal else { return "MATCH" }
+    switch proposal.status {
+    case .pending: return proposal.receiverId == app.me?.id ? "TE HAN PROPUESTO UN CAFÉ" : "PROPUESTA ENVIADA"
+    case .counterProposed: return "NUEVA PROPUESTA"
+    case .accepted: return "CONFIRMADO"
+    case .completed: return "COMPLETADO"
+    case .cancelled: return "CANCELADO"
+    case .declined: return "RECHAZADO"
+    case .expired: return "CADUCADO"
+    }
+  }
+  private var statusDetail: String {
+    guard let proposal = item.proposal else { return "Aún no habéis propuesto un café" }
+    if proposal.status == .pending && proposal.senderId == app.me?.id { return "Esperando respuesta" }
+    return statusText.capitalized
+  }
+  private var statusIcon: String {
+    switch item.proposal?.status { case .accepted: "checkmark"; case .pending, .counterProposed: "hourglass"; case .completed: "cup.and.saucer.fill"; case .cancelled, .declined, .expired: "xmark"; case nil: "heart.fill" }
+  }
+  private var statusColor: Color { item.proposal?.status == .accepted ? NookColors.mocha : NookColors.offWhite.opacity(0.95) }
+  private var statusForeground: Color { item.proposal?.status == .accepted ? NookColors.inverseText : NookColors.espresso }
 }
 
 struct CoffeeDatesList: View {

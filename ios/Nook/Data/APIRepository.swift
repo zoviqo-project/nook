@@ -207,6 +207,15 @@ actor APIRepository: NookRepository {
     for index in result.indices { normalizePhotoURLs(in: &result[index].coffeeShop) }
     return result
   }
+  func myCafes() async throws -> [MyCafeItem] {
+    var result: [MyCafeItem] = try await call("my-cafes")
+    for index in result.indices {
+      if result[index].proposal != nil {
+        normalizePhotoURLs(in: &result[index].proposal!.coffeeShop)
+      }
+    }
+    return result
+  }
   func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate
   {
