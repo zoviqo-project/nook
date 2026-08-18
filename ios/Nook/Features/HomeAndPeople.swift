@@ -192,9 +192,7 @@ struct NookProfileCard: View {
       ZStack(alignment: .bottomLeading) {
         ProfileImage(url: person.photos.first?.url, name: person.name).frame(
           width: proxy.size.width, height: proxy.size.height)
-        LinearGradient(
-          colors: [.clear, NookColors.warmBlack.opacity(0.14), NookColors.warmBlack.opacity(0.92)],
-          startPoint: .top, endPoint: .bottom)
+        NookColors.warmBlack.opacity(0.38)
         VStack(alignment: .leading, spacing: 8) {
           Text("\(person.name), \(person.age)").font(
             .system(size: 34, weight: .black, design: .rounded))
@@ -237,9 +235,7 @@ struct ProfileImage: View {
       url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: true
     ) {
       ZStack {
-          LinearGradient(
-            colors: [NookColors.latte, NookColors.mocha], startPoint: .topLeading,
-            endPoint: .bottomTrailing)
+          NookColors.latte
           Text(String(name.prefix(1))).font(.system(size: 130, weight: .black, design: .rounded))
             .foregroundStyle(NookColors.offWhite.opacity(0.8))
       }
