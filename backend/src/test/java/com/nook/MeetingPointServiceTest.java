@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.nook.domain.SocialEntities.Match;
+import com.nook.domain.SocialEntities.User;
 import com.nook.domain.SocialEntities.UserLocation;
 import com.nook.repository.SocialRepository;
 import com.nook.service.GeographicCalculator;
@@ -46,5 +47,39 @@ class MeetingPointServiceTest {
     assertThat(result.latitude()).isBetween(41.38, 41.41);
     assertThat(result.longitude()).isBetween(2.07, 2.10);
     assertThat(result.longitude()).isNotEqualTo(first.longitude).isNotEqualTo(second.longitude);
+  }
+
+  @Test
+  void placesDemoParticipantNearRealRequesterForAUsefulTestMidpoint() {
+    UUID matchId = UUID.randomUUID();
+    UUID realId = UUID.randomUUID();
+    UUID demoId = UUID.randomUUID();
+    Match match = new Match();
+    match.id = matchId;
+    match.userOneId = realId;
+    match.userTwoId = demoId;
+    User real = new User();
+    real.email = "person@example.com";
+    User demo = new User();
+    demo.email = "marta@nook.demo";
+    UserLocation realLocation = new UserLocation();
+    realLocation.latitude = 41.3874;
+    realLocation.longitude = 2.1686;
+    realLocation.capturedAt = Instant.now();
+    UserLocation oldDemoLocation = new UserLocation();
+    oldDemoLocation.latitude = 51.5074;
+    oldDemoLocation.longitude = -0.1278;
+    oldDemoLocation.capturedAt = Instant.now();
+    when(repository.find(Match.class, matchId)).thenReturn(match);
+    when(repository.user(realId)).thenReturn(real);
+    when(repository.user(demoId)).thenReturn(demo);
+    when(repository.location(realId)).thenReturn(realLocation);
+    when(repository.location(demoId)).thenReturn(oldDemoLocation);
+
+    var result = new MeetingPointService(repository, new GeographicCalculator())
+        .midpoint(matchId, realId);
+
+    assertThat(result.latitude()).isBetween(41.37, 41.41);
+    assertThat(result.longitude()).isBetween(2.14, 2.20);
   }
 }
