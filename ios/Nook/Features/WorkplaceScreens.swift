@@ -55,7 +55,7 @@ struct ChatsView: View {
     NookScreenContainer(eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés") {
       Group {
         if vm.loading {
-          NookSkeletonScreen(layout: .list(rows: 4))
+          NookSkeletonScreen(layout: .coffeeDates(rows: 3))
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {

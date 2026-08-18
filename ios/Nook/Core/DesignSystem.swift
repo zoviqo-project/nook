@@ -245,6 +245,7 @@ enum NookSkeletonLayout {
   case profileCard
   case list(rows: Int)
   case coffeeCards(rows: Int)
+  case coffeeDates(rows: Int)
 }
 
 struct NookSkeletonScreen: View {
@@ -260,6 +261,8 @@ struct NookSkeletonScreen: View {
         list(rows: rows)
       case .coffeeCards(let rows):
         coffeeCards(rows: rows)
+      case .coffeeDates(let rows):
+        coffeeDates(rows: rows)
       }
     }
     .accessibilityElement(children: .ignore)
@@ -328,6 +331,52 @@ struct NookSkeletonScreen: View {
           }
       }
     }.padding(.horizontal, 12).padding(.top, 4).padding(.bottom, 14)
+  }
+
+  /// Mirrors CoffeeDatesList: 38pt filters, section caption and 242pt tickets.
+  /// Keeping these dimensions shared prevents a layout jump when data arrives.
+  private func coffeeDates(rows: Int) -> some View {
+    VStack(spacing: 10) {
+      HStack(spacing: 8) {
+        skeletonBlock(width: 91, height: 38, radius: 19)
+        skeletonBlock(width: 82, height: 38, radius: 19)
+        skeletonBlock(width: 68, height: 38, radius: 19)
+        skeletonBlock(width: 96, height: 38, radius: 19)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.horizontal, 16)
+
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: 14) {
+          skeletonBlock(width: 142, height: 13, radius: 6)
+            .padding(.top, 12).padding(.leading, 4)
+          ForEach(0..<rows, id: \.self) { index in
+            skeletonBlock(height: 242, radius: 25)
+              .overlay(alignment: .top) {
+                HStack {
+                  if index.isMultiple(of: 2) {
+                    skeletonBlock(width: 102, height: 28, radius: 14)
+                  }
+                  Spacer()
+                  skeletonBlock(width: 112, height: 28, radius: 14)
+                }.padding(14)
+              }
+              .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 9) {
+                  HStack(spacing: 11) {
+                    skeletonBlock(width: 45, height: 45, radius: 23)
+                    skeletonBlock(width: index.isMultiple(of: 2) ? 142 : 176, height: 30, radius: 10)
+                  }
+                  skeletonBlock(width: 184, height: 17, radius: 7)
+                  skeletonBlock(width: 226, height: 13, radius: 6)
+                  skeletonBlock(width: 138, height: 34, radius: 17)
+                }.padding(14)
+              }
+          }
+        }
+        .padding(.horizontal, 16).padding(.bottom, 18)
+      }.scrollIndicators(.hidden)
+    }
   }
 
   private func skeletonBlock(
