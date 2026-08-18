@@ -1,4 +1,5 @@
 import EventKit
+import MapKit
 import SwiftUI
 
 @MainActor final class ChatsVM: ObservableObject {
@@ -20,7 +21,7 @@ import SwiftUI
     do {
       // Coffee dates are the source of truth for this screen. A temporary failure
       // loading chats or matches must never hide a proposal already persisted.
-      dates = try await repo.dates()
+      dates = unique(try await repo.dates())
       async let c = try? repo.conversations()
       async let m = try? repo.matches()
       if let loadedChats = await c { chats = loadedChats }
@@ -36,6 +37,10 @@ import SwiftUI
     var result = server
     for date in recent where !result.contains(where: { $0.id == date.id }) { result.insert(date, at: 0) }
     return result
+  }
+  private func unique(_ values: [CoffeeDate]) -> [CoffeeDate] {
+    var seen = Set<UUID>()
+    return values.filter { seen.insert($0.id).inserted }
   }
   func transition(_ id: UUID, to status: CoffeeDateStatus, repo: any NookRepository) async {
     guard updating.insert(id).inserted else { return }
@@ -59,7 +64,10 @@ struct ChatsView: View {
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
-          CoffeeDatesList(dates: vm.dates, matches: vm.matches, updating: vm.updating) { id, status in
+          CoffeeDatesList(
+            dates: vm.dates, matches: vm.matches, conversations: vm.chats,
+            updating: vm.updating
+          ) { id, status in
             Task {
               await vm.transition(id, to: status, repo: app.repository)
               app.coffeeProposalPersisted()
@@ -422,6 +430,7 @@ struct CoffeeDatesList: View {
   }
   let dates: [CoffeeDate]
   let matches: [Match]
+  let conversations: [Conversation]
   let updating: Set<UUID>
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var filter: Filter = .all
@@ -501,12 +510,11 @@ struct CoffeeDatesList: View {
     }
   }
   private func ticket(_ date: CoffeeDate) -> some View {
-    GeometryReader { proxy in
-      CoffeeTicket(
-        date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
-        isUpdating: updating.contains(date.id), action: action)
-        .frame(width: proxy.size.width)
-    }.frame(height: 242)
+    CoffeeTicket(
+      date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
+      conversation: conversations.first(where: { $0.matchId == date.matchId }),
+      isUpdating: updating.contains(date.id), action: action)
+      .frame(maxWidth: .infinity).frame(height: 242)
   }
   private var unplannedMatches: [Match] {
     matches.filter { match in !dates.contains(where: { $0.matchId == match.id && ![.declined, .cancelled, .expired, .completed].contains($0.status) }) }
@@ -536,6 +544,7 @@ struct CoffeeTicket: View {
   @EnvironmentObject var app: AppSession
   let date: CoffeeDate
   let person: DiscoverProfile?
+  let conversation: Conversation?
   let isUpdating: Bool
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var safe = false
@@ -543,7 +552,7 @@ struct CoffeeTicket: View {
   @State private var calendarBusy = false
   @State private var breathing = false
   @State private var celebrating = false
-  @State private var managing = false
+  @State private var showingDetail = false
   var body: some View {
     ZStack {
       ZStack(alignment: .bottomLeading) {
@@ -562,7 +571,7 @@ struct CoffeeTicket: View {
             }
             Spacer(minLength: 8)
             statusLabel
-            Button { managing = true } label: {
+            Button { showingDetail = true } label: {
               Image(systemName: "ellipsis").font(.caption.bold())
                 .frame(width: 28, height: 28).background(.black.opacity(0.28), in: Circle())
             }.buttonStyle(.plain).accessibilityLabel("Gestionar cita")
@@ -619,12 +628,10 @@ struct CoffeeTicket: View {
           .background(.black.opacity(0.42), in: Circle())
       }
     }
-    .scaleEffect(date.status == .accepted ? (celebrating ? 1 : 0.72) : 1)
     .shadow(
       color: date.status == .accepted ? NookColors.espresso.opacity(breathing ? 0.22 : 0.12) : NookColors.warmBlack.opacity(0.13),
       radius: date.status == .accepted ? 12 : 10, y: 5)
-    .animation(.spring(response: 0.58, dampingFraction: 0.62), value: celebrating)
-    .onTapGesture { managing = true }
+    .onTapGesture { showingDetail = true }
     .onAppear {
       guard date.status == .accepted else { return }
       Haptics.success()
@@ -639,31 +646,18 @@ struct CoffeeTicket: View {
         Button("OK") { calendarMessage = nil }
       } message: { Text(calendarMessage ?? "") }
       .sheet(isPresented: $safe) {
-      SafeCoffeeView {
-        action(date.id, .accepted)
-        safe = false
-      }
-      .confirmationDialog(
-        date.coffeeShop.name, isPresented: $managing, titleVisibility: .visible
-      ) {
-        if canCancel {
-          Button("Ya no quiero quedar", role: .destructive) {
-            action(date.id, cancellationStatus)
-          }
+        SafeCoffeeView {
+          action(date.id, .accepted)
+          safe = false
         }
-        Button("Cerrar", role: .cancel) {}
-      } message: {
-        Text("\(date.formattedProposedAt(dateStyle: .full)) · \(statusCopy)")
       }
-    }
+      .sheet(isPresented: $showingDetail) {
+        CoffeeDateDetail(
+          date: date, person: person, conversation: conversation,
+          isUpdating: isUpdating, action: action)
+      }
   }
   private var cardHeight: CGFloat { 242 }
-  private var canCancel: Bool {
-    [.pending, .counterProposed, .accepted].contains(date.status) && !isUpdating
-  }
-  private var cancellationStatus: CoffeeDateStatus {
-    date.status == .pending && date.receiverId == app.me?.id ? .declined : .cancelled
-  }
   private var statusLabel: some View {
     HStack(spacing: 5) {
       Image(systemName: statusIcon)
@@ -680,8 +674,8 @@ struct CoffeeTicket: View {
   private var statusText: String {
     switch date.status {
     case .accepted: "¡CITA CONFIRMADA!"
-    case .pending: date.receiverId == app.me?.id ? "TE PROPONEN UN CAFÉ" : "ESPERANDO"
-    case .counterProposed: "QUIERE HABLAR"
+    case .pending: date.receiverId == app.me?.id ? "TE HAN PROPUESTO UN CAFÉ" : "PROPUESTA ENVIADA"
+    case .counterProposed: date.receiverId == app.me?.id ? "NUEVA PROPUESTA" : "ESPERANDO RESPUESTA"
     case .completed: "COMPLETADO"
     default: statusCopy.uppercased()
     }
@@ -775,6 +769,153 @@ struct CoffeeTicket: View {
       calendarMessage = "Café añadido. Si usas Google Calendar en el iPhone, se sincronizará con esa cuenta."
     } catch {
       calendarMessage = "No hemos podido añadir el café al calendario."
+    }
+  }
+}
+
+private struct CoffeeDateDetail: View {
+  @EnvironmentObject private var app: AppSession
+  @Environment(\.dismiss) private var dismiss
+  let date: CoffeeDate
+  let person: DiscoverProfile?
+  let conversation: Conversation?
+  let isUpdating: Bool
+  let action: (UUID, CoffeeDateStatus) -> Void
+  @State private var confirmingCancellation = false
+
+  var body: some View {
+    NavigationStack {
+      ZStack {
+        NookBackground()
+        ScrollView {
+          VStack(alignment: .leading, spacing: 18) {
+            ShopImage(url: date.coffeeShop.photoUrl, seed: date.coffeeShop.name)
+              .frame(height: 230).clipShape(RoundedRectangle(cornerRadius: 26))
+
+            HStack(spacing: 12) {
+              if let person {
+                ProfileImage(url: person.photos.first?.url, name: person.name)
+                  .frame(width: 54, height: 54).clipShape(Circle())
+              }
+              VStack(alignment: .leading, spacing: 4) {
+                Text(person?.name ?? "Tu cita").font(.title2.bold())
+                NookStatusBadge(icon: statusIcon, text: statusText, color: statusColor)
+              }
+            }
+
+            VStack(alignment: .leading, spacing: 13) {
+              detailRow("Cafetería", date.coffeeShop.name, "cup.and.saucer.fill")
+              detailRow("Cuándo", date.formattedProposedAt(dateStyle: .full), "calendar")
+              detailRow("Dirección", date.coffeeShop.address, "mappin.and.ellipse")
+              detailRow("Estado", statusText, statusIcon)
+            }.padding(18).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 22))
+
+            if let latitude = date.coffeeShop.latitude, let longitude = date.coffeeShop.longitude {
+              let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+              Map(initialPosition: .region(MKCoordinateRegion(
+                center: coordinate, latitudinalMeters: 900, longitudinalMeters: 900
+              ))) {
+                Marker(date.coffeeShop.name, coordinate: coordinate).tint(NookColors.mocha)
+              }
+              .frame(height: 180).clipShape(RoundedRectangle(cornerRadius: 22))
+              .allowsHitTesting(false)
+            }
+
+            if let conversation {
+              NavigationLink { ChatDetail(conversation: conversation) } label: {
+                Label("Abrir conversación", systemImage: "bubble.left.and.bubble.right.fill")
+                  .font(.headline).frame(maxWidth: .infinity).frame(height: 50)
+                  .foregroundStyle(NookColors.espresso)
+                  .background(NookColors.offWhite, in: Capsule())
+              }.buttonStyle(.plain)
+            }
+
+            if date.status == .pending && date.receiverId == app.me?.id {
+              HStack(spacing: 10) {
+                actionButton("Aceptar", icon: "checkmark", status: .accepted, primary: true)
+                actionButton("Rechazar", icon: "xmark", status: .declined, primary: false)
+              }
+            }
+
+            if canCancel {
+              Button(role: .destructive) { confirmingCancellation = true } label: {
+                Label("Ya no quiero quedar", systemImage: "calendar.badge.minus")
+                  .font(.headline).frame(maxWidth: .infinity).frame(height: 50)
+              }.buttonStyle(.bordered).tint(.red).disabled(isUpdating)
+            }
+          }.padding(20).padding(.bottom, 12)
+        }.scrollIndicators(.hidden)
+      }
+      .navigationTitle("Detalle del café")
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Cerrar") { dismiss() } } }
+      .alert("¿Cancelar esta cita?", isPresented: $confirmingCancellation) {
+        Button("No", role: .cancel) {}
+        Button("Sí, cancelar", role: .destructive) {
+          action(date.id, cancellationStatus)
+          dismiss()
+        }
+      } message: {
+        Text("La otra persona también verá la cita como cancelada.")
+      }
+    }
+  }
+
+  private func detailRow(_ title: String, _ value: String, _ icon: String) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+      Image(systemName: icon).foregroundStyle(NookColors.mocha).frame(width: 20)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title.uppercased()).font(.caption2.bold()).tracking(0.8).foregroundStyle(NookColors.warmGray)
+        Text(value).font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.espresso)
+      }
+    }
+  }
+
+  private func actionButton(
+    _ title: String, icon: String, status: CoffeeDateStatus, primary: Bool
+  ) -> some View {
+    Button {
+      action(date.id, status)
+      dismiss()
+    } label: {
+      Label(title, systemImage: icon).font(.headline)
+        .frame(maxWidth: .infinity).frame(height: 50)
+        .foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
+        .background(primary ? NookColors.espresso : NookColors.offWhite, in: Capsule())
+    }.buttonStyle(.plain).disabled(isUpdating)
+  }
+
+  private var canCancel: Bool {
+    [.pending, .counterProposed, .accepted].contains(date.status)
+  }
+  private var cancellationStatus: CoffeeDateStatus {
+    date.status == .pending && date.receiverId == app.me?.id ? .declined : .cancelled
+  }
+  private var statusText: String {
+    switch date.status {
+    case .pending: date.receiverId == app.me?.id ? "Te han propuesto un café" : "Propuesta enviada"
+    case .counterProposed: date.receiverId == app.me?.id ? "Nueva propuesta" : "Esperando respuesta"
+    case .accepted: "Confirmado"
+    case .cancelled: "Cancelado"
+    case .declined: "Rechazado"
+    case .completed: "Completado"
+    case .expired: "Caducado"
+    }
+  }
+  private var statusIcon: String {
+    switch date.status {
+    case .accepted: "checkmark.circle.fill"
+    case .pending, .counterProposed: "hourglass"
+    case .completed: "cup.and.saucer.fill"
+    default: "xmark.circle.fill"
+    }
+  }
+  private var statusColor: Color {
+    switch date.status {
+    case .accepted: NookColors.success
+    case .pending, .counterProposed: NookColors.amber
+    case .completed: NookColors.mocha
+    default: .red
     }
   }
 }

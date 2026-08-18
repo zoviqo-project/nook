@@ -181,12 +181,7 @@ actor APIRepository: NookRepository {
     var result: [CoffeeShop] = try await call(
       "cafes/nearby?latitude=\(latitude)&longitude=\(longitude)&radius=\(GeographicMath.meters(fromKilometers: radiusKm))")
     for index in result.indices {
-      if let value = result[index].photoUrl, value.hasPrefix("/") {
-        result[index].photoUrl = URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString
-      }
-      result[index].photoUrls = result[index].photoUrls?.map { value in
-        value.hasPrefix("/") ? (URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString ?? value) : value
-      }
+      normalizePhotoURLs(in: &result[index])
     }
     return result
   }
@@ -207,7 +202,11 @@ actor APIRepository: NookRepository {
       "conversations/\(id)/messages", method: "POST",
       body: MessageBody(body: text, clientMessageId: clientMessageID))
   }
-  func dates() async throws -> [CoffeeDate] { try await call("coffee-dates") }
+  func dates() async throws -> [CoffeeDate] {
+    var result: [CoffeeDate] = try await call("coffee-dates")
+    for index in result.indices { normalizePhotoURLs(in: &result[index].coffeeShop) }
+    return result
+  }
   func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate
   {
@@ -309,6 +308,16 @@ actor APIRepository: NookRepository {
       statusCode: statusCode,
       code: body?.code ?? "HTTP_\(statusCode)",
       message: body?.message ?? "No hemos podido completar la operación")
+  }
+  private func normalizePhotoURLs(in shop: inout CoffeeShop) {
+    if let value = shop.photoUrl, value.hasPrefix("/") {
+      shop.photoUrl = URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString
+    }
+    shop.photoUrls = shop.photoUrls?.map { value in
+      value.hasPrefix("/")
+        ? (URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString ?? value)
+        : value
+    }
   }
   private func save(_ response: TokenResponse) throws {
     try tokens.save(

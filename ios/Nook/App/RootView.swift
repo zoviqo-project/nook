@@ -895,7 +895,7 @@ struct FloatingTabBar: View {
   @Binding var selection: Int
   @State private var coffeeNotifications = 0
   @State private var hasConfirmedCoffee = false
-  @State private var profileRingTurning = false
+  @State private var profileRingPulse = false
   let items = [
     ("cup.and.saucer", "Descubrir"),
     ("mappin.and.ellipse", "Lugares"),
@@ -923,7 +923,10 @@ struct FloatingTabBar: View {
                     AngularGradient(
                       colors: [NookColors.mocha, NookColors.latte, NookColors.espresso, NookColors.mocha],
                       center: .center), lineWidth: selection == i ? 2.4 : 1.5)
-                    .rotationEffect(.degrees(profileRingTurning ? 360 : 0))
+                    .scaleEffect(profileRingPulse && selection == i ? 1.09 : 1)
+                    .shadow(
+                      color: NookColors.mocha.opacity(profileRingPulse && selection == i ? 0.32 : 0),
+                      radius: 5)
                 }
             } else {
               Image(systemName: items[i].0)
@@ -968,9 +971,12 @@ struct FloatingTabBar: View {
     }
     .animation(NookMotion.fast, value: selection)
     .task(id: selection + app.coffeeDataRevision * 10) { await refreshNotifications() }
-    .onAppear {
-      withAnimation(.linear(duration: 3.8).repeatForever(autoreverses: false)) {
-        profileRingTurning = true
+    .onChange(of: selection) { _, value in
+      guard value == 3 else { profileRingPulse = false; return }
+      profileRingPulse = true
+      Task {
+        try? await Task.sleep(for: .milliseconds(650))
+        await MainActor.run { withAnimation(NookMotion.fast) { profileRingPulse = false } }
       }
     }
   }

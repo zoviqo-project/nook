@@ -251,7 +251,7 @@ struct ChatMessage: Codable, Identifiable {
 }
 struct CoffeeDate: Codable, Identifiable {
   let id, matchId, senderId, receiverId: UUID
-  let coffeeShop: CoffeeShop
+  var coffeeShop: CoffeeShop
   let proposedAt: String
   let paymentPreference: PaymentPreference
   let status: CoffeeDateStatus
