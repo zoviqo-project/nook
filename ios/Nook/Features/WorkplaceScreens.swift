@@ -506,8 +506,13 @@ struct CoffeeDatesList: View {
           } else {
             section(filteredSectionTitle, filteredDates)
           }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 18)
-      }.scrollIndicators(.hidden)
+        }
+        .containerRelativeFrame(.horizontal)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.bottom, 18)
+      }
+      .contentMargins(.horizontal, 16, for: .scrollContent)
+      .scrollIndicators(.hidden)
     }
   }
   @ViewBuilder private func section(_ title: String, _ values: [CoffeeDate]) -> some View {
@@ -536,11 +541,15 @@ struct CoffeeDatesList: View {
               Text(match.person.name).font(.headline).lineLimit(1).truncationMode(.tail)
               Text("Elegid una cafetería y proponed un día")
                 .font(.caption).foregroundStyle(NookColors.warmGray).lineLimit(1)
-            }
-            Spacer()
+            }.frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "arrow.right").font(.caption.bold())
-          }.foregroundStyle(NookColors.espresso).padding(12).frame(height: 78).minimalListCard()
-        }.buttonStyle(.plain)
+          }
+          .foregroundStyle(NookColors.espresso)
+          .padding(12)
+          .frame(maxWidth: .infinity)
+          .frame(height: 78)
+          .minimalListCard()
+        }.buttonStyle(.plain).frame(maxWidth: .infinity)
       }
     }
   }
@@ -597,15 +606,16 @@ struct CoffeeTicket: View {
         colors: [.clear, NookColors.warmBlack.opacity(0.40), NookColors.warmBlack],
         startPoint: .top, endPoint: .bottom)
         VStack(spacing: 0) {
-          HStack(alignment: .top) {
+          HStack(alignment: .top, spacing: 6) {
             if date.nookChoice == true {
               Label("ELECCIÓN NOOK", systemImage: "sparkles")
                 .font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.9)
                 .foregroundStyle(NookColors.inverseText).padding(.horizontal, 10).frame(height: 28)
                 .background(NookColors.mocha, in: Capsule())
+                .lineLimit(1).minimumScaleFactor(0.7).allowsTightening(true)
             }
-            Spacer(minLength: 8)
-            statusLabel
+            Spacer(minLength: 2)
+            statusLabel.layoutPriority(1)
             Button { showingDetail = true } label: {
               Image(systemName: "ellipsis").font(.caption.bold())
                 .frame(width: 28, height: 28).background(.black.opacity(0.28), in: Circle())
@@ -621,12 +631,14 @@ struct CoffeeTicket: View {
                   .overlay { Circle().stroke(NookColors.mocha, lineWidth: 2) }
               }.buttonStyle(.plain).accessibilityLabel("Ver perfil de \(person.name)")
             }
-              Text(person?.name ?? "Tu cita").font(NookTypography.display(30)).tracking(-0.25).lineLimit(1)
+              Text(person?.name ?? "Tu cita").font(NookTypography.display(30)).tracking(-0.25)
+                .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.72)
               Spacer(minLength: 0)
             }
             HStack(spacing: 7) {
               Image(systemName: "mappin.and.ellipse").foregroundStyle(NookColors.mocha).frame(width: 17)
-              Text(date.coffeeShop.name).font(.system(size: 17, weight: .bold, design: .rounded)).lineLimit(1)
+              Text(date.coffeeShop.name).font(.system(size: 17, weight: .bold, design: .rounded))
+                .lineLimit(1).truncationMode(.tail)
             }
             HStack(spacing: 7) {
               Image(systemName: "calendar").foregroundStyle(NookColors.mocha).frame(width: 17)
@@ -699,7 +711,7 @@ struct CoffeeTicket: View {
       Image(systemName: statusIcon)
       Text(statusText)
     }.font(.system(size: 10, weight: .bold, design: .rounded)).lineLimit(1)
-      .minimumScaleFactor(0.78)
+      .minimumScaleFactor(0.62).allowsTightening(true)
       .padding(.horizontal, 10).frame(height: 28)
       .background(statusColor, in: Capsule())
       .foregroundStyle(date.status == .accepted ? NookColors.inverseText : NookColors.espresso)
@@ -763,7 +775,8 @@ struct CoffeeTicket: View {
       }.buttonStyle(.plain).disabled(isUpdating || calendarBusy)
     } else if date.status == .counterProposed {
       Text("\(person?.name ?? "La otra persona") quiere chatear contigo antes")
-        .font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.86)
+        .font(.system(size: 12, weight: .semibold, design: .rounded)).lineLimit(1)
+        .truncationMode(.tail).opacity(0.86)
     } else {
       Text(statusCopy).font(.system(size: 12, weight: .semibold, design: .rounded)).opacity(0.8)
     }
