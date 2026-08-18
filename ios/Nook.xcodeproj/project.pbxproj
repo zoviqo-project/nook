@@ -23,8 +23,8 @@
 		A00000000000000000000014 /* OAuthCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* OAuthCoordinator.swift */; };
 		A00000000000000000000015 /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* Localization.swift */; };
 		A00000000000000000000016 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000016 /* Localizable.xcstrings */; };
-		A00000000000000000000017 /* Fraunces.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* Fraunces.ttf */; };
-		A00000000000000000000019 /* OFL-Fraunces.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* OFL-Fraunces.txt */; };
+		A00000000000000000000017 /* Fonts/Fraunces.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* Fonts/Fraunces.ttf */; };
+		A00000000000000000000019 /* Fonts/OFL-Fraunces.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* Fonts/OFL-Fraunces.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,8 +54,8 @@
 		B00000000000000000000014 /* OAuthCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCoordinator.swift; sourceTree = "<group>"; };
 		B00000000000000000000015 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		B00000000000000000000016 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		B00000000000000000000017 /* Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
-		B00000000000000000000019 /* OFL-Fraunces.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = Fonts/OFL-Fraunces.txt; sourceTree = "<group>"; };
+		B00000000000000000000017 /* Fonts/Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
+		B00000000000000000000019 /* Fonts/OFL-Fraunces.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Fonts/OFL-Fraunces.txt"; sourceTree = "<group>"; };
 		C00000000000000000000001 /* Nook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = Nook.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C00000000000000000000002 /* NookTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = NookTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -162,8 +162,8 @@
 			children = (
 				B00000000000000000000009 /* Assets.xcassets */,
 				B00000000000000000000016 /* Localizable.xcstrings */,
-				B00000000000000000000017 /* Fraunces.ttf */,
-				B00000000000000000000019 /* OFL-Fraunces.txt */,
+				B00000000000000000000017 /* Fonts/Fraunces.ttf */,
+				B00000000000000000000019 /* Fonts/OFL-Fraunces.txt */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -251,8 +251,8 @@
 			files = (
 				A00000000000000000000009 /* Assets.xcassets in Resources */,
 				A00000000000000000000016 /* Localizable.xcstrings in Resources */,
-				A00000000000000000000017 /* Fraunces.ttf in Resources */,
-				A00000000000000000000019 /* OFL-Fraunces.txt in Resources */,
+				A00000000000000000000017 /* Fonts/Fraunces.ttf in Resources */,
+				A00000000000000000000019 /* Fonts/OFL-Fraunces.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,20 +332,20 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 149;
-				GOOGLE_IOS_CLIENT_ID = "87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com";
-				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi";
-				NOOK_API_URL = "https://nook-api-t5sy.onrender.com/api/v1/";
 				DEVELOPMENT_TEAM = 5VUGP63K3Y;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
+				GOOGLE_IOS_CLIENT_ID = "87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi";
 				INFOPLIST_FILE = Nook/Resources/Info.plist;
 				MARKETING_VERSION = 1.0;
+				NOOK_API_URL = "https://nook-api-t5sy.onrender.com/api/v1/";
 				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -359,13 +359,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 149;
-				GOOGLE_IOS_CLIENT_ID = "87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com";
-				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi";
-				NOOK_API_URL = "https://nook-api-t5sy.onrender.com/api/v1/";
 				DEVELOPMENT_TEAM = 5VUGP63K3Y;
 				GENERATE_INFOPLIST_FILE = NO;
+				GOOGLE_IOS_CLIENT_ID = "87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com";
+				GOOGLE_REVERSED_CLIENT_ID = "com.googleusercontent.apps.87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi";
 				INFOPLIST_FILE = Nook/Resources/Info.plist;
 				MARKETING_VERSION = 1.0;
+				NOOK_API_URL = "https://nook-api-t5sy.onrender.com/api/v1/";
 				PRODUCT_BUNDLE_IDENTIFIER = com.albertesteveferres.nook;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
