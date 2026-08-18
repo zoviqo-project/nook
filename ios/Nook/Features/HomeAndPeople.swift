@@ -23,6 +23,7 @@ import SwiftUI
       try await repo.pass(person.id)
       withAnimation(NookMotion.spring) { people.removeAll { $0.id == person.id } }
       Haptics.selection()
+      if people.isEmpty { await load(repo) }
     } catch { self.error = error.localizedDescription }
   }
   func coffee(_ person: DiscoverProfile, repo: any NookRepository) async {
@@ -38,6 +39,7 @@ import SwiftUI
         match = result.match
       }
       if result.matched { Haptics.success() }
+      if people.isEmpty { await load(repo) }
     } catch { self.error = error.localizedDescription }
   }
 }
