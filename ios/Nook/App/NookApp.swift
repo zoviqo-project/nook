@@ -75,6 +75,7 @@ enum AppConfiguration {
   @Published var selectedCoffeeMatch: UUID?
   @Published var placesReloadID = UUID()
   @Published private(set) var coffeeDataRevision = 0
+  @Published private(set) var recentlyPersistedCoffeeDates: [CoffeeDate] = []
   @Published private(set) var discoveryRevision = 0
   @Published var tabBarHidden = false
   private var deviceToken: String?
@@ -143,6 +144,7 @@ enum AppConfiguration {
     selectedCoffeeMatch = nil
     placesReloadID = UUID()
     tabBarHidden = false
+    recentlyPersistedCoffeeDates = []
   }
   func captureDeviceToken(_ token: String) {
     deviceToken=token
@@ -153,7 +155,13 @@ enum AppConfiguration {
     guard let deviceToken,stage == .app else { return }
     try? await repository.registerDeviceToken(deviceToken)
   }
-  func coffeeProposalPersisted() { coffeeDataRevision += 1 }
+  func coffeeProposalPersisted(_ date: CoffeeDate? = nil) {
+    if let date {
+      recentlyPersistedCoffeeDates.removeAll { $0.id == date.id }
+      recentlyPersistedCoffeeDates.insert(date, at: 0)
+    }
+    coffeeDataRevision += 1
+  }
   func discoveryPreferencesPersisted() { discoveryRevision += 1 }
   #if DEBUG
     func enterOfflineDemo() async {

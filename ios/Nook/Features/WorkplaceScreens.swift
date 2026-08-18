@@ -10,17 +10,32 @@ import SwiftUI
   @Published private(set) var updating: Set<UUID> = []
   var loading: Bool { state == .loading }
   var error: String? { if case .error(let message) = state { message } else { nil } }
+  func seed(_ persisted: [CoffeeDate]) {
+    guard !persisted.isEmpty else { return }
+    dates = merged(server: dates, recent: persisted)
+    state = .loaded
+  }
   func load(_ repo: any NookRepository, showLoader: Bool = true) async {
     if showLoader && state == .idle { state = .loading }
     do {
-      async let c = repo.conversations()
-      async let d = repo.dates()
-      async let m = repo.matches()
-      chats = try await c
-      dates = try await d
-      matches = try await m
+      // Coffee dates are the source of truth for this screen. A temporary failure
+      // loading chats or matches must never hide a proposal already persisted.
+      dates = try await repo.dates()
+      async let c = try? repo.conversations()
+      async let m = try? repo.matches()
+      if let loadedChats = await c { chats = loadedChats }
+      if let loadedMatches = await m { matches = loadedMatches }
       state = dates.isEmpty && matches.isEmpty && chats.isEmpty ? .empty : .loaded
-    } catch { state = .error("No hemos podido cargar tus cafés. Comprueba la conexión y vuelve a intentarlo.") }
+    } catch {
+      state = dates.isEmpty
+        ? .error("No hemos podido cargar tus cafés. Comprueba la conexión y vuelve a intentarlo.")
+        : .loaded
+    }
+  }
+  private func merged(server: [CoffeeDate], recent: [CoffeeDate]) -> [CoffeeDate] {
+    var result = server
+    for date in recent where !result.contains(where: { $0.id == date.id }) { result.insert(date, at: 0) }
+    return result
   }
   func transition(_ id: UUID, to status: CoffeeDateStatus, repo: any NookRepository) async {
     guard updating.insert(id).inserted else { return }
@@ -50,6 +65,7 @@ struct ChatsView: View {
         }
       }
     }.task {
+      vm.seed(app.recentlyPersistedCoffeeDates)
       await vm.load(app.repository)
       while !Task.isCancelled {
         try? await Task.sleep(for: .seconds(20))
@@ -58,6 +74,7 @@ struct ChatsView: View {
       }
     }.refreshable { await vm.load(app.repository) }
       .onChange(of: app.coffeeDataRevision) { _, _ in
+        vm.seed(app.recentlyPersistedCoffeeDates)
         Task { await vm.load(app.repository, showLoader: false) }
       }
   }

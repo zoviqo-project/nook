@@ -1330,10 +1330,10 @@ struct ProposalSheet: View {
                 Task {
                   sending = true
                   do {
-                    _ = try await app.repository.propose(
+                    let persisted = try await app.repository.propose(
                       match: match, shop: shop.id, date: date, payment: payment,
                       nookChoice: isNookChoice, idempotencyKey: idempotencyKey)
-                    app.coffeeProposalPersisted()
+                    app.coffeeProposalPersisted(persisted)
                     Haptics.success()
                     NookSoundManager.shared.play(.proposal)
                     try? await Task.sleep(for: .milliseconds(850))
@@ -1408,8 +1408,12 @@ struct ProposalSheet: View {
         .padding(.horizontal, 4)
       Spacer(minLength: 18)
       NookButton(title: "VER MIS CAFÉS", icon: "calendar.badge.clock") {
-        app.selectedTab = 2
         dismiss()
+        Task { @MainActor in
+          await Task.yield()
+          app.selectedTab = 2
+          app.coffeeProposalPersisted()
+        }
       }
       NookButton(title: "VOLVER A DESCUBRIR", icon: "person.2", secondary: true) {
         app.selectedTab = 0
