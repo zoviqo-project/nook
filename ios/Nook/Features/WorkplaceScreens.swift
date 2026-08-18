@@ -529,33 +529,44 @@ struct CoffeeDatesList: View {
       Text("MATCHES SIN PROPUESTA").font(.system(size: 11, weight: .bold, design: .rounded))
         .tracking(1.6).foregroundStyle(NookColors.mocha).padding(.top, 12).padding(.leading, 4)
       ForEach(unplannedMatches) { match in
-        MyCafesCardFrame(height: 78) {
+        MyCafesCardFrame {
           Button {
             app.selectedCoffeeMatch = match.id
             app.placesReloadID = UUID()
             app.selectedTab = 1
           } label: {
-            HStack(spacing: 12) {
+            ZStack(alignment: .bottomLeading) {
               ProfileImage(url: match.person.photos.first?.url, name: match.person.name)
-                .frame(width: 52, height: 52).clipShape(Circle())
-              VStack(alignment: .leading, spacing: 4) {
-                Text(match.person.name).font(.headline).lineLimit(1).truncationMode(.tail)
-                Text("Elegid una cafetería y proponed un día")
-                  .font(.caption).foregroundStyle(NookColors.warmGray).lineLimit(1)
-              }.frame(maxWidth: .infinity, alignment: .leading)
-              Image(systemName: "arrow.right").font(.caption.bold())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+              LinearGradient(
+                colors: [.clear, NookColors.warmBlack.opacity(0.38), NookColors.warmBlack],
+                startPoint: .top, endPoint: .bottom)
+              VStack(alignment: .leading, spacing: 8) {
+                Label("MATCH", systemImage: "cup.and.saucer.fill")
+                  .font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1)
+                  .padding(.horizontal, 10).frame(height: 28)
+                  .background(NookColors.mocha, in: Capsule())
+                Spacer()
+                Text(match.person.name).font(NookTypography.display(30)).lineLimit(1)
+                  .truncationMode(.tail).minimumScaleFactor(0.72)
+                HStack(spacing: 7) {
+                  Image(systemName: "mappin.and.ellipse").foregroundStyle(NookColors.mocha)
+                  Text("Elegid una cafetería y proponed un día").lineLimit(1)
+                    .truncationMode(.tail)
+                  Spacer(minLength: 4)
+                  Image(systemName: "arrow.right").font(.caption.bold())
+                }.font(.system(size: 13, weight: .semibold, design: .rounded))
+                  .foregroundStyle(.white.opacity(0.86))
+              }.padding(14)
             }
-            .foregroundStyle(NookColors.espresso)
-            .padding(12)
-            .frame(maxWidth: .infinity)
-            .minimalListCard()
+            .foregroundStyle(.white)
           }.buttonStyle(.plain).frame(maxWidth: .infinity)
         }
       }
     }
   }
   private func ticket(_ date: CoffeeDate) -> some View {
-    MyCafesCardFrame(height: 242) {
+    MyCafesCardFrame {
       CoffeeTicket(
         date: date, person: matches.first(where: { $0.id == date.matchId })?.person,
         conversation: conversations.first(where: { $0.matchId == date.matchId }),
@@ -589,7 +600,7 @@ struct CoffeeDatesList: View {
 /// Gives every My Cafes row the exact width proposed by the vertical scroll view.
 /// Intrinsic text/button sizes can no longer expand an individual card beyond the screen.
 private struct MyCafesCardFrame<Content: View>: View {
-  let height: CGFloat
+  private let height: CGFloat = 242
   @ViewBuilder let content: () -> Content
   var body: some View {
     GeometryReader { proxy in
@@ -598,6 +609,9 @@ private struct MyCafesCardFrame<Content: View>: View {
     }
     .frame(maxWidth: .infinity)
     .frame(height: height)
+    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+    .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+    .shadow(color: NookColors.warmBlack.opacity(0.13), radius: 10, y: 5)
   }
 }
 
