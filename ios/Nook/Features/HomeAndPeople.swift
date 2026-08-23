@@ -167,11 +167,12 @@ struct DiscoverView: View {
             }
           }
           ).allowsHitTesting(vm.actingOn == nil)
-          .scaleEffect(entrance ? 1 : 0.96).offset(y: entrance ? 0 : 28).animation(
-            NookMotion.spring, value: entrance)
         actions(person).padding(.bottom, 18).offset(drag)
           .allowsHitTesting(vm.actingOn == nil)
       }
+      .scaleEffect(entrance ? 1 : 0.96)
+      .offset(y: entrance ? 0 : 28)
+      .animation(NookMotion.spring, value: entrance)
     }.padding(.horizontal, 16)
   }
   @ViewBuilder private var swipeHint: some View {
