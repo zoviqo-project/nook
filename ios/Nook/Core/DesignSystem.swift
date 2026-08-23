@@ -57,11 +57,14 @@ enum NookShadow {
 enum NookTypography {
   static func display(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold) }
   static func displayItalic(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold).italic() }
+  static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
+    .custom(weight == .bold || weight == .semibold ? "Avenir Next Demi Bold" : "Avenir Next Medium", size: size)
+  }
   static let hero = display(44)
   static let title = display(34)
-  static let subtitle = Font.system(size: 20, weight: .semibold, design: .rounded)
-  static let body = Font.system(size: 17, weight: .medium, design: .rounded)
-  static let caption = Font.system(size: 12, weight: .bold, design: .rounded)
+  static let subtitle = business(20, weight: .semibold)
+  static let body = business(17)
+  static let caption = business(12, weight: .bold)
 }
 
 struct NookBackground: View {
@@ -160,7 +163,8 @@ struct NookHeader: View {
       if branded {
         HStack(spacing: 10) {
           NookCoffeeLogo(size: 34)
-          Text(title).font(NookTypography.display(26)).lineLimit(1).minimumScaleFactor(0.8)
+          Text(title).font(NookTypography.display(28)).tracking(-0.35)
+            .lineLimit(1).minimumScaleFactor(0.8)
         }
         .foregroundStyle(NookColors.espresso)
       } else {

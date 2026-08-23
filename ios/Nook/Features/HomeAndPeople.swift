@@ -242,13 +242,13 @@ struct NookProfileCard: View {
           width: proxy.size.width, height: proxy.size.height)
         NookColors.warmBlack.opacity(0.38)
         VStack(alignment: .leading, spacing: 8) {
-          Text("\(person.name), \(person.age)").font(
-            .system(size: 34, weight: .black, design: .rounded))
-          Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill").font(
-            .subheadline.bold())
+          Text("\(person.name), \(person.age)")
+            .font(NookTypography.display(36)).tracking(-0.5)
+          Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill")
+            .font(NookTypography.business(14, weight: .semibold))
           Text(person.coffeePersonality ?? "Un café y buena conversación")
-            .font(.subheadline.bold())
-          Text(person.bio).font(.system(size: 16, weight: .medium, design: .rounded)).lineLimit(2)
+            .font(NookTypography.business(14, weight: .semibold))
+          Text(person.bio).font(NookTypography.business(16)).lineLimit(2)
             .lineSpacing(3)
         }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 116)
       }.clipShape(RoundedRectangle(cornerRadius: NookRadius.hero, style: .continuous))
