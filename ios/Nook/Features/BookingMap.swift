@@ -792,6 +792,7 @@ private struct LocationPermissionState: View {
 private struct NookChoiceCelebration: View {
   let shopName: String
   @State private var appeared = false
+  @State private var premiumGlow = false
   var body: some View {
     ZStack {
       NookColors.cream.opacity(0.96).ignoresSafeArea()
@@ -811,14 +812,37 @@ private struct NookChoiceCelebration: View {
         }.scaleEffect(appeared ? 1 : 0.72)
         VStack(spacing: 7) {
           Text("¡Buena elección!").font(NookTypography.display(38)).tracking(-0.4)
-          Label("ELECCIÓN NOOK", systemImage: "sparkles")
-            .font(.system(size: 11, weight: .bold, design: .rounded)).tracking(1.3)
-            .foregroundStyle(NookColors.mocha)
+          HStack(spacing: 7) {
+            Image(systemName: "sparkles")
+              .symbolEffect(.pulse, options: .repeating.speed(0.55), value: premiumGlow)
+            Text("ELECCIÓN NOOK").tracking(1.5)
+            Image(systemName: "sparkles")
+              .symbolEffect(.pulse, options: .repeating.speed(0.55), value: premiumGlow)
+          }
+          .font(NookTypography.business(11, weight: .bold))
+          .foregroundStyle(NookColors.inverseText)
+          .padding(.horizontal, 15).frame(height: 34)
+          .background(
+            LinearGradient(
+              colors: [Color(red: 1, green: 0.82, blue: 0.38), NookColors.mocha,
+                Color(red: 0.96, green: 0.68, blue: 0.16)],
+              startPoint: .leading, endPoint: .trailing),
+            in: Capsule())
+          .overlay(Capsule().stroke(.white.opacity(0.48), lineWidth: 1))
+          .shadow(
+            color: Color.yellow.opacity(premiumGlow ? 0.42 : 0.16),
+            radius: premiumGlow ? 15 : 6)
+          .scaleEffect(premiumGlow ? 1.025 : 1)
           Text(shopName).font(.system(size: 15, weight: .medium, design: .rounded))
             .foregroundStyle(NookColors.espresso.opacity(0.58))
         }
       }.foregroundStyle(NookColors.espresso).multilineTextAlignment(.center)
-    }.onAppear { withAnimation(NookMotion.spring) { appeared = true } }
+    }.onAppear {
+      withAnimation(NookMotion.spring) { appeared = true }
+      withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+        premiumGlow = true
+      }
+    }
   }
 }
 
