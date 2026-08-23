@@ -948,6 +948,7 @@ private struct SmartCoffeeSearch: View {
   @State private var active = false
   @State private var focus = 0
   @State private var minimalRing = false
+  @State private var minimalRingRotation = false
   private let photos = [
     "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=700&q=75",
     "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=75",
@@ -992,7 +993,7 @@ private struct SmartCoffeeSearch: View {
           VStack(spacing: 9) {
             if minimal {
               ZStack {
-                Circle().stroke(.white.opacity(0.2), lineWidth: 3)
+                Circle().stroke(.white.opacity(0.2), lineWidth: 4)
                   .frame(width: 74, height: 74)
                 Circle()
                   .trim(from: 0, to: minimalRing ? 0.96 : 0.08)
@@ -1000,9 +1001,9 @@ private struct SmartCoffeeSearch: View {
                     AngularGradient(
                       colors: [NookColors.mocha, .white, NookColors.latte, NookColors.mocha],
                       center: .center),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                   .frame(width: 74, height: 74)
-                  .rotationEffect(.degrees(-90))
+                  .rotationEffect(.degrees(minimalRingRotation ? 270 : -90))
                 Image(systemName: "location.fill")
                   .font(.system(size: 25, weight: .bold))
                   .foregroundStyle(NookColors.inverseText)
@@ -1040,6 +1041,9 @@ private struct SmartCoffeeSearch: View {
       if minimal {
         withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
           minimalRing = true
+        }
+        withAnimation(.linear(duration: 5.2).repeatForever(autoreverses: false)) {
+          minimalRingRotation = true
         }
       }
       Task {
