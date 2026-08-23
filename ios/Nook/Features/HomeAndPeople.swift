@@ -139,7 +139,10 @@ struct DiscoverView: View {
           NookProfileCard(person: vm.people[1], viewer: app.me, height: proxy.size.height)
             .allowsHitTesting(false)
         }
-        NookProfileCard(person: person, viewer: app.me, height: proxy.size.height)
+        NookProfileCard(
+          person: person, viewer: app.me, height: proxy.size.height,
+          onNameTap: { selectedProfile = person }
+        )
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
           .overlay { swipeHint }.gesture(
           DragGesture().onChanged {
@@ -273,6 +276,7 @@ struct NookProfileCard: View {
   let person: DiscoverProfile
   var viewer: Me? = nil
   var height: CGFloat? = nil
+  var onNameTap: (() -> Void)? = nil
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   var body: some View {
     GeometryReader { proxy in
@@ -284,9 +288,15 @@ struct NookProfileCard: View {
           startPoint: .top, endPoint: .bottom
         )
         VStack(alignment: .leading, spacing: 7) {
-          Text("\(person.name), \(person.age)")
-            .font(NookTypography.display(35)).tracking(-0.45).lineLimit(1)
-            .minimumScaleFactor(0.78)
+          if let onNameTap {
+            Button(action: onNameTap) {
+              profileName
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ver información de \(person.name)")
+          } else {
+            profileName
+          }
           Text(person.bio).font(NookTypography.business(15)).lineLimit(2).lineSpacing(2)
             .foregroundStyle(.white.opacity(0.88))
           HStack(spacing: 9) {
@@ -301,6 +311,22 @@ struct NookProfileCard: View {
         .foregroundStyle(.white).padding(.horizontal, 20).padding(.bottom, 108)
       }.clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
     }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 330 : 460))
+  }
+
+  private var profileName: some View {
+    HStack(spacing: 8) {
+      Text("\(person.name), \(person.age)")
+        .lineLimit(1)
+        .minimumScaleFactor(0.78)
+      if onNameTap != nil {
+        Image(systemName: "info.circle.fill")
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(.white.opacity(0.88))
+      }
+    }
+    .font(NookTypography.display(35))
+    .tracking(-0.45)
+    .contentShape(Rectangle())
   }
 }
 
