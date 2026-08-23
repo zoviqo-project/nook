@@ -66,16 +66,24 @@ enum NookTypography {
 
 struct NookBackground: View {
   var body: some View {
-    ZStack {
-      LinearGradient(
-        colors: [NookColors.cream, Color(red: 0.075, green: 0.034, blue: 0.019)],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-      ).ignoresSafeArea()
-      RadialGradient(
-        colors: [NookColors.latte.opacity(0.16), .clear],
-        center: .topTrailing, startRadius: 10, endRadius: 420
-      ).ignoresSafeArea()
-    }
+    GeometryReader { proxy in
+      ZStack {
+        NookColors.warmBlack
+        LinearGradient(
+          colors: [Color(red: 0.115, green: 0.061, blue: 0.037), NookColors.warmBlack],
+          startPoint: .top, endPoint: .bottom
+        )
+        Circle()
+          .stroke(NookColors.mocha.opacity(0.045), lineWidth: 1)
+          .frame(width: min(proxy.size.width * 0.82, 340), height: min(proxy.size.width * 0.82, 340))
+          .offset(x: proxy.size.width * 0.35, y: -proxy.size.height * 0.32)
+        Circle()
+          .fill(NookColors.latte.opacity(0.025))
+          .frame(width: 240, height: 240)
+          .blur(radius: 42)
+          .offset(x: -proxy.size.width * 0.42, y: proxy.size.height * 0.42)
+      }
+    }.ignoresSafeArea()
   }
 }
 
@@ -83,19 +91,11 @@ struct NookBackground: View {
 struct NookRegalCoffeeBackground: View {
   var body: some View {
     ZStack {
+      NookBackground()
       LinearGradient(
-        colors: [
-          Color(red: 0.16, green: 0.075, blue: 0.042),
-          Color(red: 0.075, green: 0.031, blue: 0.018),
-          Color(red: 0.045, green: 0.019, blue: 0.012)
-        ], startPoint: .topLeading, endPoint: .bottomTrailing
+        colors: [NookColors.mocha.opacity(0.028), .clear],
+        startPoint: .top, endPoint: .center
       ).ignoresSafeArea()
-      RadialGradient(
-        colors: [NookColors.mocha.opacity(0.15), .clear], center: .topTrailing,
-        startRadius: 4, endRadius: 360
-      ).ignoresSafeArea()
-      Circle().fill(NookColors.latte.opacity(0.055)).frame(width: 330, height: 330)
-        .blur(radius: 2).offset(x: -150, y: 330)
     }
   }
 }
