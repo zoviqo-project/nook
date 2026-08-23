@@ -208,42 +208,39 @@ struct DiscoverView: View {
           ProgressView().tint(NookColors.espresso)
         }
       }
-      VStack(spacing: 7) {
-        Button {
-          liking = true
-          Task {
-            await vm.coffee(person, repo: app.repository)
-            liking = false
-          }
-        } label: {
-          ZStack {
-            NookCoffeeLogo(size: 68, animated: false)
-              .clipShape(Circle())
-              .overlay {
-                Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
-              }
-              .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
-            if vm.actingOn == person.id {
-              Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
-              ProgressView().tint(NookColors.inverseText)
+      Button {
+        liking = true
+        Task {
+          await vm.coffee(person, repo: app.repository)
+          liking = false
+        }
+      } label: {
+        ZStack {
+          Circle().stroke(.white.opacity(0.16), lineWidth: 3).frame(width: 76, height: 76)
+          Circle()
+            .trim(from: 0, to: matchProgress ? 0.96 : 0.08)
+            .stroke(NookColors.mocha, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            .frame(width: 76, height: 76)
+            .rotationEffect(.degrees(-90))
+          NookCoffeeLogo(size: 68, animated: false)
+            .clipShape(Circle())
+            .overlay {
+              Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
             }
+            .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
+          if vm.actingOn == person.id {
+            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
+            ProgressView().tint(NookColors.inverseText)
           }
-          .scaleEffect(liking ? 1.08 : 1)
-          .rotationEffect(.degrees(liking ? -4 : 0))
-          .animation(NookMotion.playful, value: liking)
         }
-        .buttonStyle(.plain)
-        .disabled(vm.actingOn != nil)
-        ZStack(alignment: .leading) {
-          Capsule().fill(.white.opacity(0.16))
-          Capsule().fill(NookColors.mocha)
-            .frame(width: matchProgress ? 48 : 8)
-        }
-        .frame(width: 48, height: 3)
-        .accessibilityHidden(true)
+        .scaleEffect(liking ? 1.08 : 1)
+        .rotationEffect(.degrees(liking ? -4 : 0))
+        .animation(NookMotion.playful, value: liking)
       }
+      .buttonStyle(.plain)
+      .disabled(vm.actingOn != nil)
       CircleAction(icon: "info", size: 54) { selectedProfile = person }
-    }.frame(maxWidth: .infinity).frame(height: 82)
+    }.frame(maxWidth: .infinity).frame(height: 78)
   }
   private var empty: some View {
     VStack(spacing: 18) {
