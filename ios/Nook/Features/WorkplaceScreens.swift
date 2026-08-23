@@ -93,7 +93,7 @@ struct ChatsView: View {
       eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés",
       actionIcon: "heart.fill", actionLabel: "Filtrar matches",
       action: { toggleFilter(.matches) }, actionActive: quickFilter == .matches,
-      actionAnimated: true,
+      actionAnimated: true, actionRing: hasPendingMatch,
       secondaryActionIcon: "hourglass", secondaryActionLabel: "Filtrar propuestas en espera",
       secondaryAction: { toggleFilter(.pending) }, secondaryActionActive: quickFilter == .pending,
       secondaryActionAnimated: true
@@ -150,6 +150,7 @@ struct ChatsView: View {
     case nil: vm.items
     }
   }
+  private var hasPendingMatch: Bool { vm.items.contains { $0.proposal == nil } }
   private func toggleFilter(_ filter: QuickFilter) {
     Haptics.selection()
     withAnimation(NookMotion.spring) { quickFilter = quickFilter == filter ? nil : filter }

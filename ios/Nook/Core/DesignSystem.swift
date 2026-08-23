@@ -132,11 +132,14 @@ struct NookHeader: View {
   var action: (() -> Void)? = nil
   var actionActive = false
   var actionAnimated = false
+  var actionRing = false
   var secondaryActionIcon: String? = nil
   var secondaryActionLabel = "Acción"
   var secondaryAction: (() -> Void)? = nil
   var secondaryActionActive = false
   var secondaryActionAnimated = false
+  var secondaryActionRing = false
+  @State private var ringRotation = false
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
@@ -164,19 +167,24 @@ struct NookHeader: View {
         if let actionIcon, let action {
           headerAction(
             actionIcon, label: actionLabel, active: actionActive,
-            animated: actionAnimated, action: action)
+            animated: actionAnimated, ring: actionRing, action: action)
         }
         if let secondaryActionIcon, let secondaryAction {
           headerAction(
             secondaryActionIcon, label: secondaryActionLabel,
             active: secondaryActionActive, animated: secondaryActionAnimated,
-            action: secondaryAction)
+            ring: secondaryActionRing, action: secondaryAction)
         }
       }
     }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
+      .onAppear {
+        withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+          ringRotation = true
+        }
+      }
   }
   private func headerAction(
-    _ icon: String, label: String, active: Bool, animated: Bool,
+    _ icon: String, label: String, active: Bool, animated: Bool, ring: Bool,
     action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
@@ -185,7 +193,18 @@ struct NookHeader: View {
         .frame(width: 40, height: 40)
         .foregroundStyle(active ? NookColors.inverseText : NookColors.espresso)
         .background(active ? NookColors.mocha : .clear, in: Circle())
-        .overlay(Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1))
+        .overlay {
+          if ring {
+            Circle().stroke(
+              AngularGradient(
+                colors: [NookColors.mocha, NookColors.espresso, NookColors.latte, NookColors.mocha],
+                center: .center), lineWidth: 3)
+              .rotationEffect(.degrees(ringRotation ? 360 : 0))
+              .shadow(color: NookColors.mocha.opacity(0.28), radius: 6)
+          } else {
+            Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1)
+          }
+        }
     }.buttonStyle(.plain).accessibilityLabel(label)
   }
 }
@@ -202,11 +221,13 @@ struct NookScreenContainer<Content: View>: View {
   var action: (() -> Void)? = nil
   var actionActive = false
   var actionAnimated = false
+  var actionRing = false
   var secondaryActionIcon: String? = nil
   var secondaryActionLabel = "Acción"
   var secondaryAction: (() -> Void)? = nil
   var secondaryActionActive = false
   var secondaryActionAnimated = false
+  var secondaryActionRing = false
   @ViewBuilder let content: () -> Content
 
   var body: some View {
@@ -220,11 +241,12 @@ struct NookScreenContainer<Content: View>: View {
         NookHeader(
           eyebrow: eyebrow, title: title, branded: brandedHeader, actionIcon: actionIcon,
           actionLabel: actionLabel, action: action, actionActive: actionActive,
-          actionAnimated: actionAnimated,
+          actionAnimated: actionAnimated, actionRing: actionRing,
           secondaryActionIcon: secondaryActionIcon,
           secondaryActionLabel: secondaryActionLabel,
           secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
-          secondaryActionAnimated: secondaryActionAnimated)
+          secondaryActionAnimated: secondaryActionAnimated,
+          secondaryActionRing: secondaryActionRing)
           .zIndex(1)
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
       }
