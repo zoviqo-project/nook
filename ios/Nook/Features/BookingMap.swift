@@ -947,6 +947,7 @@ private struct SmartCoffeeSearch: View {
   var minimal = false
   @State private var active = false
   @State private var focus = 0
+  @State private var minimalRing = false
   private let photos = [
     "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=700&q=75",
     "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=700&q=75",
@@ -990,12 +991,25 @@ private struct SmartCoffeeSearch: View {
           Spacer()
           VStack(spacing: 9) {
             if minimal {
-              Image(systemName: "location.fill")
-                .font(.system(size: 25, weight: .bold))
-                .foregroundStyle(NookColors.inverseText)
-                .frame(width: 62, height: 62)
-                .background(NookColors.mocha, in: Circle())
-                .shadow(color: NookColors.mocha.opacity(0.38), radius: 22)
+              ZStack {
+                Circle().stroke(.white.opacity(0.2), lineWidth: 3)
+                  .frame(width: 74, height: 74)
+                Circle()
+                  .trim(from: 0, to: minimalRing ? 0.96 : 0.08)
+                  .stroke(
+                    AngularGradient(
+                      colors: [NookColors.mocha, .white, NookColors.latte, NookColors.mocha],
+                      center: .center),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                  .frame(width: 74, height: 74)
+                  .rotationEffect(.degrees(-90))
+                Image(systemName: "location.fill")
+                  .font(.system(size: 25, weight: .bold))
+                  .foregroundStyle(NookColors.inverseText)
+                  .frame(width: 62, height: 62)
+                  .background(NookColors.mocha, in: Circle())
+              }
+              .shadow(color: NookColors.mocha.opacity(0.38), radius: 22)
             } else {
               NookAILogo()
             }
@@ -1023,6 +1037,11 @@ private struct SmartCoffeeSearch: View {
     }.onAppear {
       NookSoundManager.shared.play(.searching)
       withAnimation(NookMotion.spring) { active = true }
+      if minimal {
+        withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
+          minimalRing = true
+        }
+      }
       Task {
         var index = 1
         while !Task.isCancelled {
