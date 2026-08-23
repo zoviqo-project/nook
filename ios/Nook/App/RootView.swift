@@ -78,27 +78,38 @@ struct NookIntroView: View {
   var compact = false
   @State private var appeared = false
   @State private var haloExpanded = false
+  @State private var orbiting = false
+  @State private var pulsing = false
   var body: some View {
     ZStack {
       NookColors.warmBlack.ignoresSafeArea()
-      Circle()
-        .stroke(NookColors.mocha.opacity(0.18), lineWidth: 1)
-        .frame(width: 178, height: 178)
-        .scaleEffect(haloExpanded ? 1.08 : 0.72)
-        .opacity(haloExpanded ? 0.22 : 0.7)
       VStack(spacing: 18) {
-        NookCoffeeLogo(size: 112, animated: false)
-          .clipShape(Circle())
-          .overlay(Circle().stroke(NookColors.oat.opacity(0.42), lineWidth: 1))
-          .shadow(color: NookColors.mocha.opacity(0.22), radius: 30, y: 14)
-        Text("nook")
-          .font(NookTypography.displayItalic(42))
-          .tracking(-1)
-          .foregroundStyle(NookColors.offWhite)
+        ZStack {
+          Circle()
+            .stroke(.white.opacity(0.28), lineWidth: 1)
+            .frame(width: 190, height: 190)
+            .scaleEffect(haloExpanded ? 1.18 : 0.62)
+            .opacity(haloExpanded ? 0 : 0.78)
+          Circle()
+            .trim(from: 0.08, to: 0.7)
+            .stroke(.white.opacity(0.58), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .frame(width: 148, height: 148)
+            .rotationEffect(.degrees(orbiting ? 360 : -35))
+          Circle().fill(.white).frame(width: 126, height: 126)
+          NookCoffeeLogo(size: 112, animated: false).clipShape(Circle())
+        }
+        .frame(width: 190, height: 190)
+        .scaleEffect(pulsing ? 1.035 : 1)
+        .shadow(color: .white.opacity(0.16), radius: 34)
+        .shadow(color: NookColors.mocha.opacity(0.3), radius: 24, y: 12)
+        Text("NOOK")
+          .font(NookTypography.display(48))
+          .tracking(3.4)
+          .foregroundStyle(.white)
         Text("TODO EMPIEZA CON UN CAFÉ")
           .font(NookTypography.business(10, weight: .bold))
           .tracking(2.1)
-          .foregroundStyle(NookColors.oat.opacity(0.62))
+          .foregroundStyle(.white)
       }
       .scaleEffect(appeared ? 1 : 0.76)
       .opacity(appeared ? 1 : 0)
@@ -109,6 +120,12 @@ struct NookIntroView: View {
       }
       withAnimation(.easeOut(duration: compact ? 0.65 : 1.15).delay(0.12)) {
         haloExpanded = true
+      }
+      withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+        pulsing = true
+      }
+      withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) {
+        orbiting = true
       }
       if !compact { NookSoundManager.shared.play(.intro) }
     }
