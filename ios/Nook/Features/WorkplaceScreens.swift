@@ -400,19 +400,29 @@ struct NookCoffeeProposalBubble: View {
   let accept: () -> Void
   let change: () -> Void
   var body: some View {
-    ZStack(alignment: .bottomLeading) {
+    ZStack {
       ShopImage(url: date.coffeeShop.photoUrl, seed: date.coffeeShop.name)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: 246)
       LinearGradient(
         colors: [.clear, NookColors.warmBlack.opacity(0.34), NookColors.warmBlack.opacity(0.96)],
         startPoint: .top, endPoint: .bottom)
+        .frame(height: 246)
+    }
+    .frame(maxWidth: .infinity)
+    .frame(height: 246)
+    .overlay(alignment: .topLeading) {
+      Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
+        .font(NookTypography.business(10, weight: .bold)).tracking(1)
+        .foregroundStyle(NookColors.mocha)
+        .padding(16)
+    }
+    .overlay(alignment: .bottomLeading) {
       VStack(alignment: .leading, spacing: 8) {
-        Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
-          .font(NookTypography.business(10, weight: .bold)).tracking(1)
-          .foregroundStyle(NookColors.mocha)
-        Spacer(minLength: 18)
         Text(date.coffeeShop.name).font(NookTypography.display(25)).lineLimit(2)
+          .foregroundStyle(.white)
         Text(formatted).font(NookTypography.business(15, weight: .bold))
+          .foregroundStyle(.white)
         HStack(spacing: 7) {
           Text(date.coffeeShop.vibeLabel)
           Circle().fill(.white.opacity(0.5)).frame(width: 3, height: 3)
@@ -422,8 +432,6 @@ struct NookCoffeeProposalBubble: View {
         actionRow
       }.padding(16)
     }
-    .frame(maxWidth: .infinity).frame(height: 246)
-    .foregroundStyle(.white)
     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     .overlay(RoundedRectangle(cornerRadius: 22).stroke(NookColors.oat.opacity(0.25)))
     .padding(.vertical, 4)
