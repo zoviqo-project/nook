@@ -136,10 +136,10 @@ struct DiscoverView: View {
     GeometryReader { proxy in
       ZStack(alignment: .bottom) {
         if vm.people.count > 1 {
-          NookProfileCard(person: vm.people[1], viewer: app.me, height: proxy.size.height - 10)
+          NookProfileCard(person: vm.people[1], viewer: app.me, height: proxy.size.height)
             .allowsHitTesting(false)
         }
-        NookProfileCard(person: person, viewer: app.me, height: proxy.size.height - 10)
+        NookProfileCard(person: person, viewer: app.me, height: proxy.size.height)
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
           .overlay { swipeHint }.gesture(
           DragGesture().onChanged {
@@ -173,6 +173,7 @@ struct DiscoverView: View {
       .scaleEffect(entrance ? 1 : 0.96)
       .offset(y: entrance ? 0 : 28)
       .animation(NookMotion.spring, value: entrance)
+      .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
     }.padding(.horizontal, 16)
   }
   @ViewBuilder private var swipeHint: some View {
