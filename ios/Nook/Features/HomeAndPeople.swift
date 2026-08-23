@@ -270,7 +270,11 @@ struct DiscoverView: View {
       NookButton(title: "VOLVER A CARGAR", icon: "arrow.clockwise", secondary: true) {
         Task { await vm.load(app.repository) }
       }
-    }.padding(32)
+    }
+    .frame(maxWidth: 330, maxHeight: .infinity, alignment: .center)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    .multilineTextAlignment(.center)
+    .padding(32)
   }
 }
 

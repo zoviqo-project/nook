@@ -331,7 +331,8 @@ struct CoffeeShopsView: View {
             text: location.denied
               ? "Activa la ubicación para descubrir cafeterías cercanas."
               : "No hay resultados disponibles en esta zona por ahora.")
-            .frame(maxWidth: .infinity).padding(.top, 36)
+            .frame(maxWidth: .infinity)
+            .containerRelativeFrame(.vertical, alignment: .center)
         }
         ForEach(Array(vm.shops.enumerated()), id: \.element.id) { index, shop in
           VStack(spacing: 0) {

@@ -236,6 +236,7 @@ struct ChatsView: View {
           NookEmptyState(
             icon: "bubble.left.and.bubble.right", title: "Aún no hay chats",
             text: "Cuando tengáis café, la conversación empieza aquí.")
+            .containerRelativeFrame(.vertical, alignment: .center)
         }
         ForEach(vm.chats) { chat in
           NavigationLink {
@@ -538,6 +539,7 @@ struct ChatCoffeePicker: View {
             } else if shops.isEmpty && locationMessage == nil {
               NookEmptyState(icon: "cup.and.saucer", title: "No encontramos cafeterías",
                 text: "Prueba de nuevo desde otra zona.")
+                .containerRelativeFrame(.vertical, alignment: .center)
             }
             ForEach(shops) { shop in
               Button { selected = shop } label: {
@@ -584,15 +586,21 @@ struct MyCafesUnifiedList: View {
     ScrollView {
       LazyVStack(spacing: 14) {
         if items.isEmpty {
-          if let filteredEmptyText {
-            NookEmptyState(
-              icon: "line.3.horizontal.decrease.circle", title: "Nada en este filtro",
-              text: filteredEmptyText)
-          } else {
-            NookEmptyState(icon: "cup.and.saucer", title: "Tu primer café te espera", text: "Descubre personas y conecta para proponer un café.")
-            Button("Descubrir personas") { app.selectedTab = 0 }
-              .buttonStyle(.borderedProminent).tint(NookColors.mocha)
+          VStack(spacing: 0) {
+            if let filteredEmptyText {
+              NookEmptyState(
+                icon: "line.3.horizontal.decrease.circle", title: "Nada en este filtro",
+                text: filteredEmptyText)
+            } else {
+              NookEmptyState(
+                icon: "cup.and.saucer", title: "Tu primer café te espera",
+                text: "Descubre personas y conecta\npara proponer un café.")
+              Button("Descubrir personas") { app.selectedTab = 0 }
+                .buttonStyle(.borderedProminent).tint(NookColors.mocha)
+                .padding(.top, -42)
+            }
           }
+          .containerRelativeFrame(.vertical, alignment: .center)
         } else {
           ForEach(items) { item in
             MyCafeUnifiedCard(
@@ -852,6 +860,7 @@ struct CoffeeDatesList: View {
           if filteredDates.isEmpty && (filter != .all || unplannedMatches.isEmpty) {
             NookEmptyState(icon: emptyIcon, title: emptyTitle, text: emptyText)
               .frame(maxWidth: .infinity)
+              .containerRelativeFrame(.vertical, alignment: .center)
           } else if filter == .all {
             section("CITAS CONFIRMADAS", upcoming)
             section("ESPERANDO RESPUESTA", pending)
@@ -1423,8 +1432,20 @@ struct NookEmptyState: View {
   var body: some View {
     VStack(spacing: 14) {
       Image(systemName: icon).font(.system(size: 42)).foregroundStyle(NookColors.latte)
-      Text(title).font(.title2.bold())
-      Text(text).foregroundStyle(.secondary).multilineTextAlignment(.center)
-    }.frame(maxWidth: .infinity).padding(.vertical, 60)
+      Text(title)
+        .font(NookTypography.display(25))
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+      Text(text)
+        .font(NookTypography.business(15))
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+        .lineSpacing(3)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .frame(maxWidth: 330, maxHeight: .infinity, alignment: .center)
+    .frame(maxWidth: .infinity, alignment: .center)
+    .padding(.horizontal, 24)
+    .padding(.vertical, 32)
   }
 }
