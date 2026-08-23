@@ -213,14 +213,13 @@ struct DiscoverView: View {
       } label: {
         ZStack {
           NookCoffeeLogo(size: 68, animated: false)
+            .clipShape(Circle())
             .overlay {
-              RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
+              Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
           if vm.actingOn == person.id {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-              .fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
+            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
             ProgressView().tint(NookColors.inverseText)
           }
         }
