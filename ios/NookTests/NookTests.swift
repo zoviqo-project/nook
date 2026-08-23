@@ -68,6 +68,6 @@ final class NookTests: XCTestCase {
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Madrid"))
     let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 25, hour: 12)))
     XCTAssertEqual(CoffeeOpeningSchedule.slots(
-      from: "Monday: 8:00 AM–8:00 PM · Tuesday: Closed", on: day, calendar: calendar), [])
+      from: "Monday: 8:00\u{202F}AM\u{2009}–\u{2009}8:00\u{202F}PM · Tuesday: Closed", on: day, calendar: calendar), [])
   }
 }

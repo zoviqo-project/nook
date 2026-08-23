@@ -232,7 +232,8 @@ enum CoffeeOpeningSchedule {
   }
 
   private static func minutes(_ raw: String) -> Int? {
-    let clean = raw.uppercased().replacingOccurrences(of: "A. M.", with: "AM")
+    let clean = raw.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+      .uppercased().replacingOccurrences(of: "A. M.", with: "AM")
       .replacingOccurrences(of: "P. M.", with: "PM")
       .replacingOccurrences(of: "\u{202F}", with: " ")
     let formatter = DateFormatter()

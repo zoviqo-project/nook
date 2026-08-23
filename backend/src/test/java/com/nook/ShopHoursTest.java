@@ -15,8 +15,9 @@ class ShopHoursTest {
   }
 
   @Test void understandsEnglishTwelveHourClockAndClosedDays() {
-    String hours = "Monday: 8:00 AM–8:00 PM · Tuesday: Closed";
+    String hours = "Monday: 8:00\u202fAM\u2009–\u20099:00\u202fPM · Tuesday: Closed";
     assertEquals(true, ShopHours.isOpenAt(hours, at("2026-08-24T09:00"), BARCELONA).orElseThrow());
+    assertEquals(false, ShopHours.isOpenAt(hours, at("2026-08-24T21:30"), BARCELONA).orElseThrow());
     assertEquals(false, ShopHours.isOpenAt(hours, at("2026-08-25T09:00"), BARCELONA).orElseThrow());
   }
 

@@ -56,7 +56,8 @@ final class ShopHours {
   }
 
   private static LocalTime parseTime(String value) {
-    String clean = value.trim().toUpperCase(Locale.ROOT).replace("A. M.", "AM").replace("P. M.", "PM");
+    String clean = value.replaceAll("\\p{Zs}+", " ").trim().toUpperCase(Locale.ROOT)
+        .replace("A. M.", "AM").replace("P. M.", "PM");
     for (DateTimeFormatter format : TIME_FORMATS) {
       try { return LocalTime.parse(clean, format); }
       catch (DateTimeParseException ignored) {}
