@@ -504,7 +504,7 @@ private struct MyCafeUnifiedCard: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(item.person.name).font(NookTypography.display(27)).foregroundStyle(NookColors.espresso)
             .lineLimit(1).minimumScaleFactor(0.75)
-          Text("\(item.person.age) años · \(item.person.bio)")
+          Text(personSummary)
             .font(.system(size: 12, weight: .medium, design: .rounded))
             .foregroundStyle(NookColors.warmGray).lineLimit(1)
         }
@@ -526,8 +526,6 @@ private struct MyCafeUnifiedCard: View {
     .background(NookColors.offWhite.opacity(0.94), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(NookColors.oat.opacity(0.18)))
     .shadow(color: NookColors.warmBlack.opacity(0.12), radius: 12, y: 6)
-    .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    .onTapGesture { primaryTap() }
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .sheet(isPresented: $showingDetail) {
       if let proposal = item.proposal {
@@ -586,7 +584,10 @@ private struct MyCafeUnifiedCard: View {
   private var conversation: Conversation {
     Conversation(id: item.conversationId, matchId: item.matchId, person: item.person, lastMessage: "", updatedAt: item.matchedAt)
   }
-  private func primaryTap() { item.proposal == nil ? propose() : (showingDetail = true) }
+  private var personSummary: String {
+    let bio = item.person.bio.trimmingCharacters(in: .whitespacesAndNewlines)
+    return bio.isEmpty ? "\(item.person.age) años" : "\(item.person.age) años · \(bio)"
+  }
   private func propose() { app.selectedCoffeeMatch = item.matchId; app.placesReloadID = UUID(); app.selectedTab = 1 }
   private var statusText: String {
     guard let proposal = item.proposal else { return "MATCH" }

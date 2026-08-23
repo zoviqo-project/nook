@@ -74,12 +74,7 @@ struct NookIntroView: View {
   var body: some View {
     GeometryReader { proxy in
       ZStack {
-        LinearGradient(
-          colors: [NookColors.cream, NookColors.warmBlack], startPoint: .topLeading,
-          endPoint: .bottomTrailing).ignoresSafeArea()
-        RadialGradient(
-          colors: [NookColors.latte.opacity(0.14), .clear], center: .center,
-          startRadius: 10, endRadius: 260).ignoresSafeArea()
+        NookColors.warmBlack.ignoresSafeArea()
 
         ZStack {
           ForEach(0..<7, id: \.self) { index in

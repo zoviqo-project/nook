@@ -233,7 +233,8 @@ struct CoffeeShopsView: View {
       } else {
         await vm.useCurrentLocation(current, repo: app.repository)
       }
-      withAnimation(.easeInOut(duration: 0.62)) { searching = false }
+      if midpointMode { await preloadVisibleShopImages() }
+      withAnimation(.easeInOut(duration: 0.35)) { searching = false }
       withAnimation(NookMotion.fast) { app.tabBarHidden = false }
       withAnimation(NookMotion.spring) { appeared = true }
     }.sheet(item: $proposalShop) { shop in
@@ -250,6 +251,7 @@ struct CoffeeShopsView: View {
       Task {
         if let matchID = app.selectedCoffeeMatch {
           await vm.useMidpoint(matchID: matchID, currentLocation: current, repo: app.repository)
+          await preloadVisibleShopImages()
         } else {
           await vm.useCurrentLocation(current, repo: app.repository)
         }
@@ -258,6 +260,36 @@ struct CoffeeShopsView: View {
         withAnimation(NookMotion.spring) { appeared = true }
       }
     }
+  }
+  @MainActor private func preloadVisibleShopImages() async {
+    let urls = vm.shops.prefix(6).compactMap { resolvedShopPhotoURL($0.photoUrl) }
+      .filter { NookImageStore.shared.image(for: $0) == nil }
+    await withTaskGroup(of: (URL, Data?).self) { group in
+      for url in urls {
+        group.addTask {
+          var request = URLRequest(url: url)
+          request.cachePolicy = .returnCacheDataElseLoad
+          request.timeoutInterval = 12
+          guard let (data, response) = try? await URLSession.shared.data(for: request),
+            (response as? HTTPURLResponse)?.statusCode ?? 200 < 300 else { return (url, nil) }
+          return (url, data)
+        }
+      }
+      for await (url, data) in group {
+        if let data, let image = UIImage(data: data) {
+          NookImageStore.shared.insert(image, for: url)
+        }
+      }
+    }
+  }
+  private func resolvedShopPhotoURL(_ value: String?) -> URL? {
+    guard let value, !value.isEmpty else { return nil }
+    guard value.hasPrefix("/") else { return URL(string: value) }
+    guard var components = URLComponents(
+      url: AppConfiguration.apiURL, resolvingAgainstBaseURL: false) else { return nil }
+    components.path = value
+    components.query = nil
+    return components.url
   }
   private var targetPerson: DiscoverProfile? {
     guard let selected = app.selectedCoffeeMatch else { return nil }
@@ -557,8 +589,9 @@ private struct MidpointSearchState: View {
           .offset(y: -1)
       }
       VStack(spacing: 8) {
-        Text("Buscando punto medio…")
-          .font(NookTypography.display(30)).foregroundStyle(NookColors.espresso)
+        Text("Buscando\npunto medio")
+          .font(NookTypography.display(32)).foregroundStyle(NookColors.espresso)
+          .multilineTextAlignment(.center).lineSpacing(1)
         Text("Calculando el lugar más equilibrado para los dos")
           .font(NookTypography.business(14))
           .foregroundStyle(NookColors.warmGray)

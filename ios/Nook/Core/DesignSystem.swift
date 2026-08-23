@@ -69,41 +69,14 @@ enum NookTypography {
 
 struct NookBackground: View {
   var body: some View {
-    GeometryReader { proxy in
-      ZStack {
-        NookColors.warmBlack
-        LinearGradient(
-          colors: [Color(red: 0.155, green: 0.082, blue: 0.047), NookColors.warmBlack],
-          startPoint: .top, endPoint: .bottom
-        )
-        Circle()
-          .stroke(NookColors.mocha.opacity(0.13), lineWidth: 1)
-          .frame(width: min(proxy.size.width * 0.82, 340), height: min(proxy.size.width * 0.82, 340))
-          .offset(x: proxy.size.width * 0.35, y: -proxy.size.height * 0.32)
-        Circle()
-          .stroke(NookColors.latte.opacity(0.075), lineWidth: 0.75)
-          .frame(width: min(proxy.size.width * 0.68, 282), height: min(proxy.size.width * 0.68, 282))
-          .offset(x: proxy.size.width * 0.35, y: -proxy.size.height * 0.32)
-        Circle()
-          .fill(NookColors.latte.opacity(0.055))
-          .frame(width: 240, height: 240)
-          .blur(radius: 42)
-          .offset(x: -proxy.size.width * 0.42, y: proxy.size.height * 0.42)
-      }
-    }.ignoresSafeArea()
+    NookColors.warmBlack.ignoresSafeArea()
   }
 }
 
 /// A quieter, more ceremonial coffee surface for focused screens such as filters and settings.
 struct NookRegalCoffeeBackground: View {
   var body: some View {
-    ZStack {
-      NookBackground()
-      LinearGradient(
-        colors: [NookColors.mocha.opacity(0.028), .clear],
-        startPoint: .top, endPoint: .center
-      ).ignoresSafeArea()
-    }
+    NookBackground()
   }
 }
 
