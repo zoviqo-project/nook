@@ -102,10 +102,6 @@ struct NookIntroView: View {
         .scaleEffect(pulsing ? 1.035 : 1)
         .shadow(color: .white.opacity(0.16), radius: 34)
         .shadow(color: NookColors.mocha.opacity(0.3), radius: 24, y: 12)
-        Text("TODO EMPIEZA CON UN CAFÉ")
-          .font(NookTypography.business(10, weight: .bold))
-          .tracking(2.1)
-          .foregroundStyle(.white)
       }
       .scaleEffect(appeared ? 1 : 0.76)
       .opacity(appeared ? 1 : 0)
