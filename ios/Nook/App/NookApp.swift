@@ -77,6 +77,7 @@ struct DiscoverSnapshot {
   @Published var selectedCoffeeMatch: UUID?
   @Published var placesReloadID = UUID()
   @Published private(set) var coffeeDataRevision = 0
+  @Published private(set) var matchDataRevision = 0
   @Published private(set) var recentlyPersistedCoffeeDates: [CoffeeDate] = []
   @Published private(set) var discoveryRevision = 0
   private(set) var myCafesCache: MyCafesSnapshot?
@@ -204,6 +205,7 @@ struct DiscoverSnapshot {
     }
     coffeeDataRevision += 1
   }
+  func matchesChanged() { matchDataRevision += 1 }
   func cacheMyCafes(_ items: [MyCafeItem]) {
     myCafesCache = MyCafesSnapshot(items: items, loadedAt: Date())
   }

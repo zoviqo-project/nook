@@ -80,14 +80,16 @@ import SwiftUI
       return nil
     }
   }
-  func deleteMatch(_ id: UUID, repo: any NookRepository) async {
-    guard updating.insert(id).inserted else { return }
+  func deleteMatch(_ id: UUID, repo: any NookRepository) async -> Bool {
+    guard updating.insert(id).inserted else { return false }
     defer { updating.remove(id) }
     do {
       try await repo.deleteMatch(id)
       apply(items.filter { $0.matchId != id })
+      return true
     } catch {
       state = .error("No hemos podido deshacer el match. Inténtalo de nuevo.")
+      return false
     }
   }
 }
@@ -125,7 +127,7 @@ struct ChatsView: View {
             }
           } removeMatch: { id in
             Task {
-              await vm.deleteMatch(id, repo: app.repository)
+              if await vm.deleteMatch(id, repo: app.repository) { app.matchesChanged() }
               app.cacheMyCafes(vm.items)
             }
           }

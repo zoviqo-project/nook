@@ -910,6 +910,7 @@ struct FloatingTabBar: View {
   @EnvironmentObject var app: AppSession
   @Binding var selection: Int
   @State private var coffeeNotifications = 0
+  @State private var matchCount = 0
   @State private var hasConfirmedCoffee = false
   @State private var profileRingPulse = false
   @State private var profileRingRotation = false
@@ -971,6 +972,18 @@ struct FloatingTabBar: View {
                 .offset(x: 14, y: -12)
                 .accessibilityLabel("\(coffeeNotifications) propuestas pendientes")
             }
+            if i == 2 && matchCount > 0 {
+              Text(matchCount > 99 ? "99+" : "\(matchCount)")
+                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                .foregroundStyle(NookColors.warmBlack)
+                .padding(.horizontal, matchCount > 9 ? 6 : 0)
+                .frame(minWidth: 20, minHeight: 20)
+                .background(Color(red: 0.96, green: 0.72, blue: 0.2), in: Capsule())
+                .overlay(Capsule().stroke(.white.opacity(0.9), lineWidth: 1.5))
+                .shadow(color: Color(red: 0.96, green: 0.72, blue: 0.2).opacity(0.38), radius: 5)
+                .offset(x: 17, y: -14)
+                .accessibilityLabel("\(matchCount) matches")
+            }
             }
             Circle().fill(NookColors.mocha).frame(width: 4, height: 4)
               .opacity(selection == i ? 1 : 0)
@@ -992,7 +1005,9 @@ struct FloatingTabBar: View {
         profileRingRotation = true
       }
     }
-    .task(id: selection + app.coffeeDataRevision * 10) { await refreshNotifications() }
+    .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
+      await refreshNotifications()
+    }
     .onChange(of: selection) { _, value in
       guard value == 3 else { profileRingPulse = false; return }
       profileRingPulse = true
@@ -1004,17 +1019,20 @@ struct FloatingTabBar: View {
   }
   @MainActor private func refreshNotifications() async {
     guard app.me != nil else {
-      coffeeNotifications = 0; hasConfirmedCoffee = false; return
+      coffeeNotifications = 0; matchCount = 0; hasConfirmedCoffee = false; return
     }
     async let notificationRequest = try? app.repository.notifications()
     async let dateRequest = try? app.repository.dates()
+    async let matchRequest = try? app.repository.matches()
     let notifications = await notificationRequest ?? []
     let dates = await dateRequest ?? []
+    let matches = await matchRequest ?? []
     let unread = notifications.filter { !$0.read }
     withAnimation(NookMotion.fast) {
       coffeeNotifications = dates.filter {
         ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == app.me?.id
       }.count
+      matchCount = matches.count
       hasConfirmedCoffee = dates.contains { $0.status == .accepted }
     }
     if selection == 2 && !unread.isEmpty {

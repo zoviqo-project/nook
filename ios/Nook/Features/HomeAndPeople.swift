@@ -162,6 +162,7 @@ struct DiscoverView: View {
                 drag = .zero
                 Task {
                   await vm.coffee(person, repo: app.repository)
+                  if vm.match != nil { app.matchesChanged() }
                   liking = false
                 }
               }
@@ -229,6 +230,7 @@ struct DiscoverView: View {
         liking = true
         Task {
           await vm.coffee(person, repo: app.repository)
+          if vm.match != nil { app.matchesChanged() }
           liking = false
         }
       } label: {
