@@ -597,7 +597,9 @@ private struct MyCafeUnifiedCard: View {
       HStack(spacing: 10) {
         ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
           .frame(width: 58, height: 58).clipShape(Circle())
-          .overlay(Circle().stroke(NookColors.mocha.opacity(0.65), lineWidth: 1.5))
+          .overlay(Circle().stroke(
+            item.proposal == nil ? matchGold : NookColors.mocha.opacity(0.65),
+            lineWidth: item.proposal == nil ? 2.5 : 1.5))
         VStack(alignment: .leading, spacing: 4) {
           Text(item.person.name).font(NookTypography.display(27)).foregroundStyle(NookColors.espresso)
             .lineLimit(1).minimumScaleFactor(0.75)
@@ -620,7 +622,18 @@ private struct MyCafeUnifiedCard: View {
       actionRow
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
-    .background(NookColors.offWhite.opacity(0.94), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .background {
+      RoundedRectangle(cornerRadius: 24, style: .continuous)
+        .fill(NookColors.offWhite.opacity(0.94))
+        .overlay {
+          if item.proposal == nil {
+            LinearGradient(
+              colors: [matchGold.opacity(0.2), .clear, matchGold.opacity(0.08)],
+              startPoint: .topLeading, endPoint: .bottomTrailing)
+              .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+          }
+        }
+    }
     .overlay(
       RoundedRectangle(cornerRadius: 24, style: .continuous)
         .stroke(attentionColor.opacity(needsAttention ? (attention ? 0.82 : 0.24) : 0.18),
@@ -629,6 +642,16 @@ private struct MyCafeUnifiedCard: View {
     .shadow(
       color: needsAttention ? attentionColor.opacity(attention ? 0.22 : 0.05) : NookColors.warmBlack.opacity(0.12),
       radius: needsAttention ? (attention ? 18 : 8) : 12, y: 6)
+    .overlay(alignment: .top) {
+      if item.proposal == nil {
+        Capsule()
+          .fill(LinearGradient(
+            colors: [matchGold.opacity(0.35), matchGold, .white.opacity(0.72), matchGold],
+            startPoint: .leading, endPoint: .trailing))
+          .frame(height: 4).padding(.horizontal, 24).offset(y: -1)
+          .opacity(attention ? 1 : 0.58)
+      }
+    }
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .sheet(isPresented: $showingDetail) {
       if let proposal = item.proposal {
@@ -726,7 +749,7 @@ private struct MyCafeUnifiedCard: View {
     case .pending, .counterProposed: NookColors.amber.opacity(0.28)
     case .completed: NookColors.success.opacity(0.32)
     case .cancelled, .declined, .expired: NookColors.cream.opacity(0.72)
-    case nil: NookColors.mocha.opacity(0.22)
+    case nil: matchGold.opacity(0.82)
     }
   }
   private var statusForeground: Color { NookColors.espresso }
@@ -734,7 +757,8 @@ private struct MyCafeUnifiedCard: View {
     guard let status = item.proposal?.status else { return true }
     return status == .pending || status == .counterProposed
   }
-  private var attentionColor: Color { item.proposal == nil ? NookColors.mocha : NookColors.amber }
+  private var attentionColor: Color { item.proposal == nil ? matchGold : NookColors.amber }
+  private var matchGold: Color { Color(red: 0.96, green: 0.72, blue: 0.2) }
 }
 
 struct CoffeeDatesList: View {
