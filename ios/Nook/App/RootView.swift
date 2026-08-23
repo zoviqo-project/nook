@@ -8,8 +8,15 @@ struct RootView: View {
   var body: some View {
     ZStack {
       NookBackground()
-      content.transition(.opacity)
-    }.animation(.easeInOut(duration: 0.56), value: app.stage)
+      if app.stage == .loading {
+        NookIntroView()
+          .transition(.asymmetric(
+            insertion: .opacity,
+            removal: .scale(scale: 2.8).combined(with: .opacity)))
+      } else {
+        content.transition(.opacity)
+      }
+    }.animation(.easeInOut(duration: 0.62), value: app.stage)
   }
   @ViewBuilder private var content: some View {
     #if DEBUG
@@ -24,7 +31,7 @@ struct RootView: View {
   }
   @ViewBuilder private var stageContent: some View {
     switch app.stage {
-    case .loading: NookIntroView()
+    case .loading: EmptyView()
     case .welcome: WelcomeView()
     case .registration: RegistrationFlow()
     case .login: LoginView()
@@ -70,40 +77,38 @@ struct ReviewRouteView: View {
 struct NookIntroView: View {
   var compact = false
   @State private var appeared = false
-  @State private var beansOpen = false
+  @State private var haloExpanded = false
   var body: some View {
-    GeometryReader { proxy in
-      ZStack {
-        NookColors.warmBlack.ignoresSafeArea()
-
-        ZStack {
-          ForEach(0..<7, id: \.self) { index in
-            CoffeeBean()
-              .frame(width: 9, height: 14)
-              .rotationEffect(.degrees(Double(index * 51) + (beansOpen ? 32 : 0)))
-              .offset(
-                x: beansOpen ? cos(Double(index) * .pi / 3.5) * 112 : 0,
-                y: beansOpen ? sin(Double(index) * .pi / 3.5) * 112 : 0)
-              .opacity(beansOpen ? 0.34 : 0)
-              .animation(
-                .spring(response: 0.82, dampingFraction: 0.82).delay(Double(index) * 0.035),
-                value: beansOpen)
-          }
-          VStack(spacing: 15) {
-            NookCoffeeLogo(size: 84, animated: true)
-            Text("NOOK").font(.system(size: 29, weight: .bold, design: .rounded)).tracking(6)
-          }.foregroundStyle(NookColors.espresso)
-        }
-        .scaleEffect(appeared ? 1 : 0.88)
-        .opacity(appeared ? 1 : 0)
-        .frame(width: proxy.size.width, height: proxy.size.height)
+    ZStack {
+      NookColors.warmBlack.ignoresSafeArea()
+      Circle()
+        .stroke(NookColors.mocha.opacity(0.18), lineWidth: 1)
+        .frame(width: 178, height: 178)
+        .scaleEffect(haloExpanded ? 1.08 : 0.72)
+        .opacity(haloExpanded ? 0.22 : 0.7)
+      VStack(spacing: 18) {
+        NookCoffeeLogo(size: 112, animated: false)
+          .clipShape(Circle())
+          .overlay(Circle().stroke(NookColors.oat.opacity(0.42), lineWidth: 1))
+          .shadow(color: NookColors.mocha.opacity(0.22), radius: 30, y: 14)
+        Text("nook")
+          .font(NookTypography.displayItalic(42))
+          .tracking(-1)
+          .foregroundStyle(NookColors.offWhite)
+        Text("TODO EMPIEZA CON UN CAFÉ")
+          .font(NookTypography.business(10, weight: .bold))
+          .tracking(2.1)
+          .foregroundStyle(NookColors.oat.opacity(0.62))
       }
-    }.onAppear {
-      withAnimation(.spring(response: compact ? 0.48 : 0.68, dampingFraction: 0.82)) {
+      .scaleEffect(appeared ? 1 : 0.76)
+      .opacity(appeared ? 1 : 0)
+    }
+    .onAppear {
+      withAnimation(.spring(response: compact ? 0.48 : 0.72, dampingFraction: 0.8)) {
         appeared = true
       }
-      withAnimation(.easeOut(duration: compact ? 0.62 : 0.92).delay(0.12)) {
-        beansOpen = true
+      withAnimation(.easeOut(duration: compact ? 0.65 : 1.15).delay(0.12)) {
+        haloExpanded = true
       }
       if !compact { NookSoundManager.shared.play(.intro) }
     }

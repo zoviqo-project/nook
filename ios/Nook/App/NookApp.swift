@@ -95,6 +95,7 @@ struct DiscoverSnapshot {
     #endif
   }
   func restore() async {
+    let minimumIntro = Task { try? await Task.sleep(for: .seconds(1.8)) }
     do {
       let restored = try await withThrowingTaskGroup(of: Me?.self) { group in
         let repository = self.repository
@@ -107,15 +108,17 @@ struct DiscoverSnapshot {
         group.cancelAll()
         return first
       }
+      await minimumIntro.value
       if let m = restored {
         me = m
         enterAuthenticated(m)
       } else {
-        stage = .welcome
+        stage = .login
       }
     } catch is CancellationError {
       return
     } catch {
+      await minimumIntro.value
       stage = .startupError(
         "Nook está tardando en despertar. Tu sesión sigue guardada; comprueba la conexión y vuelve a intentarlo.")
     }
