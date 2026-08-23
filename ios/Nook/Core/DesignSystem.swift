@@ -215,7 +215,7 @@ struct NookScreenContainer<Content: View>: View {
   let eyebrow: String
   let title: String
   var solidBackground: Color? = nil
-  var brandedHeader = false
+  var brandedHeader = true
   var actionIcon: String? = nil
   var actionLabel = "Acción"
   var action: (() -> Void)? = nil
