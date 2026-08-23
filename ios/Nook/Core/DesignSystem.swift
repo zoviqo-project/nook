@@ -55,10 +55,14 @@ enum NookShadow {
 }
 
 enum NookTypography {
-  static func display(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold) }
-  static func displayItalic(_ size: CGFloat) -> Font { .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold).italic() }
+  static func display(_ size: CGFloat) -> Font {
+    .system(size: size, weight: .bold, design: .rounded)
+  }
+  static func displayItalic(_ size: CGFloat) -> Font {
+    .system(size: size, weight: .bold, design: .rounded).italic()
+  }
   static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
-    .custom(weight == .bold || weight == .semibold ? "Avenir Next Demi Bold" : "Avenir Next Medium", size: size)
+    .system(size: size, weight: weight, design: .rounded)
   }
   static let hero = display(44)
   static let title = display(34)
