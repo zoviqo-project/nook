@@ -1310,6 +1310,7 @@ struct ProposalSheet: View {
   @State private var confirmed = false
   @State private var sending = false
   @State private var submitError: String?
+  @State private var availabilityError: String?
   @State private var idempotencyKey = UUID()
   var body: some View {
     NavigationStack {
@@ -1413,7 +1414,7 @@ struct ProposalSheet: View {
             ) {
               guard !sending else { return }
               if !isReview {
-                withAnimation(NookMotion.spring) { step += 1 }
+                advanceToNextStep()
               } else if let match = selectedMatch {
                 Task {
                   sending = true
@@ -1445,6 +1446,14 @@ struct ProposalSheet: View {
     }.alert("No hemos podido enviarlo", isPresented: Binding(
       get: { submitError != nil }, set: { if !$0 { submitError = nil } }
     )) { Button("Entendido") { submitError = nil } } message: { Text(submitError ?? "") }
+    .alert("Cafetería cerrada", isPresented: Binding(
+      get: { availabilityError != nil }, set: { if !$0 { availabilityError = nil } }
+    )) {
+      Button("Elegir otro día") { availabilityError = nil }
+    } message: { Text(availabilityError ?? "") }
+    .onChange(of: date) { _, _ in
+      if flowStep == 0 { selectedSlot = nil }
+    }
     .onAppear { selectedMatch = app.selectedCoffeeMatch }
   }
   private var needsPersonChoice: Bool { app.selectedCoffeeMatch == nil }
@@ -1455,6 +1464,22 @@ struct ProposalSheet: View {
     if needsPersonChoice && step == 0 { return selectedMatch != nil }
     if flowStep == 1, shop.availableTimes(on: date) != nil { return selectedSlot != nil }
     return date.timeIntervalSinceNow > 15 * 60
+  }
+  private func advanceToNextStep() {
+    if flowStep == 0, let slots = shop.availableTimes(on: date), slots.isEmpty {
+      selectedSlot = nil
+      availabilityError = "Ese día el establecimiento está cerrado. Selecciona otro día para continuar."
+      return
+    }
+    if flowStep == 1, let slots = shop.availableTimes(on: date),
+      selectedSlot.map({ !slots.contains($0) }) ?? true
+    {
+      selectedSlot = nil
+      availabilityError = "La hora elegida ya no está disponible. Vuelve a seleccionar el día y la hora."
+      withAnimation(NookMotion.spring) { step = max(0, step - 1) }
+      return
+    }
+    withAnimation(NookMotion.spring) { step += 1 }
   }
   private var proposalSent: some View {
     GeometryReader { proxy in
