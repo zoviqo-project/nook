@@ -887,7 +887,8 @@ struct MainTabView: View {
     .animation(NookMotion.fast, value: app.selectedTab)
     .animation(NookMotion.fast, value: app.tabBarHidden)
     .background {
-      NookBackground()
+      if app.selectedTab == 0 { NookColors.warmBlack.ignoresSafeArea() }
+      else { NookBackground() }
     }
   }
 }
@@ -967,9 +968,7 @@ struct FloatingTabBar: View {
     .padding(.horizontal, 26).padding(.top, 7)
     .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
     .background {
-      if selection != 0 {
-        NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
-      }
+      NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
     }
     .animation(NookMotion.fast, value: selection)
     .task(id: selection + app.coffeeDataRevision * 10) { await refreshNotifications() }
