@@ -71,6 +71,7 @@ struct DiscoverView: View {
   @AppStorage("didSeeDiscoverySwipeHint") private var didSeeSwipeHint = false
   @State private var showSwipeHint = false
   @State private var swipeHintPulse = false
+  @State private var matchProgress = false
   var body: some View {
     NookScreenContainer(
       eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.warmBlack,
@@ -96,6 +97,9 @@ struct DiscoverView: View {
       app.cacheDiscover(vm.people)
       NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       entrance = true
+      withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
+        matchProgress = true
+      }
       if !didSeeSwipeHint {
         showSwipeHint = true
         withAnimation(.easeInOut(duration: 0.78).repeatForever(autoreverses: true)) {
@@ -204,31 +208,42 @@ struct DiscoverView: View {
           ProgressView().tint(NookColors.espresso)
         }
       }
-      Button {
-        liking = true
-        Task {
-          await vm.coffee(person, repo: app.repository)
-          liking = false
-        }
-      } label: {
-        ZStack {
-          NookCoffeeLogo(size: 68, animated: false)
-            .clipShape(Circle())
-            .overlay {
-              Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
-          if vm.actingOn == person.id {
-            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
-            ProgressView().tint(NookColors.inverseText)
+      VStack(spacing: 7) {
+        Button {
+          liking = true
+          Task {
+            await vm.coffee(person, repo: app.repository)
+            liking = false
           }
+        } label: {
+          ZStack {
+            NookCoffeeLogo(size: 68, animated: false)
+              .clipShape(Circle())
+              .overlay {
+                Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
+              }
+              .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
+            if vm.actingOn == person.id {
+              Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
+              ProgressView().tint(NookColors.inverseText)
+            }
+          }
+          .scaleEffect(liking ? 1.08 : 1)
+          .rotationEffect(.degrees(liking ? -4 : 0))
+          .animation(NookMotion.playful, value: liking)
         }
-        .scaleEffect(liking ? 1.08 : 1)
-        .rotationEffect(.degrees(liking ? -4 : 0))
-        .animation(NookMotion.playful, value: liking)
-      }.buttonStyle(.plain).disabled(vm.actingOn != nil)
+        .buttonStyle(.plain)
+        .disabled(vm.actingOn != nil)
+        ZStack(alignment: .leading) {
+          Capsule().fill(.white.opacity(0.16))
+          Capsule().fill(NookColors.mocha)
+            .frame(width: matchProgress ? 48 : 8)
+        }
+        .frame(width: 48, height: 3)
+        .accessibilityHidden(true)
+      }
       CircleAction(icon: "info", size: 54) { selectedProfile = person }
-    }.frame(maxWidth: .infinity).frame(height: 72)
+    }.frame(maxWidth: .infinity).frame(height: 82)
   }
   private var empty: some View {
     VStack(spacing: 18) {
