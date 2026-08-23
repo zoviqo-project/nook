@@ -26,31 +26,37 @@ import UserNotifications
     #endif
   }
   func pass(_ person: DiscoverProfile, repo: any NookRepository) async {
-    guard actingOn == nil else { return }
+    guard actingOn == nil, let index = people.firstIndex(where: { $0.id == person.id }) else { return }
     actingOn = person.id
     defer { actingOn = nil }
+    people.remove(at: index)
     do {
       try await repo.pass(person.id)
-      withAnimation(NookMotion.spring) { people.removeAll { $0.id == person.id } }
       Haptics.selection()
       if people.isEmpty { await load(repo) }
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      people.insert(person, at: min(index, people.count))
+      self.error = error.localizedDescription
+    }
   }
   func coffee(_ person: DiscoverProfile, repo: any NookRepository) async {
-    guard actingOn == nil else { return }
+    guard actingOn == nil, let index = people.firstIndex(where: { $0.id == person.id }) else { return }
     actingOn = person.id
     defer { actingOn = nil }
     Haptics.coffee()
     NookSoundManager.shared.play(.coffeeLike)
+    people.remove(at: index)
     do {
       let result = try await repo.like(person.id)
       withAnimation(NookMotion.playful) {
-        people.removeAll { $0.id == person.id }
         match = result.match
       }
       if result.matched { Haptics.success() }
       if people.isEmpty { await load(repo) }
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      people.insert(person, at: min(index, people.count))
+      self.error = error.localizedDescription
+    }
   }
 }
 
@@ -127,15 +133,18 @@ struct DiscoverView: View {
             if value.translation.width < -110 {
               withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 30) }
               DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                Task { await vm.pass(person, repo: app.repository); drag = .zero }
+                drag = .zero
+                Task { await vm.pass(person, repo: app.repository) }
               }
             } else if value.translation.width > 110 {
               withAnimation(NookMotion.spring) { drag = CGSize(width: 600, height: -20) }
               liking = true
-              Task {
-                await vm.coffee(person, repo: app.repository)
+              DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                 drag = .zero
-                liking = false
+                Task {
+                  await vm.coffee(person, repo: app.repository)
+                  liking = false
+                }
               }
             } else {
               withAnimation(NookMotion.spring) { drag = .zero }
