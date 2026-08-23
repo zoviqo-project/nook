@@ -194,10 +194,6 @@ struct CoffeeShopsView: View {
           action: { withAnimation(NookMotion.spring) { showMap.toggle() } }
         ) {
           VStack(spacing: 8) {
-          if app.selectedCoffeeMatch == nil {
-            placeModeSelector
-              .padding(.horizontal, 12)
-          }
           Group {
             if showMap { mapView } else { listView }
           }
