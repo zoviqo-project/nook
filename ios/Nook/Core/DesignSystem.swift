@@ -160,7 +160,6 @@ struct NookHeader: View {
       if branded {
         HStack(spacing: 10) {
           NookCoffeeLogo(size: 34)
-          Text("NOOK").font(.system(size: 13, weight: .bold, design: .rounded)).tracking(2)
           Text(title).font(NookTypography.display(26)).lineLimit(1).minimumScaleFactor(0.8)
         }
         .foregroundStyle(NookColors.espresso)
