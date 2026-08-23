@@ -1102,6 +1102,7 @@ struct NookCoffeeShopCard: View {
   let namespace: Namespace.ID
   var recommended = false
   @State private var selectedPhoto = 0
+  @State private var choiceBorderGlow = false
   private var gallery: [String] {
     var values = shop.photoUrls ?? []
     if let cover = shop.photoUrl, !values.contains(cover) { values.insert(cover, at: 0) }
@@ -1162,8 +1163,23 @@ struct NookCoffeeShopCard: View {
       RoundedRectangle(cornerRadius: 26, style: .continuous)
     ).overlay {
       RoundedRectangle(cornerRadius: 26, style: .continuous)
-        .stroke(recommended ? NookColors.mocha : .clear, lineWidth: recommended ? 2 : 0)
-    }.shadow(color: recommended ? NookColors.mocha.opacity(0.24) : NookColors.warmBlack.opacity(0.1), radius: recommended ? 18 : 12, y: 5)
+        .stroke(
+          recommended
+            ? Color(red: 0.98, green: 0.73, blue: 0.18).opacity(choiceBorderGlow ? 1 : 0.46)
+            : .clear,
+          lineWidth: recommended ? (choiceBorderGlow ? 3 : 1.5) : 0)
+    }
+    .shadow(
+      color: recommended
+        ? Color(red: 0.98, green: 0.73, blue: 0.18).opacity(choiceBorderGlow ? 0.42 : 0.12)
+        : NookColors.warmBlack.opacity(0.1),
+      radius: recommended ? (choiceBorderGlow ? 22 : 10) : 12, y: 5)
+    .onAppear {
+      guard recommended else { return }
+      withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+        choiceBorderGlow = true
+      }
+    }
   }
 }
 
