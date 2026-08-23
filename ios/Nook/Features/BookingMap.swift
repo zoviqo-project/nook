@@ -588,10 +588,6 @@ private struct MidpointSearchState: View {
         Text("Buscando\npunto medio")
           .font(NookTypography.display(32)).foregroundStyle(NookColors.espresso)
           .multilineTextAlignment(.center).lineSpacing(1)
-        Text("Calculando el lugar más equilibrado para los dos")
-          .font(NookTypography.business(14))
-          .foregroundStyle(NookColors.warmGray)
-          .multilineTextAlignment(.center)
       }
     }
     .padding(.horizontal, 34)
