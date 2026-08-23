@@ -83,11 +83,19 @@ import SwiftUI
 }
 
 struct ChatsView: View {
+  private enum QuickFilter { case matches, pending }
   @EnvironmentObject var app: AppSession
   @StateObject private var vm = ChatsVM()
   @State private var section = 2
+  @State private var quickFilter: QuickFilter?
   var body: some View {
-    NookScreenContainer(eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés") {
+    NookScreenContainer(
+      eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés",
+      actionIcon: "heart.fill", actionLabel: "Filtrar matches",
+      action: { toggleFilter(.matches) }, actionActive: quickFilter == .matches,
+      secondaryActionIcon: "hourglass", secondaryActionLabel: "Filtrar propuestas en espera",
+      secondaryAction: { toggleFilter(.pending) }, secondaryActionActive: quickFilter == .pending
+    ) {
       Group {
         if vm.loading {
           NookSkeletonScreen(layout: .coffeeDates(rows: 3))
@@ -95,7 +103,7 @@ struct ChatsView: View {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
           MyCafesUnifiedList(
-            items: vm.items, updating: vm.updating
+            items: filteredItems, updating: vm.updating, filteredEmptyText: filteredEmptyText
           ) { id, status in
             Task {
               if let updated = await vm.transition(id, to: status, repo: app.repository) {
@@ -129,6 +137,26 @@ struct ChatsView: View {
         }
       }
       .onChange(of: vm.dates.count) { _, _ in prefetchImages() }
+  }
+  private var filteredItems: [MyCafeItem] {
+    switch quickFilter {
+    case .matches: vm.items.filter { $0.proposal == nil }
+    case .pending: vm.items.filter {
+      guard let status = $0.proposal?.status else { return false }
+      return status == .pending || status == .counterProposed
+    }
+    case nil: vm.items
+    }
+  }
+  private func toggleFilter(_ filter: QuickFilter) {
+    Haptics.selection()
+    withAnimation(NookMotion.spring) { quickFilter = quickFilter == filter ? nil : filter }
+  }
+  private var filteredEmptyText: String? {
+    guard quickFilter != nil, !vm.items.isEmpty else { return nil }
+    return quickFilter == .matches
+      ? "No tienes matches pendientes de proponer un café."
+      : "No tienes propuestas esperando respuesta."
   }
   private func prefetchImages() {
     NookImagePrefetch.schedule(vm.dates.compactMap { $0.coffeeShop.photoUrl })
@@ -529,14 +557,21 @@ struct MyCafesUnifiedList: View {
   @EnvironmentObject private var app: AppSession
   let items: [MyCafeItem]
   let updating: Set<UUID>
+  let filteredEmptyText: String?
   let action: (UUID, CoffeeDateStatus) -> Void
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 14) {
         if items.isEmpty {
-          NookEmptyState(icon: "cup.and.saucer", title: "Tu primer café te espera", text: "Descubre personas y conecta para proponer un café.")
-          Button("Descubrir personas") { app.selectedTab = 0 }
-            .buttonStyle(.borderedProminent).tint(NookColors.mocha)
+          if let filteredEmptyText {
+            NookEmptyState(
+              icon: "line.3.horizontal.decrease.circle", title: "Nada en este filtro",
+              text: filteredEmptyText)
+          } else {
+            NookEmptyState(icon: "cup.and.saucer", title: "Tu primer café te espera", text: "Descubre personas y conecta para proponer un café.")
+            Button("Descubrir personas") { app.selectedTab = 0 }
+              .buttonStyle(.borderedProminent).tint(NookColors.mocha)
+          }
         } else {
           ForEach(items) { item in
             MyCafeUnifiedCard(item: item, isUpdating: item.proposal.map { updating.contains($0.id) } ?? false, action: action)
@@ -553,6 +588,7 @@ private struct MyCafeUnifiedCard: View {
   let isUpdating: Bool
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var showingDetail = false
+  @State private var attention = false
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
       HStack(spacing: 10) {
@@ -582,19 +618,33 @@ private struct MyCafeUnifiedCard: View {
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
     .background(NookColors.offWhite.opacity(0.94), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-    .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(NookColors.oat.opacity(0.18)))
-    .shadow(color: NookColors.warmBlack.opacity(0.12), radius: 12, y: 6)
+    .overlay(
+      RoundedRectangle(cornerRadius: 24, style: .continuous)
+        .stroke(attentionColor.opacity(needsAttention ? (attention ? 0.82 : 0.24) : 0.18),
+          lineWidth: needsAttention ? (attention ? 2 : 1) : 1)
+    )
+    .shadow(
+      color: needsAttention ? attentionColor.opacity(attention ? 0.22 : 0.05) : NookColors.warmBlack.opacity(0.12),
+      radius: needsAttention ? (attention ? 18 : 8) : 12, y: 6)
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .sheet(isPresented: $showingDetail) {
       if let proposal = item.proposal {
         CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
       }
-    }.dynamicTypeSize(.xSmall ... .xLarge)
+    }
+    .onAppear {
+      guard needsAttention else { return }
+      withAnimation(.easeInOut(duration: item.proposal == nil ? 1.35 : 2.4).repeatForever()) {
+        attention = true
+      }
+    }
+    .dynamicTypeSize(.xSmall ... .xLarge)
   }
   private var statusBadge: some View {
     Label(statusText, systemImage: statusIcon).font(.system(size: 10, weight: .bold, design: .rounded))
       .lineLimit(1).minimumScaleFactor(0.64).allowsTightening(true).padding(.horizontal, 10).frame(height: 28)
       .background(statusColor, in: Capsule()).foregroundStyle(statusForeground)
+      .scaleEffect(needsAttention && attention ? 1.035 : 1)
   }
   @ViewBuilder private var context: some View {
     if let proposal = item.proposal {
@@ -677,6 +727,11 @@ private struct MyCafeUnifiedCard: View {
     }
   }
   private var statusForeground: Color { NookColors.espresso }
+  private var needsAttention: Bool {
+    guard let status = item.proposal?.status else { return true }
+    return status == .pending || status == .counterProposed
+  }
+  private var attentionColor: Color { item.proposal == nil ? NookColors.mocha : NookColors.amber }
 }
 
 struct CoffeeDatesList: View {

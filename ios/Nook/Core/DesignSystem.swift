@@ -130,6 +130,11 @@ struct NookHeader: View {
   var actionIcon: String? = nil
   var actionLabel: String = "Acción"
   var action: (() -> Void)? = nil
+  var actionActive = false
+  var secondaryActionIcon: String? = nil
+  var secondaryActionLabel = "Acción"
+  var secondaryAction: (() -> Void)? = nil
+  var secondaryActionActive = false
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
@@ -153,14 +158,28 @@ struct NookHeader: View {
         }
       }
       Spacer(minLength: 10)
-      if let actionIcon, let action {
-        Button(action: action) {
-          Image(systemName: actionIcon).font(.system(size: 15, weight: .semibold))
-            .frame(width: 40, height: 40)
-            .overlay(Circle().stroke(NookColors.espresso.opacity(0.18), lineWidth: 1))
-        }.foregroundStyle(NookColors.espresso).accessibilityLabel(actionLabel)
+      HStack(spacing: 8) {
+        if let actionIcon, let action {
+          headerAction(actionIcon, label: actionLabel, active: actionActive, action: action)
+        }
+        if let secondaryActionIcon, let secondaryAction {
+          headerAction(
+            secondaryActionIcon, label: secondaryActionLabel,
+            active: secondaryActionActive, action: secondaryAction)
+        }
       }
     }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
+  }
+  private func headerAction(
+    _ icon: String, label: String, active: Bool, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: icon).font(.system(size: 15, weight: .semibold))
+        .frame(width: 40, height: 40)
+        .foregroundStyle(active ? NookColors.inverseText : NookColors.espresso)
+        .background(active ? NookColors.mocha : .clear, in: Circle())
+        .overlay(Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1))
+    }.buttonStyle(.plain).accessibilityLabel(label)
   }
 }
 
@@ -174,6 +193,11 @@ struct NookScreenContainer<Content: View>: View {
   var actionIcon: String? = nil
   var actionLabel = "Acción"
   var action: (() -> Void)? = nil
+  var actionActive = false
+  var secondaryActionIcon: String? = nil
+  var secondaryActionLabel = "Acción"
+  var secondaryAction: (() -> Void)? = nil
+  var secondaryActionActive = false
   @ViewBuilder let content: () -> Content
 
   var body: some View {
@@ -186,7 +210,10 @@ struct NookScreenContainer<Content: View>: View {
       VStack(spacing: 0) {
         NookHeader(
           eyebrow: eyebrow, title: title, branded: brandedHeader, actionIcon: actionIcon,
-          actionLabel: actionLabel, action: action)
+          actionLabel: actionLabel, action: action, actionActive: actionActive,
+          secondaryActionIcon: secondaryActionIcon,
+          secondaryActionLabel: secondaryActionLabel,
+          secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive)
           .zIndex(1)
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
       }
