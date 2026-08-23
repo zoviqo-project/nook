@@ -517,11 +517,16 @@ struct NookChatBubble: View {
   let outgoing: Bool
   var body: some View {
     HStack {
-      if outgoing { Spacer(minLength: 56) }
-      Text(text).font(NookTypography.body).foregroundStyle(outgoing ? NookColors.inverseText : NookColors.espresso)
-        .padding(.horizontal, 17).padding(.vertical, 12)
-        .background(outgoing ? NookColors.espresso : NookColors.offWhite, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-      if !outgoing { Spacer(minLength: 56) }
+      if outgoing { Spacer(minLength: 24) }
+      Text(text)
+        .font(NookTypography.business(16)).lineSpacing(2)
+        .foregroundStyle(outgoing ? NookColors.inverseText : NookColors.espresso)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(
+          outgoing ? NookColors.espresso : NookColors.offWhite,
+          in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      if !outgoing { Spacer(minLength: 24) }
     }
   }
 }
@@ -532,9 +537,9 @@ struct NookSystemMessageBubble: View {
   var body: some View {
     VStack(spacing: 7) {
       Image(systemName: "cup.and.saucer.fill").font(.title3).foregroundStyle(NookColors.mocha)
-      Text(title).font(.system(size: 13, weight: .black, design: .rounded)).tracking(0.7)
+      Text(title).font(NookTypography.business(13, weight: .bold)).tracking(0.35)
         .multilineTextAlignment(.center)
-      if let detail { Text(detail).font(.caption).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center) }
+      if let detail { Text(detail).font(NookTypography.business(12)).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center) }
     }.frame(maxWidth: .infinity).padding(15)
       .background(NookColors.oat.opacity(0.22), in: RoundedRectangle(cornerRadius: NookRadius.medium))
       .overlay(RoundedRectangle(cornerRadius: NookRadius.medium).stroke(NookColors.oat.opacity(0.5)))

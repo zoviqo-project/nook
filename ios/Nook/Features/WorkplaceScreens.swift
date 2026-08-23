@@ -253,7 +253,7 @@ struct ChatDetail: View {
                   }
                 }.id(message.id).transition(.move(edge: .bottom).combined(with: .opacity))
               }
-              ForEach(dates.filter { $0.matchId == conversation.matchId }) { date in
+              ForEach(visibleCoffeeDates) { date in
                 NookCoffeeProposalBubble(date: date, canAccept: date.receiverId == app.me?.id,
                   updating: updatingDates.contains(date.id)) {
                   Task {
@@ -269,7 +269,7 @@ struct ChatDetail: View {
                 } change: { proposing = true }
               }
               Color.clear.frame(height: 1).id("chat-bottom")
-            }.padding(16)
+            }.padding(.horizontal, 12).padding(.vertical, 14)
           }.scrollDismissesKeyboard(.interactively).defaultScrollAnchor(.bottom)
             .onChange(of: messages.count) { _, _ in withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } }
             .onChange(of: focused) { _, value in if value { withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } } }
@@ -279,8 +279,8 @@ struct ChatDetail: View {
           HStack(spacing: 9) {
             ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name).frame(width: 34, height: 34).clipShape(Circle())
             VStack(alignment: .leading, spacing: 1) {
-              Text(conversation.person.name).font(.headline)
-              Text(chatStatus.0).font(.caption2.weight(.bold)).foregroundStyle(chatStatus.1)
+              Text(conversation.person.name).font(NookTypography.business(16, weight: .bold))
+              Text(chatStatus.0).font(NookTypography.business(11, weight: .semibold)).foregroundStyle(chatStatus.1)
             }
           }
         }
@@ -322,6 +322,13 @@ struct ChatDetail: View {
     if related.contains(where: { $0.status == .pending || $0.status == .counterProposed }) { return ("☕ Esperando confirmación", NookColors.amber) }
     return ("Conexión Nook", .secondary)
   }
+  private var visibleCoffeeDates: [CoffeeDate] {
+    dates.filter {
+      $0.matchId == conversation.matchId && [.pending, .counterProposed, .accepted].contains($0.status)
+    }
+    .sorted { $0.proposedAt > $1.proposedAt }
+    .prefix(1).map { $0 }
+  }
   private var composer: some View {
     HStack(spacing: 9) {
       Button {
@@ -333,9 +340,10 @@ struct ChatDetail: View {
           .foregroundStyle(NookColors.espresso).frame(width: 44, height: 44)
           .background(NookColors.oat.opacity(0.34), in: Circle())
       }.accessibilityLabel("Proponer café")
-      TextField("Escribe un mensaje…", text: $text, axis: .vertical).font(.body.weight(.medium))
-        .focused($focused).padding(.horizontal, 17).frame(minHeight: 48).background(
-          NookColors.offWhite, in: Capsule())
+      TextField("Escribe un mensaje…", text: $text, axis: .vertical)
+        .font(NookTypography.business(16)).lineLimit(1...5)
+        .focused($focused).padding(.horizontal, 16).padding(.vertical, 12).frame(minHeight: 48)
+        .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
       Button {
         send()
       } label: {
@@ -390,11 +398,12 @@ struct NookCoffeeProposalBubble: View {
   let change: () -> Void
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill").font(.caption.bold()).tracking(1)
-      Text(date.coffeeShop.name).font(.title3.bold())
-      Text(formatted).font(.headline)
-      Text(date.coffeeShop.vibeLabel).font(.subheadline.weight(.semibold))
-      Text(date.paymentPreference.title).font(.subheadline).foregroundStyle(NookColors.warmGray)
+      Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
+        .font(NookTypography.business(11, weight: .bold)).tracking(1)
+      Text(date.coffeeShop.name).font(NookTypography.display(23)).lineLimit(2)
+      Text(formatted).font(NookTypography.business(15, weight: .bold))
+      Text(date.coffeeShop.vibeLabel).font(NookTypography.business(14, weight: .semibold))
+      Text(date.paymentPreference.title).font(NookTypography.business(13)).foregroundStyle(NookColors.warmGray)
       if date.status == .pending {
         HStack {
           if canAccept {
@@ -406,7 +415,11 @@ struct NookCoffeeProposalBubble: View {
             .disabled(updating)
         }
       } else { Text(date.status == .accepted ? "ACEPTADO" : date.status.rawValue).font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
-    }.padding(18).foregroundStyle(NookColors.espresso).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 24)).overlay(RoundedRectangle(cornerRadius: 24).stroke(NookColors.oat.opacity(0.45))).padding(.vertical, 4)
+    }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+      .foregroundStyle(NookColors.espresso)
+      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+      .overlay(RoundedRectangle(cornerRadius: 20).stroke(NookColors.oat.opacity(0.32)))
+      .padding(.vertical, 4)
   }
   private var formatted: String { date.formattedProposedAt() }
 }
