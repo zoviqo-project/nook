@@ -1242,8 +1242,11 @@ struct ProposalSheet: View {
   var isNookChoice = false
   @State private var step = 0
   @State private var selectedMatch: UUID?
-  @State private var payment = PaymentPreference.iInvite
+  // Payment is deliberately not part of the proposal funnel. A first coffee should
+  // take four decisions at most; the API keeps its backwards-compatible value.
+  private let payment = PaymentPreference.split
   @State private var date = Date().addingTimeInterval(86_400)
+  @State private var selectedSlot: Date?
   @State private var confirmed = false
   @State private var sending = false
   @State private var submitError: String?
@@ -1304,13 +1307,28 @@ struct ProposalSheet: View {
               }
             } else if flowStep == 1 {
               choiceStep("¿A QUÉ HORA?", shop.openingHours == nil ? "Elige una hora para proponérsela" : "Dentro del horario del café") {
-                DatePicker("Hora", selection: $date, displayedComponents: .hourAndMinute)
-                  .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
-              }
-            } else if flowStep == 2 {
-              choiceStep("¿QUIÉN INVITA? ☕", "Sin compromisos raros") {
-                ForEach(PaymentPreference.allCases) { value in
-                  choice(value.title, selected: payment == value) { payment = value }
+                if let slots = shop.availableTimes(on: date) {
+                  if slots.isEmpty {
+                    NookEmptyState(icon: "clock.badge.xmark", title: "Cerrado este día", text: "Elige otro día para ver sus franjas disponibles.")
+                  } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 76), spacing: 10)], spacing: 10) {
+                      ForEach(slots, id: \.self) { slot in
+                        Button {
+                          selectedSlot = slot
+                          date = slot
+                        } label: {
+                          Text(slot.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .frame(maxWidth: .infinity).frame(height: 42)
+                            .foregroundStyle(selectedSlot == slot ? NookColors.inverseText : NookColors.espresso)
+                            .background(selectedSlot == slot ? NookColors.mocha : NookColors.offWhite, in: Capsule())
+                        }.buttonStyle(.plain)
+                      }
+                    }
+                  }
+                } else {
+                  DatePicker("Hora", selection: $date, in: Date().addingTimeInterval(15 * 60)..., displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
                 }
               }
             } else {
@@ -1324,7 +1342,6 @@ struct ProposalSheet: View {
                     Label(selectedPersonName, systemImage: "person.crop.circle")
                     Label(shop.name, systemImage: "mappin.and.ellipse")
                     Label(date.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
-                    Label(payment.title, systemImage: "cup.and.saucer.fill")
                   }.font(.headline).frame(maxWidth: .infinity, alignment: .leading)
                 }
               }
@@ -1352,7 +1369,7 @@ struct ProposalSheet: View {
                   } catch { sending = false; submitError = error.localizedDescription }
                 }
               }
-            }.disabled(needsPersonChoice && step == 0 && selectedMatch == nil)
+            }.disabled(!canContinue)
           }.padding(24)
           }.navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1372,8 +1389,13 @@ struct ProposalSheet: View {
   }
   private var needsPersonChoice: Bool { app.selectedCoffeeMatch == nil }
   private var flowStep: Int { step - (needsPersonChoice ? 1 : 0) }
-  private var totalSteps: Int { needsPersonChoice ? 5 : 4 }
+  private var totalSteps: Int { needsPersonChoice ? 4 : 3 }
   private var isReview: Bool { step == totalSteps - 1 }
+  private var canContinue: Bool {
+    if needsPersonChoice && step == 0 { return selectedMatch != nil }
+    if flowStep == 1, shop.availableTimes(on: date) != nil { return selectedSlot != nil }
+    return date.timeIntervalSinceNow > 15 * 60
+  }
   private var proposalSent: some View {
     GeometryReader { proxy in
     ScrollView {

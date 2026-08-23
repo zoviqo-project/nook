@@ -51,4 +51,23 @@ final class NookTests: XCTestCase {
       GeoPoint(latitude: 41.3874, longitude: 2.1686))
     XCTAssertEqual(meters, 13_300, accuracy: 600)
   }
+
+  func testSpanishCafeHoursProduceOnlyOpenSlots() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Madrid"))
+    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 24, hour: 12)))
+    let slots = try XCTUnwrap(CoffeeOpeningSchedule.slots(
+      from: "lunes: 08:00–20:00 · martes: Cerrado", on: day, calendar: calendar))
+    XCTAssertEqual(slots.count, 24)
+    XCTAssertEqual(calendar.component(.hour, from: try XCTUnwrap(slots.first)), 8)
+    XCTAssertEqual(calendar.component(.minute, from: try XCTUnwrap(slots.last)), 30)
+  }
+
+  func testClosedCafeDayHasNoSlots() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Madrid"))
+    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 25, hour: 12)))
+    XCTAssertEqual(CoffeeOpeningSchedule.slots(
+      from: "Monday: 8:00 AM–8:00 PM · Tuesday: Closed", on: day, calendar: calendar), [])
+  }
 }

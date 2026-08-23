@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UserNotifications
 
 @MainActor final class DiscoverVM: ObservableObject {
   @Published var people: [DiscoverProfile] = []
@@ -1218,7 +1219,9 @@ struct SettingsView: View {
           do {
             let remote = try await app.repository.settings()
             sounds = remote.coffeeSoundsEnabled
-            pushEnabled = remote.pushEnabled
+            let authorization = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            let systemAllowsPush = authorization == .authorized || authorization == .provisional || authorization == .ephemeral
+            pushEnabled = remote.pushEnabled && systemAllowsPush
             lastSavedSounds = sounds
             lastSavedPush = pushEnabled
             NookSoundManager.shared.enabled = sounds
@@ -1264,6 +1267,11 @@ struct SettingsView: View {
           Task {
             defer { savingSettings = false }
             do {
+              if value, !(await app.requestPushAuthorization()) {
+                loaded = false; pushEnabled = false; loaded = true
+                errorMessage = "Activa las notificaciones de Nook desde Ajustes del iPhone para recibir confirmaciones."
+                return
+              }
               _ = try await app.repository.updateSettings(.init(pushEnabled: value))
               lastSavedPush = value
               errorMessage = nil

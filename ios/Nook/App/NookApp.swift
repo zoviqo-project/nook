@@ -48,15 +48,6 @@ extension Notification.Name { static let nookDeviceToken=Notification.Name("Nook
       }.onReceive(NotificationCenter.default.publisher(for:.nookDeviceToken)) { notification in
         guard let token=notification.object as? String else{return}
         app.captureDeviceToken(token)
-      }.onChange(of: app.stage) { _,stage in
-        guard stage == .app else{return}
-        Task {
-          let granted=(try? await UNUserNotificationCenter.current().requestAuthorization(options:[.alert,.badge,.sound])) == true
-          if granted {
-            await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
-            await app.registerCapturedDeviceIfNeeded()
-          }
-        }
       }
     }
   }
@@ -182,6 +173,26 @@ struct DiscoverSnapshot {
   func registerCapturedDeviceIfNeeded() async {
     guard let deviceToken,stage == .app else { return }
     try? await repository.registerDeviceToken(deviceToken)
+  }
+  func requestPushAuthorization() async -> Bool {
+    let center = UNUserNotificationCenter.current()
+    let settings = await center.notificationSettings()
+    let granted: Bool
+    switch settings.authorizationStatus {
+    case .authorized, .provisional, .ephemeral:
+      granted = true
+    case .notDetermined:
+      granted = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) == true
+    case .denied:
+      granted = false
+    @unknown default:
+      granted = false
+    }
+    if granted {
+      UIApplication.shared.registerForRemoteNotifications()
+      await registerCapturedDeviceIfNeeded()
+    }
+    return granted
   }
   func coffeeProposalPersisted(_ date: CoffeeDate? = nil) {
     if let date {

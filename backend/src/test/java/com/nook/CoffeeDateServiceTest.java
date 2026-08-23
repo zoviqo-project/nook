@@ -115,8 +115,6 @@ class CoffeeDateServiceTest {
     when(repository.matchMember(matchId,user)).thenReturn(true);
     when(repository.find(Match.class,matchId)).thenReturn(match);
     when(repository.find(CoffeeShop.class,shopId)).thenReturn(shop);
-    doAnswer(invocation->{CoffeeDateProposal value=invocation.getArgument(0);value.id=UUID.randomUUID();return value;})
-        .when(repository).save(any(CoffeeDateProposal.class));
     var request=new CreateDate(matchId,shopId,Instant.now().plusSeconds(3600),PaymentPreference.SPLIT,
         false,UUID.randomUUID(),"Not/A_Time_Zone");
 

@@ -10,7 +10,7 @@ import com.nook.exception.ApiException;
 import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
 import jakarta.transaction.Transactional;
-import java.time.Instant;
+import java.time.*;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -52,6 +52,13 @@ public class CoffeeDateService {
     if (shop == null) {
       throw new ApiException(HttpStatus.NOT_FOUND, "SHOP_NOT_FOUND", "Cafetería no encontrada");
     }
+    String timeZoneId = request.timeZoneId() == null || request.timeZoneId().isBlank() ? "UTC" : request.timeZoneId();
+    ZoneId timeZone;
+    try { timeZone = ZoneId.of(timeZoneId); }
+    catch (DateTimeException error) { throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TIME_ZONE", "Zona horaria no válida"); }
+    if (ShopHours.isOpenAt(shop.openingHours, request.proposedAt(), timeZone).orElse(true) == false) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "SHOP_CLOSED", "La cafetería está cerrada a esa hora");
+    }
     CoffeeDateProposal proposal = new CoffeeDateProposal();
     proposal.senderId = me;
     proposal.receiverId = match.userOneId.equals(me) ? match.userTwoId : match.userOneId;
@@ -64,9 +71,6 @@ public class CoffeeDateService {
     proposal.nookChoice = request.nookChoice();
     repo.save(proposal);
     repo.flush();
-    String timeZoneId = request.timeZoneId() == null || request.timeZoneId().isBlank() ? "UTC" : request.timeZoneId();
-    try { java.time.ZoneId.of(timeZoneId); }
-    catch (java.time.DateTimeException error) { throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TIME_ZONE", "Zona horaria no válida"); }
     repo.setDateTimeZone(proposal.id, timeZoneId);
     audit.record(me, "PROPOSAL_CREATED", "COFFEE_PROPOSAL", proposal.id);
     notify(proposal.receiverId, proposal, repo.profile(me).name + " te propone un café ☕");

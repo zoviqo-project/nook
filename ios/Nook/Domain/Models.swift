@@ -187,6 +187,73 @@ struct CoffeeShop: Codable, Identifiable, Hashable {
     default: "Vibe todavía sin valorar"
     }
   }
+
+  /// Nil means the provider did not return a schedule we can safely interpret.
+  /// An empty array means the café is known to be closed on that date.
+  func availableTimes(on date: Date, calendar: Calendar = .autoupdatingCurrent) -> [Date]? {
+    guard let openingHours, !openingHours.isEmpty else { return nil }
+    return CoffeeOpeningSchedule.slots(from: openingHours, on: date, calendar: calendar)
+  }
+}
+
+enum CoffeeOpeningSchedule {
+  private static let days: [String: Int] = [
+    "sunday": 1, "domingo": 1, "monday": 2, "lunes": 2, "tuesday": 3, "martes": 3,
+    "wednesday": 4, "miércoles": 4, "miercoles": 4, "thursday": 5, "jueves": 5,
+    "friday": 6, "viernes": 6, "saturday": 7, "sábado": 7, "sabado": 7
+  ]
+
+  static func slots(from descriptions: String, on date: Date, calendar: Calendar) -> [Date]? {
+    let weekday = calendar.component(.weekday, from: date)
+    guard let entry = descriptions.components(separatedBy: " · ").first(where: { raw in
+      guard let separator = raw.firstIndex(of: ":") else { return false }
+      return days[normalized(String(raw[..<separator]))] == weekday
+    }), let separator = entry.firstIndex(of: ":") else { return nil }
+    let hours = String(entry[entry.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+    let lower = normalized(hours)
+    if lower.contains("closed") || lower.contains("cerrado") { return [] }
+    if lower.contains("open 24 hours") || lower.contains("abierto 24 horas") {
+      return stride(from: 0, through: 23 * 60 + 30, by: 30).compactMap { time($0, on: date, calendar: calendar) }
+    }
+    var result: [Date] = []
+    var parsed = false
+    for range in hours.components(separatedBy: ",") {
+      let ends = range.components(separatedBy: CharacterSet(charactersIn: "–—-")).map {
+        $0.trimmingCharacters(in: .whitespaces)
+      }
+      guard ends.count == 2, let start = minutes(ends[0]), let end = minutes(ends[1]) else { continue }
+      parsed = true
+      if end > start {
+        result += stride(from: start, through: max(start, end - 30), by: 30)
+          .compactMap { time($0, on: date, calendar: calendar) }
+      }
+    }
+    return parsed ? result.filter { $0.timeIntervalSinceNow > 15 * 60 } : nil
+  }
+
+  private static func minutes(_ raw: String) -> Int? {
+    let clean = raw.uppercased().replacingOccurrences(of: "A. M.", with: "AM")
+      .replacingOccurrences(of: "P. M.", with: "PM")
+      .replacingOccurrences(of: "\u{202F}", with: " ")
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    for format in ["H:mm", "h:mm a"] {
+      formatter.dateFormat = format
+      if let value = formatter.date(from: clean) {
+        let components = Calendar(identifier: .gregorian).dateComponents([.hour, .minute], from: value)
+        return (components.hour ?? 0) * 60 + (components.minute ?? 0)
+      }
+    }
+    return nil
+  }
+
+  private static func time(_ minutes: Int, on date: Date, calendar: Calendar) -> Date? {
+    calendar.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: date)
+  }
+
+  private static func normalized(_ value: String) -> String {
+    value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+  }
 }
 
 struct GeoPoint: Codable, Equatable, Sendable {
