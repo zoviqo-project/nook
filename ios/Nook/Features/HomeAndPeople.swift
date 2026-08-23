@@ -8,6 +8,7 @@ import UserNotifications
   @Published var loading = true
   @Published var error: String?
   @Published private(set) var actingOn: UUID?
+  @Published private(set) var pendingMatchedPersonID: UUID?
   func seed(_ snapshot: DiscoverSnapshot) {
     guard people.isEmpty else { return }
     people = snapshot.people
@@ -40,23 +41,32 @@ import UserNotifications
     }
   }
   func coffee(_ person: DiscoverProfile, repo: any NookRepository) async {
-    guard actingOn == nil, let index = people.firstIndex(where: { $0.id == person.id }) else { return }
+    guard actingOn == nil, people.contains(where: { $0.id == person.id }) else { return }
     actingOn = person.id
     defer { actingOn = nil }
     Haptics.coffee()
     NookSoundManager.shared.play(.coffeeLike)
-    people.remove(at: index)
     do {
       let result = try await repo.like(person.id)
       withAnimation(NookMotion.playful) {
         match = result.match
       }
-      if result.matched { Haptics.success() }
+      if result.matched {
+        pendingMatchedPersonID = person.id
+        Haptics.success()
+      } else {
+        people.removeAll { $0.id == person.id }
+      }
       if people.isEmpty { await load(repo) }
     } catch {
-      people.insert(person, at: min(index, people.count))
       self.error = error.localizedDescription
     }
+  }
+  func finishMatch(repo: any NookRepository) async {
+    guard let pendingMatchedPersonID else { return }
+    people.removeAll { $0.id == pendingMatchedPersonID }
+    self.pendingMatchedPersonID = nil
+    if people.isEmpty { await load(repo) }
   }
 }
 
@@ -112,7 +122,9 @@ struct DiscoverView: View {
         app.cacheDiscover(vm.people)
         NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       }
-    }.sheet(item: $vm.match) { MatchCelebration(match: $0) }
+    }.sheet(item: $vm.match, onDismiss: {
+      Task { await vm.finishMatch(repo: app.repository) }
+    }) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
       .onChange(of: vm.people) { _, people in
@@ -354,6 +366,7 @@ struct MatchCelebration: View {
   @State private var meet = false
   @State private var cups = false
   @State private var coffeeBurst = false
+  @State private var matchRing = false
   var body: some View {
     ZStack {
       NookBackground()
@@ -365,7 +378,15 @@ struct MatchCelebration: View {
             avatar(name: "Tú", photo: app.me?.photos.first?.url, fromLeft: true)
             avatar(name: match.person.name, photo: match.person.photos.first?.url, fromLeft: false)
           }.animation(NookMotion.playful.delay(0.15), value: meet)
-          NookCoffeeLogo(size: 62, animated: false)
+          ZStack {
+            Circle().stroke(.white.opacity(0.18), lineWidth: 3).frame(width: 74, height: 74)
+            Circle()
+              .trim(from: 0, to: matchRing ? 0.96 : 0.08)
+              .stroke(NookColors.mocha, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+              .frame(width: 74, height: 74)
+              .rotationEffect(.degrees(-90))
+            NookCoffeeLogo(size: 64, animated: false).clipShape(Circle())
+          }
             .scaleEffect(cups ? 1 : 0.22)
             .rotationEffect(.degrees(cups ? 0 : -28))
             .opacity(cups ? 1 : 0)
@@ -396,6 +417,9 @@ struct MatchCelebration: View {
       withAnimation(NookMotion.playful) { meet = true }
       withAnimation(NookMotion.playful.delay(0.38)) { cups = true }
       withAnimation(.easeOut(duration: 1.15).delay(0.4)) { coffeeBurst = true }
+      withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
+        matchRing = true
+      }
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.72) { Haptics.success() }
       NookSoundManager.shared.play(.match)
     }
