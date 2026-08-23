@@ -65,6 +65,7 @@ struct DiscoverView: View {
   var body: some View {
     NookScreenContainer(
       eyebrow: "NOOK", title: "¿Un café con…?", solidBackground: NookColors.cream,
+      brandedHeader: true,
       actionIcon: "slider.horizontal.3",
       actionLabel: "Filtros", action: { showFilters = true }
     ) {
@@ -219,30 +220,13 @@ struct NookProfileCard: View {
             .system(size: 34, weight: .black, design: .rounded))
           Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill").font(
             .subheadline.bold())
-          HStack(spacing: 8) {
-            Text(person.coffeePersonality ?? "Coffee person ☕")
-            if let vibe = person.preferredVibe { Text(vibeTitle(vibe)) }
-          }.font(.subheadline.bold())
-          if let count = person.coffeesPerDay {
-            Text(count == 0 ? "0 cafés/día" : "\(String(repeating: "☕", count: count)) \(count == 4 ? "4+" : "\(count)") cafés/día").font(.subheadline.weight(.semibold))
-          }
-          if commonCount > 0 { Text("Tenéis \(commonCount) \(commonCount == 1 ? "cosa" : "cosas") en común").font(.caption.bold()).padding(.horizontal, 12).padding(.vertical, 7).background(.ultraThinMaterial, in: Capsule()) }
+          Text(person.coffeePersonality ?? "Un café y buena conversación")
+            .font(.subheadline.bold())
           Text(person.bio).font(.system(size: 16, weight: .medium, design: .rounded)).lineLimit(2)
             .lineSpacing(3)
         }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 116)
       }.clipShape(RoundedRectangle(cornerRadius: NookRadius.hero, style: .continuous))
-        .nookFloatingShadow()
     }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 330 : 460))
-  }
-  private var commonCount: Int {
-    guard let viewer else { return 0 }
-    var value = Set(viewer.coffeePreferences).intersection(person.coffeePreferences).isEmpty ? 0 : 1
-    if viewer.preferredVibe == person.preferredVibe { value += 1 }
-    if viewer.favoriteCoffeeMoment == person.favoriteCoffeeMoment { value += 1 }
-    return value
-  }
-  private func vibeTitle(_ value: String) -> String {
-    switch value { case "CALM": "😌 Sitios tranquilos"; case "LIVELY": "🎵 Sitios animados"; default: "🙂 Con ambiente" }
   }
 }
 

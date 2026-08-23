@@ -150,21 +150,31 @@ struct NookButton: View {
 struct NookHeader: View {
   let eyebrow: String
   let title: String
+  var branded = false
   var actionIcon: String? = nil
   var actionLabel: String = "Acción"
   var action: (() -> Void)? = nil
 
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
-      VStack(alignment: .leading, spacing: 3) {
-        HStack(spacing: 6) {
-          Circle().fill(NookColors.mocha).frame(width: 5, height: 5)
-          Text(eyebrow.uppercased())
-            .font(.system(size: 10, weight: .bold, design: .rounded))
-            .tracking(1.7).foregroundStyle(NookColors.mocha)
+      if branded {
+        HStack(spacing: 10) {
+          NookCoffeeLogo(size: 34)
+          Text("NOOK").font(.system(size: 13, weight: .bold, design: .rounded)).tracking(2)
+          Text(title).font(NookTypography.display(26)).lineLimit(1).minimumScaleFactor(0.8)
         }
-        Text(title).font(NookTypography.display(30))
-          .tracking(-0.65).lineLimit(1).minimumScaleFactor(0.76)
+        .foregroundStyle(NookColors.espresso)
+      } else {
+        VStack(alignment: .leading, spacing: 3) {
+          HStack(spacing: 6) {
+            Circle().fill(NookColors.mocha).frame(width: 5, height: 5)
+            Text(eyebrow.uppercased())
+              .font(.system(size: 10, weight: .bold, design: .rounded))
+              .tracking(1.7).foregroundStyle(NookColors.mocha)
+          }
+          Text(title).font(NookTypography.display(30))
+            .tracking(-0.65).lineLimit(1).minimumScaleFactor(0.76)
+        }
       }
       Spacer(minLength: 10)
       if let actionIcon, let action {
@@ -184,6 +194,7 @@ struct NookScreenContainer<Content: View>: View {
   let eyebrow: String
   let title: String
   var solidBackground: Color? = nil
+  var brandedHeader = false
   var actionIcon: String? = nil
   var actionLabel = "Acción"
   var action: (() -> Void)? = nil
@@ -198,7 +209,7 @@ struct NookScreenContainer<Content: View>: View {
       }
       VStack(spacing: 0) {
         NookHeader(
-          eyebrow: eyebrow, title: title, actionIcon: actionIcon,
+          eyebrow: eyebrow, title: title, branded: brandedHeader, actionIcon: actionIcon,
           actionLabel: actionLabel, action: action)
           .zIndex(1)
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
