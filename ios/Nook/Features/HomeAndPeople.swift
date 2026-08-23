@@ -62,6 +62,9 @@ struct DiscoverView: View {
   @State private var entrance = false
   @State private var showFilters = false
   @State private var selectedProfile: DiscoverProfile?
+  @AppStorage("didSeeDiscoverySwipeHint") private var didSeeSwipeHint = false
+  @State private var showSwipeHint = false
+  @State private var swipeHintPulse = false
   var body: some View {
     NookScreenContainer(
       eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.warmBlack,
@@ -87,6 +90,12 @@ struct DiscoverView: View {
       app.cacheDiscover(vm.people)
       NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       entrance = true
+      if !didSeeSwipeHint {
+        showSwipeHint = true
+        withAnimation(.easeInOut(duration: 0.78).repeatForever(autoreverses: true)) {
+          swipeHintPulse = true
+        }
+      }
     }.onChange(of: app.discoveryRevision) { _, _ in
       Task {
         await vm.load(app.repository, showLoader: false)
@@ -110,8 +119,11 @@ struct DiscoverView: View {
         }
         NookProfileCard(person: person, viewer: app.me, height: proxy.size.height - 10)
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
-          .overlay { swipeStamp }.gesture(
-          DragGesture().onChanged { drag = $0.translation }.onEnded { value in
+          .overlay { swipeHint }.gesture(
+          DragGesture().onChanged {
+            dismissSwipeHint()
+            drag = $0.translation
+          }.onEnded { value in
             if value.translation.width < -110 {
               withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 30) }
               DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
@@ -137,22 +149,36 @@ struct DiscoverView: View {
       }
     }.padding(.horizontal, 10)
   }
-  @ViewBuilder private var swipeStamp: some View {
-    if abs(drag.width) > 35 {
-      VStack {
-        HStack {
-          if drag.width > 0 {
-            Text("☕ CAFÉ").foregroundStyle(.white).background(NookColors.mocha, in: Capsule())
-            Spacer()
-          } else {
-            Spacer()
-            Text("PASAR").foregroundStyle(NookColors.espresso).background(
-              NookColors.offWhite, in: Capsule())
-          }
-        }.font(.title3.bold()).padding(26)
+  @ViewBuilder private var swipeHint: some View {
+    if showSwipeHint {
+      HStack {
+        hintChevrons(direction: "left")
         Spacer()
-      }.transition(.opacity)
+        hintChevrons(direction: "right")
+      }
+      .padding(.horizontal, 18)
+      .opacity(swipeHintPulse ? 1 : 0.35)
+      .transition(.opacity)
+      .allowsHitTesting(false)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Desliza la tarjeta a izquierda o derecha")
     }
+  }
+  private func hintChevrons(direction: String) -> some View {
+    HStack(spacing: -2) {
+      ForEach(0..<2, id: \.self) { _ in
+        Image(systemName: "chevron.\(direction)")
+      }
+    }
+    .font(.system(size: 22, weight: .semibold))
+    .foregroundStyle(.white)
+    .padding(.horizontal, 12).frame(height: 44)
+    .background(.black.opacity(0.28), in: Capsule())
+  }
+  private func dismissSwipeHint() {
+    guard showSwipeHint else { return }
+    didSeeSwipeHint = true
+    withAnimation(NookMotion.fast) { showSwipeHint = false }
   }
   private func actions(_ person: DiscoverProfile) -> some View {
     HStack(spacing: 30) {
