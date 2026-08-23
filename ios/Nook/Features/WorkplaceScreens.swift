@@ -309,6 +309,9 @@ struct ChatDetail: View {
         withAnimation(NookMotion.spring) { messages = refreshedMessages }
       }
       dates = refreshedDates
+      NookImagePrefetch.schedule(
+        refreshedDates.filter { $0.matchId == conversation.matchId }
+          .compactMap { $0.coffeeShop.photoUrl })
       initialLoading = false
       if !silent { error = nil }
     } catch {
@@ -397,29 +400,60 @@ struct NookCoffeeProposalBubble: View {
   let accept: () -> Void
   let change: () -> Void
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
-        .font(NookTypography.business(11, weight: .bold)).tracking(1)
-      Text(date.coffeeShop.name).font(NookTypography.display(23)).lineLimit(2)
-      Text(formatted).font(NookTypography.business(15, weight: .bold))
-      Text(date.coffeeShop.vibeLabel).font(NookTypography.business(14, weight: .semibold))
-      Text(date.paymentPreference.title).font(NookTypography.business(13)).foregroundStyle(NookColors.warmGray)
-      if date.status == .pending {
-        HStack {
-          if canAccept {
-            Button(updating ? "Aceptando…" : "Aceptar", action: accept)
-              .buttonStyle(.borderedProminent).tint(NookColors.espresso).disabled(updating)
-          }
-          else { Text("Esperando respuesta").font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
-          Button("Cambiar", action: change).buttonStyle(.bordered).tint(NookColors.espresso)
-            .disabled(updating)
+    ZStack(alignment: .bottomLeading) {
+      ShopImage(url: date.coffeeShop.photoUrl, seed: date.coffeeShop.name)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      LinearGradient(
+        colors: [.clear, NookColors.warmBlack.opacity(0.34), NookColors.warmBlack.opacity(0.96)],
+        startPoint: .top, endPoint: .bottom)
+      VStack(alignment: .leading, spacing: 8) {
+        Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
+          .font(NookTypography.business(10, weight: .bold)).tracking(1)
+          .foregroundStyle(NookColors.mocha)
+        Spacer(minLength: 18)
+        Text(date.coffeeShop.name).font(NookTypography.display(25)).lineLimit(2)
+        Text(formatted).font(NookTypography.business(15, weight: .bold))
+        HStack(spacing: 7) {
+          Text(date.coffeeShop.vibeLabel)
+          Circle().fill(.white.opacity(0.5)).frame(width: 3, height: 3)
+          Text(date.paymentPreference.title)
         }
-      } else { Text(date.status == .accepted ? "ACEPTADO" : date.status.rawValue).font(.caption.bold()).foregroundStyle(NookColors.warmGray) }
-    }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
-      .foregroundStyle(NookColors.espresso)
-      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-      .overlay(RoundedRectangle(cornerRadius: 20).stroke(NookColors.oat.opacity(0.32)))
-      .padding(.vertical, 4)
+        .font(NookTypography.business(12)).foregroundStyle(.white.opacity(0.78)).lineLimit(1)
+        actionRow
+      }.padding(16)
+    }
+    .frame(maxWidth: .infinity).frame(height: 246)
+    .foregroundStyle(.white)
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NookColors.oat.opacity(0.25)))
+    .padding(.vertical, 4)
+  }
+  @ViewBuilder private var actionRow: some View {
+    if date.status == .pending {
+      HStack(spacing: 8) {
+        if canAccept {
+          proposalButton(updating ? "Aceptando…" : "Aceptar", primary: true, action: accept)
+        } else {
+          Text("Esperando respuesta").font(NookTypography.business(12, weight: .bold))
+            .foregroundStyle(.white.opacity(0.78)).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        proposalButton("Cambiar", primary: false, action: change)
+      }
+    } else {
+      Text(date.status == .accepted ? "ACEPTADO" : date.status.rawValue)
+        .font(NookTypography.business(11, weight: .bold)).tracking(0.8)
+        .foregroundStyle(NookColors.mocha)
+    }
+  }
+  private func proposalButton(
+    _ title: String, primary: Bool, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Text(title).font(NookTypography.business(12, weight: .bold))
+        .frame(maxWidth: .infinity).frame(height: 38)
+        .foregroundStyle(primary ? NookColors.inverseText : .white)
+        .background(primary ? NookColors.espresso : .white.opacity(0.14), in: Capsule())
+    }.buttonStyle(.plain).disabled(updating)
   }
   private var formatted: String { date.formattedProposedAt() }
 }
