@@ -496,65 +496,62 @@ private struct MyCafeUnifiedCard: View {
   let action: (UUID, CoffeeDateStatus) -> Void
   @State private var showingDetail = false
   var body: some View {
-    MyCafesCardFrame {
-      ZStack(alignment: .bottomLeading) {
-        cardImage
-        LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.42), NookColors.warmBlack], startPoint: .top, endPoint: .bottom)
-        VStack(alignment: .leading, spacing: 0) {
-          HStack(spacing: 8) {
-            statusBadge
-            Spacer(minLength: 4)
-            if item.availableActions.contains("CHAT") { chatButton }
-            if item.proposal != nil {
-              Button { showingDetail = true } label: {
-                Image(systemName: "ellipsis").frame(width: 30, height: 30).background(.black.opacity(0.28), in: Circle())
-              }.buttonStyle(.plain).accessibilityLabel("Ver detalle")
-            }
-          }
-          Spacer(minLength: 8)
-          HStack(spacing: 10) {
-            ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
-              .frame(width: 44, height: 44).clipShape(Circle()).overlay(Circle().stroke(NookColors.mocha, lineWidth: 2))
-            Text("\(item.person.name), \(item.person.age)").font(NookTypography.display(28))
-              .lineLimit(1).truncationMode(.tail).minimumScaleFactor(0.7)
-          }.frame(maxWidth: .infinity, alignment: .leading).padding(.bottom, 7)
-          context
-          actionRow.padding(.top, 10)
-        }.padding(14).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-      }.foregroundStyle(.white)
-        .contentShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-        .onTapGesture { primaryTap() }
-        .overlay { if isUpdating { ProgressView().tint(.white).padding(12).background(.black.opacity(0.48), in: Circle()) } }
-        .sheet(isPresented: $showingDetail) {
-          if let proposal = item.proposal {
-            CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
-          }
+    VStack(alignment: .leading, spacing: 14) {
+      HStack(spacing: 10) {
+        ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
+          .frame(width: 58, height: 58).clipShape(Circle())
+          .overlay(Circle().stroke(NookColors.mocha.opacity(0.65), lineWidth: 1.5))
+        VStack(alignment: .leading, spacing: 4) {
+          Text(item.person.name).font(NookTypography.display(27)).foregroundStyle(NookColors.espresso)
+            .lineLimit(1).minimumScaleFactor(0.75)
+          Text("\(item.person.age) años · \(item.person.bio)")
+            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .foregroundStyle(NookColors.warmGray).lineLimit(1)
         }
-    }.dynamicTypeSize(.xSmall ... .xLarge)
-  }
-  @ViewBuilder private var cardImage: some View {
-    if let proposal = item.proposal {
-      ShopImage(url: proposal.coffeeShop.photoUrl, seed: proposal.coffeeShop.name).frame(maxWidth: .infinity, maxHeight: .infinity)
-    } else {
-      ProfileImage(url: item.person.photos.first?.url, name: item.person.name).frame(maxWidth: .infinity, maxHeight: .infinity)
+        Spacer(minLength: 6)
+        if item.availableActions.contains("CHAT") { chatButton }
+        if item.proposal != nil {
+          Button { showingDetail = true } label: {
+            Image(systemName: "ellipsis").frame(width: 34, height: 34)
+              .background(NookColors.cream.opacity(0.7), in: Circle())
+          }
+          .buttonStyle(.plain).foregroundStyle(NookColors.espresso).accessibilityLabel("Ver detalle")
+        }
+      }
+      HStack { statusBadge; Spacer(minLength: 8) }
+      context
+      actionRow
     }
+    .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
+    .background(NookColors.offWhite.opacity(0.94), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(NookColors.oat.opacity(0.18)))
+    .shadow(color: NookColors.warmBlack.opacity(0.12), radius: 12, y: 6)
+    .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .onTapGesture { primaryTap() }
+    .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
+    .sheet(isPresented: $showingDetail) {
+      if let proposal = item.proposal {
+        CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
+      }
+    }.dynamicTypeSize(.xSmall ... .xLarge)
   }
   private var statusBadge: some View {
     Label(statusText, systemImage: statusIcon).font(.system(size: 10, weight: .bold, design: .rounded))
       .lineLimit(1).minimumScaleFactor(0.64).allowsTightening(true).padding(.horizontal, 10).frame(height: 28)
       .background(statusColor, in: Capsule()).foregroundStyle(statusForeground)
-      .frame(maxWidth: .infinity, alignment: .leading)
   }
   @ViewBuilder private var context: some View {
     if let proposal = item.proposal {
       VStack(alignment: .leading, spacing: 5) {
         Label(proposal.coffeeShop.name, systemImage: "mappin.and.ellipse").font(.system(size: 15, weight: .bold, design: .rounded))
         Label(proposal.formattedProposedAt(dateStyle: .medium), systemImage: "calendar")
-          .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+          .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(NookColors.warmGray)
       }.lineLimit(1).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundStyle(NookColors.espresso)
     } else {
-      Text("Aún no habéis propuesto un café").font(.system(size: 13, weight: .semibold, design: .rounded))
-        .foregroundStyle(.white.opacity(0.84)).lineLimit(1).truncationMode(.tail)
+      Label("Elegid un lugar para vuestro primer café", systemImage: "mappin.and.ellipse")
+        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .foregroundStyle(NookColors.warmGray).lineLimit(1)
     }
   }
   @ViewBuilder private var actionRow: some View {
@@ -568,7 +565,7 @@ private struct MyCafeUnifiedCard: View {
     } else if item.proposal?.status == .accepted {
       actionButton("Ver cita confirmada", icon: "checkmark.circle.fill", primary: true) { showingDetail = true }
     } else {
-      Text(statusDetail).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+      Text(statusDetail).font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(NookColors.warmGray)
         .lineLimit(1).truncationMode(.tail).frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
     }
   }
@@ -576,14 +573,15 @@ private struct MyCafeUnifiedCard: View {
     Button(action: perform) {
       Label(title, systemImage: icon).font(.system(size: 12, weight: .bold, design: .rounded)).lineLimit(1)
         .minimumScaleFactor(0.72).frame(maxWidth: .infinity).frame(height: 38)
-        .foregroundStyle(primary ? NookColors.inverseText : .white)
-        .background(primary ? NookColors.espresso : .white.opacity(0.16), in: Capsule())
+        .foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
+        .background(primary ? NookColors.espresso : NookColors.cream.opacity(0.7), in: Capsule())
     }.buttonStyle(.plain).disabled(isUpdating)
   }
   private var chatButton: some View {
     NavigationLink { ChatDetail(conversation: conversation) } label: {
-      Image(systemName: "bubble.left.fill").font(.caption).frame(width: 30, height: 30).background(.black.opacity(0.28), in: Circle())
-    }.buttonStyle(.plain).accessibilityLabel("Abrir chat")
+      Image(systemName: "bubble.left.fill").font(.caption).frame(width: 34, height: 34)
+        .background(NookColors.cream.opacity(0.7), in: Circle())
+    }.buttonStyle(.plain).foregroundStyle(NookColors.espresso).accessibilityLabel("Abrir chat")
   }
   private var conversation: Conversation {
     Conversation(id: item.conversationId, matchId: item.matchId, person: item.person, lastMessage: "", updatedAt: item.matchedAt)
@@ -610,8 +608,16 @@ private struct MyCafeUnifiedCard: View {
   private var statusIcon: String {
     switch item.proposal?.status { case .accepted: "checkmark"; case .pending, .counterProposed: "hourglass"; case .completed: "cup.and.saucer.fill"; case .cancelled, .declined, .expired: "xmark"; case nil: "heart.fill" }
   }
-  private var statusColor: Color { item.proposal?.status == .accepted ? NookColors.mocha : NookColors.offWhite.opacity(0.95) }
-  private var statusForeground: Color { item.proposal?.status == .accepted ? NookColors.inverseText : NookColors.espresso }
+  private var statusColor: Color {
+    switch item.proposal?.status {
+    case .accepted: NookColors.mocha
+    case .pending, .counterProposed: NookColors.amber.opacity(0.28)
+    case .completed: NookColors.success.opacity(0.32)
+    case .cancelled, .declined, .expired: NookColors.cream.opacity(0.72)
+    case nil: NookColors.mocha.opacity(0.22)
+    }
+  }
+  private var statusForeground: Color { NookColors.espresso }
 }
 
 struct CoffeeDatesList: View {

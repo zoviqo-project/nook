@@ -183,6 +183,11 @@ public class CoffeeDateService {
   @Scheduled(fixedDelayString="${nook.coffee-completion-interval-ms:3600000}")
   public void completeExpiredAcceptedDates() {
     Instant now=Instant.now();
+    repo.pendingDatesBefore(now).forEach(d->{
+      d.status=DateStatus.EXPIRED;d.updatedAt=now;
+      addCoffeeEvent(d,"COFFEE_EXPIRED","LA PROPUESTA HA CADUCADO");
+      audit.record(null,"PROPOSAL_EXPIRED","COFFEE_PROPOSAL",d.id);
+    });
     repo.acceptedDatesBefore(now.minusSeconds(86_400)).forEach(d->{
       d.status=DateStatus.COMPLETED;d.completedAt=d.updatedAt=now;
       addCoffeeEvent(d,"COFFEE_COMPLETED","CAFÉ COMPLETADO");

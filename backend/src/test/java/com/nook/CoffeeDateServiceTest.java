@@ -93,6 +93,21 @@ class CoffeeDateServiceTest {
     verify(repository).save(argThat(value->value instanceof Message message&&"COFFEE_COMPLETED".equals(message.messageType)));
   }
 
+  @Test void listingExpiresPendingProposalAfterItsScheduledTime(){
+    CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();
+    proposal.status=DateStatus.PENDING;proposal.proposedAt=Instant.now().minusSeconds(60);
+    proposal.matchId=UUID.randomUUID();
+    Conversation conversation=new Conversation();conversation.id=UUID.randomUUID();
+    when(repository.pendingDatesBefore(any())).thenReturn(List.of(proposal));
+    when(repository.conversationByMatch(proposal.matchId)).thenReturn(conversation);
+
+    service().completeExpiredAcceptedDates();
+
+    assertThat(proposal.status).isEqualTo(DateStatus.EXPIRED);
+    verify(repository).save(argThat(value->value instanceof Message message
+        && "COFFEE_EXPIRED".equals(message.messageType)));
+  }
+
   @Test void repeatedIdempotencyKeyReturnsExistingProposalWithoutSavingAnother(){
     UUID user=UUID.randomUUID(),key=UUID.randomUUID();
     CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();proposal.senderId=user;
