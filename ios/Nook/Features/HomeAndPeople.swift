@@ -64,7 +64,7 @@ struct DiscoverView: View {
   @State private var selectedProfile: DiscoverProfile?
   var body: some View {
     NookScreenContainer(
-      eyebrow: "NOOK", title: "¿Un café con…?",
+      eyebrow: "NOOK", title: "¿Un café con…?", solidBackground: NookColors.cream,
       actionIcon: "slider.horizontal.3",
       actionLabel: "Filtros", action: { showFilters = true }
     ) {
