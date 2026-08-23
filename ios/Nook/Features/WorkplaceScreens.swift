@@ -414,7 +414,10 @@ struct NookCoffeeProposalBubble: View {
     .overlay(alignment: .topLeading) {
       Label("PROPUESTA DE CAFÉ", systemImage: "cup.and.saucer.fill")
         .font(NookTypography.business(10, weight: .bold)).tracking(1)
-        .foregroundStyle(NookColors.mocha)
+        .foregroundStyle(NookColors.inverseText)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(NookColors.mocha, in: Capsule())
         .padding(16)
     }
     .overlay(alignment: .bottomLeading) {
