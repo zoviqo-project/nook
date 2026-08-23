@@ -80,6 +80,16 @@ import SwiftUI
       return nil
     }
   }
+  func deleteMatch(_ id: UUID, repo: any NookRepository) async {
+    guard updating.insert(id).inserted else { return }
+    defer { updating.remove(id) }
+    do {
+      try await repo.deleteMatch(id)
+      apply(items.filter { $0.matchId != id })
+    } catch {
+      state = .error("No hemos podido deshacer el match. Inténtalo de nuevo.")
+    }
+  }
 }
 
 struct ChatsView: View {
@@ -112,6 +122,11 @@ struct ChatsView: View {
                 app.upsertCachedCoffeeDate(updated)
                 app.coffeeProposalPersisted(updated)
               }
+            }
+          } removeMatch: { id in
+            Task {
+              await vm.deleteMatch(id, repo: app.repository)
+              app.cacheMyCafes(vm.items)
             }
           }
         }
@@ -562,6 +577,7 @@ struct MyCafesUnifiedList: View {
   let updating: Set<UUID>
   let filteredEmptyText: String?
   let action: (UUID, CoffeeDateStatus) -> Void
+  let removeMatch: (UUID) -> Void
   var body: some View {
     ScrollView {
       LazyVStack(spacing: 14) {
@@ -577,7 +593,9 @@ struct MyCafesUnifiedList: View {
           }
         } else {
           ForEach(items) { item in
-            MyCafeUnifiedCard(item: item, isUpdating: item.proposal.map { updating.contains($0.id) } ?? false, action: action)
+            MyCafeUnifiedCard(
+              item: item, isUpdating: updating.contains(item.proposal?.id ?? item.matchId),
+              action: action, removeMatch: removeMatch)
           }
         }
       }.containerRelativeFrame(.horizontal).padding(.vertical, 8)
@@ -590,8 +608,11 @@ private struct MyCafeUnifiedCard: View {
   let item: MyCafeItem
   let isUpdating: Bool
   let action: (UUID, CoffeeDateStatus) -> Void
+  let removeMatch: (UUID) -> Void
   @State private var showingDetail = false
   @State private var attention = false
+  @State private var matchActionsExpanded = false
+  @State private var confirmingUnmatch = false
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
       HStack(spacing: 10) {
@@ -653,6 +674,12 @@ private struct MyCafeUnifiedCard: View {
       }
     }
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
+    .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .onTapGesture {
+      guard item.proposal == nil else { return }
+      Haptics.selection()
+      withAnimation(NookMotion.spring) { matchActionsExpanded.toggle() }
+    }
     .sheet(isPresented: $showingDetail) {
       if let proposal = item.proposal {
         CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
@@ -663,6 +690,12 @@ private struct MyCafeUnifiedCard: View {
       withAnimation(.easeInOut(duration: item.proposal == nil ? 1.35 : 2.4).repeatForever()) {
         attention = true
       }
+    }
+    .alert("¿Deshacer este match?", isPresented: $confirmingUnmatch) {
+      Button("Conservar match", role: .cancel) {}
+      Button("Deshacer match", role: .destructive) { removeMatch(item.matchId) }
+    } message: {
+      Text("La conexión con \(item.person.name) desaparecerá de Mis cafés.")
     }
     .dynamicTypeSize(.xSmall ... .xLarge)
   }
@@ -693,7 +726,22 @@ private struct MyCafeUnifiedCard: View {
         actionButton("Rechazar", icon: "xmark", primary: false) { action(proposal.id, .declined) }
       }
     } else if item.availableActions.contains("PROPOSE") {
-      actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
+      if item.proposal == nil && matchActionsExpanded {
+        HStack(spacing: 8) {
+          actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
+          actionButton("Deshacer match", icon: "heart.slash", primary: false) {
+            confirmingUnmatch = true
+          }
+        }
+        .transition(.move(edge: .top).combined(with: .opacity))
+      } else if item.proposal == nil {
+        Label("Toca la tarjeta para ver opciones", systemImage: "chevron.down")
+          .font(NookTypography.business(12, weight: .semibold))
+          .foregroundStyle(NookColors.warmGray)
+          .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+      } else {
+        actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
+      }
     } else if item.proposal?.status == .accepted {
       actionButton("Ver cita confirmada", icon: "checkmark.circle.fill", primary: true) { showingDetail = true }
     } else {

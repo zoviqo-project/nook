@@ -402,6 +402,7 @@ protocol DiscoveryRepository: Sendable {
 }
 protocol MatchRepository: Sendable {
   func matches() async throws -> [Match]
+  func deleteMatch(_ id: UUID) async throws
   func meetingPoint(matchID: UUID) async throws -> GeoPoint
 }
 extension MatchRepository {

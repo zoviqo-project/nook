@@ -309,6 +309,11 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
     }
     func pass(_ id: UUID) async throws { people.removeAll { $0.id == id } }
     func matches() async throws -> [Match] { demoMatches }
+    func deleteMatch(_ id: UUID) async throws {
+      demoMatches.removeAll { $0.id == id }
+      demoConversations.removeAll { $0.matchId == id }
+      demoDates.removeAll { $0.matchId == id }
+    }
     private var liveShops: [CoffeeShop] = []
     func shops(latitude: Double, longitude: Double, radiusKm: Double) async throws -> [CoffeeShop] {
       let path = "cafes/nearby?latitude=\(latitude)&longitude=\(longitude)&radius=\(GeographicMath.meters(fromKilometers: radiusKm))"
