@@ -211,17 +211,21 @@ struct DiscoverView: View {
         }
       } label: {
         ZStack {
-          Circle().fill(NookColors.espresso).frame(width: 76, height: 76).shadow(
-            color: NookColors.espresso.opacity(0.3), radius: 20, y: 10)
-          if vm.actingOn == person.id && !liking {
-            ProgressView().tint(NookColors.offWhite)
-          } else {
-            Image(systemName: liking ? "cup.and.saucer.fill" : "cup.and.saucer").font(
-              .system(size: 31, weight: .bold)
-            ).foregroundStyle(NookColors.offWhite).rotationEffect(.degrees(liking ? -10 : 0))
+          NookCoffeeLogo(size: 72, animated: false)
+            .overlay {
+              RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.24), radius: 12, y: 7)
+          if vm.actingOn == person.id {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+              .fill(NookColors.espresso.opacity(0.78)).frame(width: 72, height: 72)
+            ProgressView().tint(NookColors.inverseText)
           }
-          SteamView(active: liking).offset(y: -47)
-        }.scaleEffect(liking ? 1.16 : 1).animation(NookMotion.playful, value: liking)
+        }
+        .scaleEffect(liking ? 1.08 : 1)
+        .rotationEffect(.degrees(liking ? -4 : 0))
+        .animation(NookMotion.playful, value: liking)
       }.buttonStyle(.plain).disabled(vm.actingOn != nil)
       CircleAction(icon: "info", size: 54) { selectedProfile = person }
     }.frame(maxWidth: .infinity)
