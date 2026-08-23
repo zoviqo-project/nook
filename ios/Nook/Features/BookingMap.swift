@@ -569,35 +569,10 @@ struct CoffeeShopsView: View {
 }
 
 private struct MidpointSearchState: View {
-  @State private var pulsing = false
   var body: some View {
-    VStack(spacing: 22) {
-      ZStack {
-        Circle()
-          .stroke(NookColors.mocha.opacity(pulsing ? 0.08 : 0.28), lineWidth: 1)
-          .frame(width: 116, height: 116)
-          .scaleEffect(pulsing ? 1.16 : 0.9)
-        Circle().fill(NookColors.offWhite).frame(width: 76, height: 76)
-          .shadow(color: .black.opacity(0.2), radius: 14, y: 7)
-        Image(systemName: "location.fill")
-          .font(.system(size: 30, weight: .semibold))
-          .foregroundStyle(NookColors.mocha)
-          .offset(y: -1)
-      }
-      VStack(spacing: 8) {
-        Text("Buscando\npunto medio")
-          .font(NookTypography.display(32)).foregroundStyle(NookColors.espresso)
-          .multilineTextAlignment(.center).lineSpacing(1)
-      }
-    }
-    .padding(.horizontal, 34)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(NookColors.warmBlack.ignoresSafeArea())
-    .onAppear {
-      withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) {
-        pulsing = true
-      }
-    }
+    SmartCoffeeSearch(
+      person: nil, ownName: nil, ownCity: nil, ownPhoto: nil, meetingArea: nil,
+      title: "Buscando\npunto medio", minimal: true)
     .accessibilityElement(children: .combine)
   }
 }
@@ -969,6 +944,7 @@ private struct SmartCoffeeSearch: View {
   let ownPhoto: String?
   let meetingArea: String?
   let title: String
+  var minimal = false
   @State private var active = false
   @State private var focus = 0
   private let photos = [
@@ -1013,31 +989,47 @@ private struct SmartCoffeeSearch: View {
         VStack(spacing: 0) {
           Spacer()
           VStack(spacing: 9) {
-            NookAILogo()
+            if minimal {
+              Image(systemName: "location.fill")
+                .font(.system(size: 25, weight: .bold))
+                .foregroundStyle(NookColors.inverseText)
+                .frame(width: 62, height: 62)
+                .background(NookColors.mocha, in: Circle())
+                .shadow(color: NookColors.mocha.opacity(0.38), radius: 22)
+            } else {
+              NookAILogo()
+            }
             Text(title)
-              .font(NookTypography.display(41)).tracking(-0.7).multilineTextAlignment(.center)
+              .font(NookTypography.display(minimal ? 36 : 41)).tracking(-0.7).multilineTextAlignment(.center)
               .foregroundStyle(.white)
-            Text(meetingArea ?? midpointLabel)
-              .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.72))
-            NookInlineLoading(
-              text: "Comparando cafeterías",
-              foreground: .white.opacity(0.7),
-              accent: NookColors.mocha
-            ).padding(.top, 5)
+            if !minimal {
+              Text(meetingArea ?? midpointLabel)
+                .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.72))
+              NookInlineLoading(
+                text: "Comparando cafeterías",
+                foreground: .white.opacity(0.7),
+                accent: NookColors.mocha
+              ).padding(.top, 5)
+            }
           }
           Spacer()
-          Text("Buscando el lugar que mejor os encaje")
-            .font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.56))
-            .padding(.bottom, max(74, proxy.safeAreaInsets.bottom + 58))
+          if !minimal {
+            Text("Buscando el lugar que mejor os encaje")
+              .font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.56))
+              .padding(.bottom, max(74, proxy.safeAreaInsets.bottom + 58))
+          }
         }.padding(.horizontal, 28)
       }.frame(width: proxy.size.width, height: proxy.size.height)
     }.onAppear {
       NookSoundManager.shared.play(.searching)
       withAnimation(NookMotion.spring) { active = true }
       Task {
-        for index in 1..<19 {
-          try? await Task.sleep(for: .milliseconds(140))
-          withAnimation(NookMotion.spring) { focus = index % 18 }
+        var index = 1
+        while !Task.isCancelled {
+          try? await Task.sleep(for: .milliseconds(360))
+          guard !Task.isCancelled else { break }
+          withAnimation(.easeInOut(duration: 0.55)) { focus = index % 18 }
+          index += 1
         }
       }
     }
