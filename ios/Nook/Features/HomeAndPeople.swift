@@ -121,7 +121,7 @@ struct DiscoverView: View {
       ZStack(alignment: .bottom) {
         if vm.people.count > 1 {
           NookProfileCard(person: vm.people[1], viewer: app.me, height: proxy.size.height - 10)
-            .scaleEffect(0.975).offset(y: 8).opacity(0.5)
+            .allowsHitTesting(false)
         }
         NookProfileCard(person: person, viewer: app.me, height: proxy.size.height - 10)
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
@@ -152,7 +152,7 @@ struct DiscoverView: View {
           }
           ).allowsHitTesting(vm.actingOn == nil)
           .scaleEffect(entrance ? 1 : 0.96).offset(y: entrance ? 0 : 28).animation(
-            NookMotion.spring, value: person.id)
+            NookMotion.spring, value: entrance)
         actions(person).padding(.bottom, 22).offset(drag)
           .allowsHitTesting(vm.actingOn == nil)
       }
