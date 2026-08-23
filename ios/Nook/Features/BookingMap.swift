@@ -181,11 +181,7 @@ struct CoffeeShopsView: View {
     ZStack(alignment: .top) {
       NookBackground()
       if searching && app.selectedCoffeeMatch != nil {
-        NookScreenContainer(eyebrow: "PUNTO MEDIO", title: "Elige el lugar") {
-          VStack(alignment: .leading, spacing: 12) {
-            NookSkeletonScreen(layout: .coffeeCards(rows: 3))
-          }
-        }.transition(.opacity)
+        MidpointSearchState().transition(.opacity)
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
         LocationPermissionState(openSettings: location.openSettings)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -539,6 +535,43 @@ struct CoffeeShopsView: View {
     } radiusChanged: { radius in
       vm.setRadius(radius, repo: app.repository)
     }
+  }
+}
+
+private struct MidpointSearchState: View {
+  @State private var pulsing = false
+  var body: some View {
+    VStack(spacing: 22) {
+      ZStack {
+        Circle()
+          .stroke(NookColors.mocha.opacity(pulsing ? 0.08 : 0.28), lineWidth: 1)
+          .frame(width: 116, height: 116)
+          .scaleEffect(pulsing ? 1.16 : 0.9)
+        Circle().fill(NookColors.offWhite).frame(width: 76, height: 76)
+          .shadow(color: .black.opacity(0.2), radius: 14, y: 7)
+        Image(systemName: "location.fill")
+          .font(.system(size: 30, weight: .semibold))
+          .foregroundStyle(NookColors.mocha)
+          .offset(y: -1)
+      }
+      VStack(spacing: 8) {
+        Text("Buscando punto medio…")
+          .font(NookTypography.display(30)).foregroundStyle(NookColors.espresso)
+        Text("Calculando el lugar más equilibrado para los dos")
+          .font(NookTypography.business(14))
+          .foregroundStyle(NookColors.warmGray)
+          .multilineTextAlignment(.center)
+      }
+    }
+    .padding(.horizontal, 34)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(NookColors.warmBlack.ignoresSafeArea())
+    .onAppear {
+      withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) {
+        pulsing = true
+      }
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 
