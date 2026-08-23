@@ -916,6 +916,7 @@ struct FloatingTabBar: View {
   @State private var coffeeNotifications = 0
   @State private var hasConfirmedCoffee = false
   @State private var profileRingPulse = false
+  @State private var profileRingRotation = false
   let items = [
     ("cup.and.saucer", "Descubrir"),
     ("mappin.and.ellipse", "Lugares"),
@@ -936,18 +937,20 @@ struct FloatingTabBar: View {
           VStack(spacing: 5) {
             ZStack {
             if i == 3, let me = app.me {
-              ProfileImage(url: me.photos.first?.url, name: me.name)
-                .frame(width: 29, height: 29).clipShape(Circle())
-                .overlay {
-                  Circle().stroke(
+              ZStack {
+                Circle().stroke(
                     AngularGradient(
                       colors: [NookColors.mocha, NookColors.latte, NookColors.espresso, NookColors.mocha],
-                      center: .center), lineWidth: selection == i ? 2.4 : 1.5)
-                    .scaleEffect(profileRingPulse && selection == i ? 1.09 : 1)
-                    .shadow(
-                      color: NookColors.mocha.opacity(profileRingPulse && selection == i ? 0.32 : 0),
-                      radius: 5)
-                }
+                      center: .center), lineWidth: selection == i ? 4.2 : 2.6)
+                  .frame(width: 36, height: 36)
+                  .rotationEffect(.degrees(profileRingRotation ? 360 : 0))
+                  .scaleEffect(profileRingPulse && selection == i ? 1.08 : 1)
+                  .shadow(
+                    color: NookColors.mocha.opacity(selection == i ? 0.3 : 0.08), radius: 6)
+                ProfileImage(url: me.photos.first?.url, name: me.name)
+                  .frame(width: 28, height: 28).clipShape(Circle())
+              }
+              .frame(width: 38, height: 38)
             } else {
               Image(systemName: items[i].0)
                 .font(.system(size: 22, weight: selection == i ? .medium : .light))
@@ -988,6 +991,11 @@ struct FloatingTabBar: View {
       NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
     }
     .animation(NookMotion.fast, value: selection)
+    .onAppear {
+      withAnimation(.linear(duration: 6.5).repeatForever(autoreverses: false)) {
+        profileRingRotation = true
+      }
+    }
     .task(id: selection + app.coffeeDataRevision * 10) { await refreshNotifications() }
     .onChange(of: selection) { _, value in
       guard value == 3 else { profileRingPulse = false; return }
