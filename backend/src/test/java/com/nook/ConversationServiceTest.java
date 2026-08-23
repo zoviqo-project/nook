@@ -9,6 +9,7 @@ import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
 import com.nook.service.*;
 import com.nook.application.port.out.PushNotificationPort;
+import com.nook.dto.ApiDtos.DiscoverProfile;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.junit.jupiter.api.Test;
@@ -40,5 +41,26 @@ class ConversationServiceTest {
     var result=service().send(user,conversation,"hola",clientId);
     assertThat(result.id()).isEqualTo(existing.id);
     verify(repository,never()).save(any());
+  }
+
+  @Test void conversationListUsesTheSameWorkingMessageQueryAsChatHistory(){
+    UUID user=UUID.randomUUID(),other=UUID.randomUUID();
+    Conversation conversation=new Conversation();conversation.id=UUID.randomUUID();conversation.matchId=UUID.randomUUID();
+    Match match=new Match();match.id=conversation.matchId;match.userOneId=user;match.userTwoId=other;
+    Profile profile=new Profile();profile.userId=other;
+    Message latest=new Message();latest.body="Último mensaje";
+    DiscoverProfile person=new DiscoverProfile(other,"Laura",29,"Bio","Barcelona",1.0,
+        null,null,null,null,null,LookingFor.CASUAL_COFFEE,List.of(),List.of());
+    when(repository.conversations(user)).thenReturn(List.of(conversation));
+    when(repository.find(Match.class,conversation.matchId)).thenReturn(match);
+    when(repository.profile(other)).thenReturn(profile);
+    when(repository.messages(conversation.id,0,1)).thenReturn(List.of(latest));
+    when(mapper.profile(user,profile)).thenReturn(person);
+
+    var result=service().list(user);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).lastMessage()).isEqualTo("Último mensaje");
+    verifyNoInteractions(entityManager);
   }
 }
