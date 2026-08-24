@@ -2,6 +2,40 @@ import PhotosUI
 import SwiftUI
 import UserNotifications
 
+private enum NookDemoProfiles {
+  static let people: [DiscoverProfile] = [
+    person("D0000000-0000-0000-0000-000000000001", "Laura", 29,
+      "Arquitecta, conciertos y cafeterías pequeñas.", 1.4, "Café con leche",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1000&q=85"),
+    person("D0000000-0000-0000-0000-000000000002", "Clara", 28,
+      "Diseño, vinilos y sobremesas largas.", 1.8, "Cortado",
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=85"),
+    person("D0000000-0000-0000-0000-000000000003", "Elena", 32,
+      "Cine, cocina y rincones tranquilos.", 2.4, "Solo",
+      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1000&q=85"),
+    person("D0000000-0000-0000-0000-000000000004", "Nora", 26,
+      "Ilustración, montaña y probar sitios nuevos.", 3.0, "Matcha",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1000&q=85"),
+    person("D0000000-0000-0000-0000-000000000005", "Julia", 30,
+      "Editorial, teatro y escapadas de domingo.", 3.7, "Latte",
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85")
+  ]
+
+  static func contains(_ id: UUID) -> Bool { people.contains { $0.id == id } }
+
+  private static func person(
+    _ id: String, _ name: String, _ age: Int, _ bio: String, _ distance: Double,
+    _ coffee: String, _ photo: String
+  ) -> DiscoverProfile {
+    DiscoverProfile(
+      id: UUID(uuidString: id)!, name: name, age: age, bio: bio, city: "Barcelona",
+      distanceKm: distance, coffeePersonality: coffee, preferredPlan: "LONG_TALKS",
+      preferredVibe: "CALM", coffeesPerDay: 2, favoriteCoffeeMoment: "AFTERWORK",
+      lookingFor: .seeWhatHappens, coffeePreferences: [coffee.uppercased()],
+      photos: [Photo(id: UUID(), url: photo, position: 0)])
+  }
+}
+
 @MainActor final class DiscoverVM: ObservableObject {
   @Published var people: [DiscoverProfile] = []
   @Published var match: Match?
@@ -20,7 +54,8 @@ import UserNotifications
     error = nil
     defer { loading = false }
     do {
-      people = try await repo.discover()
+      let remotePeople = try await repo.discover()
+      people = remotePeople.isEmpty ? NookDemoProfiles.people : remotePeople
     } catch {
       self.error = NookErrorCopy.message(
         for: error, fallback: "No hemos podido cargar nuevos perfiles. Inténtalo de nuevo.")
@@ -34,6 +69,11 @@ import UserNotifications
     actingOn = person.id
     defer { actingOn = nil }
     people.remove(at: index)
+    if NookDemoProfiles.contains(person.id) {
+      Haptics.selection()
+      if people.isEmpty { people = NookDemoProfiles.people }
+      return
+    }
     do {
       try await repo.pass(person.id)
       Haptics.selection()
@@ -50,6 +90,11 @@ import UserNotifications
     defer { actingOn = nil }
     Haptics.coffee()
     NookSoundManager.shared.play(.coffeeLike)
+    if NookDemoProfiles.contains(person.id) {
+      people.removeAll { $0.id == person.id }
+      if people.isEmpty { people = NookDemoProfiles.people }
+      return
+    }
     do {
       let result = try await repo.like(person.id)
       withAnimation(NookMotion.playful) {
@@ -350,9 +395,10 @@ struct ProfileImage: View {
   let name: String
   var contentMode: ContentMode = .fill
   var alignment: Alignment = .center
+  var faceAware = true
   var body: some View {
     NookRemoteImage(
-      url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: true
+      url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: faceAware
     ) {
       NookImageFallback()
     }.clipped()
@@ -903,7 +949,9 @@ struct ProfileView: View {
       ScrollView {
         VStack(spacing: 18) {
           ZStack(alignment: .bottomLeading) {
-            ProfileImage(url: orderedPhotos.first?.url, name: app.me?.name ?? "N").frame(
+            ProfileImage(
+              url: orderedPhotos.first?.url, name: app.me?.name ?? "N", faceAware: false
+            ).frame(
               height: 405)
             LinearGradient(
               colors: [.clear, NookColors.warmBlack.opacity(0.82)], startPoint: .center,
