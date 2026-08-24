@@ -6,11 +6,12 @@ import jakarta.transaction.Transactional;
 import java.time.*;
 import java.util.*;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-@org.springframework.context.annotation.Profile({"demo", "demo-data", "staging"})
+@ConditionalOnProperty(name = "nook.demo-profiles-enabled", havingValue = "true", matchIfMissing = true)
 public class DemoDataInitializer implements CommandLineRunner {
   private final SocialRepository repo;
   private final PasswordEncoder encoder;
@@ -71,6 +72,7 @@ public class DemoDataInitializer implements CommandLineRunner {
       profile.coffeesPerDay = i % 5;
       profile.favoriteCoffeeMoment = new String[] {"MORNING", "MIDDAY", "AFTERWORK", "EVENING"}[i % 4];
       profile.onboardingComplete = true;
+      profile.onboardingStep = 15;
       repo.save(profile);
 
       Preference preference = new Preference();

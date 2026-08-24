@@ -9,6 +9,8 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: NOOK_DEMO_PROFILES_ENABLED
+        value: true
       - key: DB_HOST
         fromDatabase: {name: nook-postgres, property: host}
       - key: DB_PORT

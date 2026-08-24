@@ -17,6 +17,7 @@ server.port: ${PORT:8080}
 management.endpoints.web.exposure.include: health,info
 management.endpoint.health.probes.enabled: true
 nook:
+  demo-profiles-enabled: ${NOOK_DEMO_PROFILES_ENABLED:true}
   jwt-secret: ${JWT_SECRET:change-me-development-secret-at-least-32-bytes}
   access-minutes: ${JWT_ACCESS_MINUTES:30}
   refresh-days: ${JWT_REFRESH_DAYS:30}

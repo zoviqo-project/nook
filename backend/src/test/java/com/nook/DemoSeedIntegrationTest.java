@@ -28,6 +28,7 @@ class DemoSeedIntegrationTest {
     properties.add("spring.datasource.username", postgres::getUsername);
     properties.add("spring.datasource.password", postgres::getPassword);
     properties.add("nook.jwt-secret", () -> "demo-test-secret-that-is-at-least-thirty-two-bytes");
+    properties.add("nook.demo-profiles-enabled", () -> "true");
   }
 
   @Autowired JdbcTemplate jdbc;
