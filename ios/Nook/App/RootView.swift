@@ -208,13 +208,13 @@ struct WelcomeView: View {
       VStack(alignment: .leading, spacing: 18) {
         HStack(spacing: 10) {
           NookCoffeeLogo(size: 46, animated: false)
-          Text("NOOK").font(.system(size: 24, weight: .black, design: .rounded)).tracking(2)
+          Text("NOOK").font(NookTypography.business(22, weight: .bold)).tracking(1.8)
         }.opacity(phase >= 2 ? 1 : 0)
         VStack(alignment: .leading, spacing: 8) {
           Text("Todo empieza\npor un café.").font(NookTypography.display(50))
             .tracking(-0.45).lineSpacing(-1)
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
-            .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(NookColors.textSecondary)
+            .font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
         NookButton(title: "EMPEZAR", icon: "arrow.right") {
           quickAccessLogin = false
@@ -229,9 +229,9 @@ struct WelcomeView: View {
           quickAccess = true
         }
           .frame(maxWidth: .infinity)
-          .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(NookColors.primaryCoffee)
+          .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(NookColors.primaryCoffee)
           .opacity(phase >= 5 ? 1 : 0)
-        Text("Solo para mayores de 18 años").font(.caption.weight(.semibold)).foregroundStyle(NookColors.textSecondary.opacity(0.72))
+        Text("Solo para mayores de 18 años").font(NookTypography.caption).foregroundStyle(NookColors.textSecondary.opacity(0.72))
       }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 22).padding(.bottom, 16)
         .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
       if quickAccess {
@@ -512,7 +512,7 @@ struct LoginView: View {
                 label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
               CinematicLoginField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
               if let error {
-                Text(error).font(.callout.weight(.semibold)).foregroundStyle(.red).padding(.horizontal, 4)
+                Text(error).font(NookTypography.secondary.weight(.semibold)).foregroundStyle(NookColors.error).padding(.horizontal, 4)
                   .transition(.move(edge: .top).combined(with: .opacity))
               }
               NookButton(
@@ -660,7 +660,7 @@ private struct NookAuthProviderButton: View {
   @ViewBuilder private var providerIcon: some View {
     switch provider {
     case .google:
-      Text("G").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
+      Text("G").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(NookColors.googleBlue)
     case .apple:
       Image(systemName: "apple.logo").font(.system(size: 20, weight: .medium))
     case .facebook:

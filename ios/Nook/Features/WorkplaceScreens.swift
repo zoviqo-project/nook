@@ -321,7 +321,7 @@ struct ConversationsView: View {
   private var selectedCafesRail: some View {
     VStack(alignment: .leading, spacing: 9) {
       Text("VUESTROS CAFÉS")
-        .font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1.4)
+        .font(NookTypography.sectionLabel).tracking(1.4)
         .foregroundStyle(NookColors.mocha)
       ScrollView(.horizontal) {
         LazyHStack(spacing: 15) {
@@ -333,14 +333,13 @@ struct ConversationsView: View {
                   if isNookChoice(shop) {
                     Circle().stroke(
                       LinearGradient(
-                        colors: [Color(red: 0.72, green: 0.43, blue: 0.12),
-                          Color(red: 0.98, green: 0.73, blue: 0.20), NookColors.mocha],
+                        colors: [NookColors.caramel, NookColors.nookGold, NookColors.mocha],
                         startPoint: .topLeading, endPoint: .bottomTrailing),
                       lineWidth: 4)
                   }
                 }
               Text(shop.name)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .font(NookTypography.caption)
                 .foregroundStyle(NookColors.espresso).lineLimit(1)
                 .frame(width: 72)
             }
@@ -367,8 +366,8 @@ struct ConversationsView: View {
       }
       VStack(alignment: .leading, spacing: 6) {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-          Text(conversation.person.name)
-            .font(NookTypography.business(18, weight: .bold))
+            Text(conversation.person.name)
+            .font(NookTypography.chatName)
             .foregroundStyle(NookColors.espresso).lineLimit(1)
           Spacer(minLength: 6)
           Text(relativeDate(conversation.updatedAt))
@@ -376,7 +375,7 @@ struct ConversationsView: View {
             .foregroundStyle(NookColors.espresso.opacity(0.42))
         }
         Text(conversation.lastMessage.isEmpty ? "Da el primer paso y saluda ☕" : conversation.lastMessage)
-          .font(NookTypography.business(15, weight: conversation.lastMessage.isEmpty ? .medium : .regular))
+          .font(NookTypography.chatPreview)
           .foregroundStyle(NookColors.espresso.opacity(conversation.lastMessage.isEmpty ? 0.62 : 0.7))
           .lineLimit(1)
       }
@@ -584,8 +583,8 @@ struct ChatDetail: View {
       .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
     }.padding(.horizontal, NookSpacing.sm).padding(.vertical, 7)
-      .background(NookColors.surface)
-      .overlay(alignment: .top) { Divider().opacity(0.18) }
+      .background(NookColors.background)
+      .shadow(color: NookShadow.subtle, radius: 8, y: -2)
       .animation(NookMotion.fast, value: focused)
   }
   private func send() {
@@ -678,8 +677,7 @@ private struct NookChatCoffeeBanner: View {
       }
     }
     .padding(NookSpacing.sm)
-    .background(NookColors.surfaceSecondary.opacity(0.58), in: RoundedRectangle(cornerRadius: NookRadius.medium))
-    .overlay(RoundedRectangle(cornerRadius: NookRadius.medium).stroke(NookColors.border.opacity(0.45)))
+    .background(NookColors.caramelSoft.opacity(0.52), in: RoundedRectangle(cornerRadius: NookRadius.medium))
   }
 }
 
@@ -725,8 +723,7 @@ struct NookCoffeeProposalBubble: View {
         actionRow
       }.padding(16)
     }
-    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-    .overlay(RoundedRectangle(cornerRadius: 22).stroke(NookColors.oat.opacity(0.25)))
+    .clipShape(RoundedRectangle(cornerRadius: NookRadius.medium, style: .continuous))
     .padding(.vertical, 4)
   }
   @ViewBuilder private var actionRow: some View {
@@ -905,10 +902,10 @@ private struct MyCafeUnifiedCard: View {
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
     .background(
-      NookColors.surface.opacity(0.88),
-      in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+      NookColors.surfaceRaised,
+      in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
-    .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    .contentShape(RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
     .onTapGesture {
       guard item.proposal == nil else { return }
       Haptics.selection()
@@ -950,8 +947,7 @@ private struct MyCafeUnifiedCard: View {
       .frame(height: 28)
       .background(
         LinearGradient(
-          colors: [Color(red: 0.72, green: 0.43, blue: 0.12), NookColors.mocha,
-            Color(red: 0.92, green: 0.64, blue: 0.20)],
+          colors: [NookColors.caramel, NookColors.mocha, NookColors.nookGold],
           startPoint: .leading, endPoint: .trailing),
         in: Capsule())
       .shadow(color: NookColors.amber.opacity(attention ? 0.24 : 0.08), radius: attention ? 7 : 3)
@@ -1058,7 +1054,7 @@ private struct MyCafeUnifiedCard: View {
     return status == .pending || status == .counterProposed
   }
   private var attentionColor: Color { item.proposal == nil ? matchGold : NookColors.amber }
-  private var matchGold: Color { Color(red: 0.96, green: 0.72, blue: 0.2) }
+  private var matchGold: Color { NookColors.nookGold }
 }
 
 struct CoffeeDatesList: View {

@@ -13,12 +13,13 @@ struct SafeCoffeeView: View {
   var body: some View {
     ZStack {
       NookBackground()
-      VStack(spacing: 26) {
+      VStack(spacing: NookSpacing.lg) {
         Spacer()
         CoffeeLogo(size: 86).offset(y: appeared ? 0 : 20).opacity(appeared ? 1 : 0)
         VStack(spacing: 8) {
-          Text("UN CAFÉ SEGURO").font(.system(size: 34, weight: .black, design: .rounded))
-          Text("La mejor conversación empieza sintiéndote bien.").foregroundStyle(.secondary)
+          Text("Un café seguro").font(NookTypography.title)
+          Text("La mejor conversación empieza sintiéndote bien.")
+            .font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
             .multilineTextAlignment(.center)
         }
         VStack(spacing: 12) {
@@ -38,8 +39,8 @@ struct SafeCoffeeView: View {
           accept()
           Haptics.success()
         }
-        Button("Ahora no") { dismiss() }.font(.headline).foregroundStyle(.secondary)
-      }.padding(24)
+        Button("Ahora no") { dismiss() }.font(NookTypography.headline).foregroundStyle(NookColors.textSecondary)
+      }.padding(NookSpacing.lg)
     }.onAppear { appeared = true }
   }
 }

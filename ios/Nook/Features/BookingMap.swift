@@ -831,8 +831,8 @@ private struct NookChoiceCelebration: View {
           .padding(.horizontal, 15).frame(height: 34)
           .background(
             LinearGradient(
-              colors: [Color(red: 1, green: 0.82, blue: 0.38), NookColors.mocha,
-                Color(red: 0.96, green: 0.68, blue: 0.16)],
+              colors: [NookColors.nookGold.opacity(0.72), NookColors.mocha,
+                NookColors.nookGold],
               startPoint: .leading, endPoint: .trailing),
             in: Capsule())
           .overlay(Capsule().stroke(.white.opacity(0.48), lineWidth: 1))
@@ -1206,19 +1206,19 @@ struct NookCoffeeShopCard: View {
         }.foregroundStyle(.white).padding(18)
       }
     }.frame(height: 242).clipShape(
-      RoundedRectangle(cornerRadius: 26, style: .continuous)
+      RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
     ).overlay {
-      RoundedRectangle(cornerRadius: 26, style: .continuous)
+      RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
         .stroke(
           recommended
-            ? Color(red: 0.98, green: 0.73, blue: 0.18).opacity(choiceBorderGlow ? 1 : 0.46)
+            ? NookColors.nookGold.opacity(choiceBorderGlow ? 1 : 0.46)
             : .clear,
           lineWidth: recommended ? (choiceBorderGlow ? 3 : 1.5) : 0)
     }
     .shadow(
       color: recommended
-        ? Color(red: 0.98, green: 0.73, blue: 0.18).opacity(choiceBorderGlow ? 0.42 : 0.12)
-        : NookColors.warmBlack.opacity(0.1),
+        ? NookColors.nookGold.opacity(choiceBorderGlow ? 0.32 : 0.10)
+        : NookShadow.card,
       radius: recommended ? (choiceBorderGlow ? 22 : 10) : 12, y: 5)
     .onAppear {
       guard recommended else { return }
@@ -1386,7 +1386,7 @@ struct ProposalSheet: View {
           }
           Group {
             if needsPersonChoice && step == 0 {
-              choiceStep("¿CON QUIÉN?", "Elige la persona para este café") {
+              choiceStep("¿Con quién?", "Elige la persona para este café") {
                 if matches.isEmpty {
                   NookEmptyState(icon: "person.2", title: "Aún no hay personas", text: "Cuando tengáis café, podrás proponer un lugar desde aquí.")
                 }
@@ -1405,13 +1405,13 @@ struct ProposalSheet: View {
                       Spacer()
                       Image(systemName: selectedMatch == match.id ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(NookColors.mocha)
-                    }.foregroundStyle(NookColors.espresso).padding(12)
-                      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 20))
+                    }.foregroundStyle(NookColors.espresso).padding(NookSpacing.md)
+                      .background(NookColors.surfaceRaised, in: RoundedRectangle(cornerRadius: NookRadius.control))
                   }.buttonStyle(.plain)
                 }
               }
             } else if flowStep == 0 {
-              choiceStep("¿QUÉ DÍA?", "Elige el día que mejor os venga") {
+              choiceStep("¿Qué día?", "Elige el día que mejor os venga") {
                 DatePicker("Fecha", selection: $date, in: Date()..., displayedComponents: .date)
                   .datePickerStyle(.graphical).tint(NookColors.espresso).padding(12)
                   .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: NookRadius.large))
@@ -1424,7 +1424,7 @@ struct ProposalSheet: View {
                 }
               }
             } else if flowStep == 1 {
-              choiceStep("¿A QUÉ HORA?", shop.openingHours == nil ? "Elige una hora para proponérsela" : "Dentro del horario del café") {
+              choiceStep("¿A qué hora?", shop.openingHours == nil ? "Elige una hora para proponérsela" : "Dentro del horario del café") {
                 if let slots = shop.availableTimes(on: date) {
                   if slots.isEmpty {
                     NookEmptyState(icon: "clock.badge.xmark", title: "Cerrado este día", text: "Elige otro día para ver sus franjas disponibles.")
@@ -1626,9 +1626,11 @@ struct ProposalSheet: View {
   private func choiceStep<C: View>(
     _ title: String, _ subtitle: String, @ViewBuilder content: () -> C
   ) -> some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Text(title).font(NookTypography.display(40))
-      Text(subtitle).font(.title3).foregroundStyle(NookColors.warmGray)
+    VStack(alignment: .leading, spacing: NookSpacing.md) {
+      VStack(alignment: .leading, spacing: NookSpacing.xs) {
+        Text(title).font(NookTypography.title)
+        Text(subtitle).font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
+      }
       content()
     }.frame(maxWidth: .infinity, alignment: .leading).transition(
       .move(edge: .trailing).combined(with: .opacity))

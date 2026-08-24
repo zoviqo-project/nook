@@ -18,6 +18,13 @@ enum NookColors {
   static let success = Color(red: 0.31, green: 0.48, blue: 0.36)
   static let warning = Color(red: 0.72, green: 0.43, blue: 0.16)
   static let error = Color(red: 0.68, green: 0.25, blue: 0.21)
+  static let caramel = Color(red: 0.76, green: 0.43, blue: 0.16)
+  static let caramelSoft = Color(red: 0.965, green: 0.895, blue: 0.805)
+  static let terracottaSoft = Color(red: 0.925, green: 0.805, blue: 0.745)
+  static let nookGold = Color(red: 0.94, green: 0.66, blue: 0.18)
+  static let surfaceRaised = Color(red: 1.000, green: 0.997, blue: 0.988)
+  static let googleBlue = Color(red: 0.26, green: 0.52, blue: 0.96)
+  static let facebookBlue = Color(red: 0.23, green: 0.35, blue: 0.60)
 
   // Coffee-family aliases retained for existing feature code.
   static let cream = background
@@ -53,7 +60,9 @@ enum NookSpacing {
 }
 enum NookRadius {
   static let small: CGFloat = 14
+  static let control: CGFloat = 18
   static let medium: CGFloat = 22
+  static let card: CGFloat = 24
   static let large: CGFloat = 28
   static let hero: CGFloat = 34
   static let pill: CGFloat = 999
@@ -90,6 +99,11 @@ enum NookTypography {
   static let secondary = business(14)
   static let caption = business(11, weight: .bold)
   static let button = business(16, weight: .semibold)
+  static let sectionLabel = business(10, weight: .bold)
+  static let metadata = business(12, weight: .medium)
+  static let compactHeadline = business(15, weight: .semibold)
+  static let chatName = business(18, weight: .semibold)
+  static let chatPreview = business(15)
 }
 
 enum NookErrorCopy {
@@ -535,8 +549,7 @@ struct NookSkeletonScreen: View {
               skeletonBlock(width: index.isMultiple(of: 2) ? 206 : 174, height: 14, radius: 6)
             }
           }
-          .frame(height: 91)
-          Divider().overlay(NookColors.espresso.opacity(0.08)).padding(.leading, 78)
+          .frame(height: 90)
         }
       }.padding(.horizontal, 18)
       Spacer(minLength: 0)
@@ -647,13 +660,10 @@ struct NookCard<Content: View>: View {
   let content: Content
   init(@ViewBuilder content: () -> Content) { self.content = content() }
   var body: some View {
-    content.padding(20).background(
-      NookColors.offWhite.opacity(0.94),
-      in: RoundedRectangle(cornerRadius: NookRadius.large, style: .continuous)
-    ).overlay(
-      RoundedRectangle(cornerRadius: NookRadius.large, style: .continuous)
-        .stroke(NookColors.border.opacity(0.45), lineWidth: 0.75)
-    ).shadow(color: NookShadow.card, radius: 12, y: 5)
+    content.padding(NookSpacing.lg).background(
+      NookColors.surfaceRaised,
+      in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
+    ).shadow(color: NookShadow.card.opacity(0.7), radius: 8, y: 3)
   }
 }
 
@@ -731,12 +741,12 @@ struct NookChatBubble: View {
       if outgoing { Spacer(minLength: 52) }
       Text(text)
         .font(NookTypography.business(16)).lineSpacing(2)
-        .foregroundStyle(outgoing ? NookColors.inverseText : NookColors.espresso)
+        .foregroundStyle(outgoing ? NookColors.inverseText : NookColors.textPrimary)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(
-          outgoing ? NookColors.espresso : NookColors.offWhite,
-          in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+          outgoing ? NookColors.primaryCoffee : NookColors.surfaceSecondary.opacity(0.58),
+          in: RoundedRectangle(cornerRadius: NookRadius.control, style: .continuous))
       if !outgoing { Spacer(minLength: 52) }
     }
   }
@@ -752,8 +762,7 @@ struct NookSystemMessageBubble: View {
         .multilineTextAlignment(.center)
       if let detail { Text(detail).font(NookTypography.business(12)).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center) }
     }.frame(maxWidth: .infinity).padding(15)
-      .background(NookColors.oat.opacity(0.22), in: RoundedRectangle(cornerRadius: NookRadius.medium))
-      .overlay(RoundedRectangle(cornerRadius: NookRadius.medium).stroke(NookColors.oat.opacity(0.5)))
+      .background(NookColors.caramelSoft.opacity(0.48), in: RoundedRectangle(cornerRadius: NookRadius.medium))
       .padding(.vertical, 6)
   }
 }

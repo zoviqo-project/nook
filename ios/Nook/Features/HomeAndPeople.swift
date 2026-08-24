@@ -706,11 +706,11 @@ private struct MeetingIntentCard: View {
       Text(intent.profileTitle).font(NookTypography.display(29)).tracking(-0.25)
       Text(intent.detail).font(.system(size: 15, weight: .medium, design: .rounded))
         .foregroundStyle(NookColors.espresso.opacity(0.64)).lineSpacing(3)
-    }.frame(maxWidth: .infinity, alignment: .leading).padding(21)
+    }.frame(maxWidth: .infinity, alignment: .leading).padding(NookSpacing.lg)
       .background(
         LinearGradient(colors: [NookColors.oat.opacity(0.38), NookColors.offWhite], startPoint: .topLeading, endPoint: .bottomTrailing),
-        in: RoundedRectangle(cornerRadius: NookRadius.large))
-      .overlay(RoundedRectangle(cornerRadius: NookRadius.large).stroke(NookColors.mocha.opacity(0.12)))
+        in: RoundedRectangle(cornerRadius: NookRadius.card))
+      .shadow(color: NookShadow.card.opacity(0.55), radius: 7, y: 3)
   }
 }
 
@@ -1209,9 +1209,11 @@ struct ProfileView: View {
 
 private extension View {
   func profileSurface() -> some View {
-    self.padding(20).background(NookColors.offWhite.opacity(0.88), in: RoundedRectangle(cornerRadius: 24))
-      .overlay(RoundedRectangle(cornerRadius: 24).stroke(NookColors.mocha.opacity(0.08)))
-      .padding(.horizontal, 18)
+    self.padding(NookSpacing.md)
+      .background(
+        NookColors.surfaceRaised,
+        in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
+      .padding(.horizontal, NookSpacing.md)
   }
 }
 
@@ -1374,7 +1376,7 @@ struct SettingsView: View {
             Button("Cerrar sesión", role: .destructive) { Task { await app.logout(); dismiss() } }
               .font(.headline).padding(18)
             if let errorMessage {
-              Text(errorMessage).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+              Text(errorMessage).font(NookTypography.metadata).foregroundStyle(NookColors.error).multilineTextAlignment(.center)
             }
           }.padding(20)
         }
