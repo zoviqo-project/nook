@@ -354,11 +354,7 @@ struct ProfileImage: View {
     NookRemoteImage(
       url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: true
     ) {
-      ZStack {
-          NookColors.latte
-          Text(String(name.prefix(1))).font(.system(size: 130, weight: .black, design: .rounded))
-            .foregroundStyle(NookColors.offWhite.opacity(0.8))
-      }
+      NookImageFallback()
     }.clipped()
   }
   private var resolvedURL: URL? {

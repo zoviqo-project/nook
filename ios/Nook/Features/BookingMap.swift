@@ -1227,13 +1227,7 @@ struct ShopImage: View {
   let seed: String
   var body: some View {
     NookRemoteImage(url: resolvedURL) {
-      ZStack {
-          LinearGradient(
-            colors: [NookColors.mocha, NookColors.espresso], startPoint: .topLeading,
-            endPoint: .bottomTrailing)
-          Image(systemName: "cup.and.saucer.fill").font(.system(size: 80)).foregroundStyle(
-            NookColors.latte.opacity(0.65))
-      }
+      NookImageFallback()
     }.clipped()
   }
   private var resolvedURL: URL? {

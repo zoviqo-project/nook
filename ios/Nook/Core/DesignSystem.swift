@@ -681,7 +681,29 @@ struct NookCoffeeLogo: View {
         withAnimation(NookMotion.spring) { appeared = true }
       }
       .accessibilityLabel("Nook")
+  }
+}
+
+/// Shared fallback for every remote photograph in Nook. Keeping this in the
+/// design system avoids unrelated initials, gradients or icons appearing when
+/// an image is missing or cannot be downloaded.
+struct NookImageFallback: View {
+  var body: some View {
+    GeometryReader { proxy in
+      let side = max(24, min(proxy.size.width, proxy.size.height) * 0.44)
+      ZStack {
+        NookColors.surfaceSecondary
+        Image("NookBrandMark")
+          .resizable()
+          .scaledToFit()
+          .frame(width: side, height: side)
+          .clipShape(RoundedRectangle(cornerRadius: side * 0.225, style: .continuous))
+          .opacity(0.92)
+      }
+      .frame(width: proxy.size.width, height: proxy.size.height)
     }
+    .accessibilityLabel("Imagen de Nook")
+  }
 }
 
 struct NookProgressBar: View {
