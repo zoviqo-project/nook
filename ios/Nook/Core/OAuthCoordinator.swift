@@ -4,7 +4,7 @@ import CryptoKit
 import Security
 
 enum Haptics {
-  static func coffee() { UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 1) }
+  static func coffee() { UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.65) }
   static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
   static func selection() { UISelectionFeedbackGenerator().selectionChanged() }
 }

@@ -1490,7 +1490,11 @@ struct ProposalSheet: View {
                     NookSoundManager.shared.play(.proposal)
                     try? await Task.sleep(for: .milliseconds(850))
                     withAnimation(NookMotion.spring) { confirmed = true; sending = false }
-                  } catch { sending = false; submitError = error.localizedDescription }
+                  } catch {
+                    sending = false
+                    submitError = NookErrorCopy.message(
+                      for: error, fallback: "No hemos podido enviar la propuesta. Revisa los datos e inténtalo de nuevo.")
+                  }
                 }
               }
             }.disabled(!canContinue)

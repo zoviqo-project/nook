@@ -76,7 +76,8 @@ import SwiftUI
       state = .loaded
       return updated
     } catch {
-      state = .error(error.localizedDescription)
+      state = .error(NookErrorCopy.message(
+        for: error, fallback: "No hemos podido actualizar este café. Inténtalo de nuevo."))
       return nil
     }
   }
@@ -424,13 +425,21 @@ struct ChatDetail: View {
     ZStack {
       NookBackground()
       VStack(spacing: 0) {
+        if let date = visibleCoffeeDates.first {
+          NookChatCoffeeBanner(
+            date: date, canAccept: date.receiverId == app.me?.id,
+            updating: updatingDates.contains(date.id), accept: { accept(date) },
+            change: { proposalToChange = date; proposing = true })
+          .padding(.horizontal, NookSpacing.screen)
+          .padding(.vertical, NookSpacing.xs)
+        }
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(spacing: 10) {
               if initialLoading {
-                NookSkeletonScreen(layout: .list(rows: 3)).frame(height: 360)
+                NookSkeletonScreen(layout: .messages(rows: 5))
               } else if messages.isEmpty {
-                Text("Rompe el hielo con un café ☕").font(.callout.weight(.semibold))
+                Text("Rompe el hielo con un café ☕").font(NookTypography.secondary.weight(.semibold))
                   .foregroundStyle(NookColors.warmGray).padding(.top, 30)
               }
               ForEach(messages) { message in
@@ -441,24 +450,6 @@ struct ChatDetail: View {
                     NookChatBubble(text: message.body, outgoing: message.senderId == app.me?.id)
                   }
                 }.id(message.id).transition(.move(edge: .bottom).combined(with: .opacity))
-              }
-              ForEach(visibleCoffeeDates) { date in
-                NookCoffeeProposalBubble(date: date, canAccept: date.receiverId == app.me?.id,
-                  updating: updatingDates.contains(date.id)) {
-                  Task {
-                    guard updatingDates.insert(date.id).inserted else { return }
-                    defer { updatingDates.remove(date.id) }
-                    do {
-                      _ = try await app.repository.updateDate(date.id, status: .accepted)
-                      dates = try await app.repository.dates()
-                      app.coffeeProposalPersisted()
-                      NookSoundManager.shared.play(.confirmed)
-                    } catch { self.error = error.localizedDescription }
-                  }
-                } change: {
-                  proposalToChange = date
-                  proposing = true
-                }
               }
               Color.clear.frame(height: 1).id("chat-bottom")
             }.padding(.horizontal, 12).padding(.vertical, 14)
@@ -510,7 +501,10 @@ struct ChatDetail: View {
       if !silent { error = nil }
     } catch {
       initialLoading = false
-      if !silent { self.error = error.localizedDescription }
+      if !silent {
+        self.error = NookErrorCopy.message(
+          for: error, fallback: "No hemos podido actualizar la conversación. Inténtalo de nuevo.")
+      }
     }
   }
   private var chatStatus: (String, Color) {
@@ -535,12 +529,12 @@ struct ChatDetail: View {
         Haptics.selection()
       } label: {
         Image(systemName: "cup.and.saucer.fill").font(.system(size: 18, weight: .semibold))
-          .foregroundStyle(NookColors.espresso).frame(width: 44, height: 44)
+          .foregroundStyle(NookColors.primaryCoffee).frame(width: 42, height: 42)
           .background(NookColors.oat.opacity(0.34), in: Circle())
       }.accessibilityLabel("Proponer café")
       TextField("Escribe un mensaje…", text: $text, axis: .vertical)
         .font(NookTypography.business(16)).lineLimit(1...5)
-        .focused($focused).padding(.horizontal, 16).padding(.vertical, 12).frame(minHeight: 48)
+        .focused($focused).padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 44)
         .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
       Button {
         send()
@@ -549,12 +543,12 @@ struct ChatDetail: View {
           if sending { ProgressView().tint(NookColors.inverseText) }
           else { Image(systemName: "arrow.up").font(.headline.bold()) }
         }.foregroundStyle(NookColors.inverseText)
-          .frame(width: 48, height: 48).background(NookColors.espresso, in: Circle())
+          .frame(width: 44, height: 44).background(NookColors.primaryCoffee, in: Circle())
       }.scaleEffect(text.isEmpty ? 0.9 : 1).animation(NookMotion.spring, value: text.isEmpty)
       .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
-    }.padding(.horizontal, 12).padding(.vertical, 8)
-      .background(NookColors.cream)
+    }.padding(.horizontal, NookSpacing.sm).padding(.vertical, 7)
+      .background(NookColors.surface)
       .overlay(alignment: .top) { Divider().opacity(0.18) }
       .animation(NookMotion.fast, value: focused)
   }
@@ -575,7 +569,26 @@ struct ChatDetail: View {
         if !messages.contains(where: { $0.id == message.id }) {
           withAnimation(NookMotion.spring) { messages.append(message) }
         }
-      } catch { self.error = error.localizedDescription }
+      } catch {
+        self.error = NookErrorCopy.message(
+          for: error, fallback: "El mensaje no se ha enviado. Toca para volver a intentarlo.")
+      }
+    }
+  }
+  private func accept(_ date: CoffeeDate) {
+    Task {
+      guard updatingDates.insert(date.id).inserted else { return }
+      defer { updatingDates.remove(date.id) }
+      do {
+        _ = try await app.repository.updateDate(date.id, status: .accepted)
+        dates = try await app.repository.dates()
+        app.coffeeProposalPersisted()
+        Haptics.success()
+        NookSoundManager.shared.play(.confirmed)
+      } catch {
+        self.error = NookErrorCopy.message(
+          for: error, fallback: "No hemos podido confirmar el café. Inténtalo de nuevo.")
+      }
     }
   }
   private func systemDetail(for type: String) -> String? {
@@ -585,6 +598,52 @@ struct ChatDetail: View {
     case "COFFEE_CANCELLED": "La propuesta ha sido cancelada"
     default: nil
     }
+  }
+}
+
+private struct NookChatCoffeeBanner: View {
+  let date: CoffeeDate
+  let canAccept: Bool
+  let updating: Bool
+  let accept: () -> Void
+  let change: () -> Void
+
+  var body: some View {
+    HStack(spacing: NookSpacing.sm) {
+      ShopImage(url: date.coffeeShop.photoUrl, seed: date.coffeeShop.name)
+        .frame(width: 50, height: 50)
+        .clipShape(Circle())
+      VStack(alignment: .leading, spacing: 3) {
+        Text(date.status == .accepted ? "CAFÉ CONFIRMADO" : "CAFÉ PENDIENTE")
+          .font(NookTypography.caption).tracking(1.1).foregroundStyle(NookColors.primaryCoffee)
+        Text(date.coffeeShop.name).font(NookTypography.headline).lineLimit(1)
+        Text(date.formattedProposedAt())
+          .font(NookTypography.caption).foregroundStyle(NookColors.textSecondary).lineLimit(1)
+      }
+      Spacer(minLength: 4)
+      if date.status == .pending || date.status == .counterProposed {
+        if canAccept {
+          Button(action: accept) {
+            Group { if updating { ProgressView() } else { Image(systemName: "checkmark") } }
+              .frame(width: 36, height: 36)
+          }
+          .buttonStyle(.plain).foregroundStyle(NookColors.inverseText)
+          .background(NookColors.primaryCoffee, in: Circle()).disabled(updating)
+          .accessibilityLabel("Aceptar propuesta")
+        }
+        Button(action: change) {
+          Image(systemName: "calendar").frame(width: 36, height: 36)
+        }
+        .buttonStyle(.plain).foregroundStyle(NookColors.primaryCoffee)
+        .background(NookColors.primaryCoffeeSoft, in: Circle())
+        .accessibilityLabel("Cambiar propuesta")
+      } else {
+        Image(systemName: "checkmark.circle.fill").foregroundStyle(NookColors.success)
+      }
+    }
+    .padding(NookSpacing.sm)
+    .background(NookColors.surfaceSecondary.opacity(0.58), in: RoundedRectangle(cornerRadius: NookRadius.medium))
+    .overlay(RoundedRectangle(cornerRadius: NookRadius.medium).stroke(NookColors.border.opacity(0.45)))
   }
 }
 

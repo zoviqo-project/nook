@@ -10,6 +10,7 @@ enum NookColors {
   static let surfaceSecondary = Color(red: 0.949, green: 0.914, blue: 0.867)
   static let primaryCoffee = Color(red: 0.455, green: 0.282, blue: 0.190)
   static let primaryCoffeePressed = Color(red: 0.345, green: 0.200, blue: 0.133)
+  static let primaryCoffeeSoft = Color(red: 0.925, green: 0.865, blue: 0.790)
   static let textPrimary = Color(red: 0.180, green: 0.125, blue: 0.098)
   static let textSecondary = Color(red: 0.430, green: 0.371, blue: 0.337)
   static let border = Color(red: 0.855, green: 0.800, blue: 0.737)
@@ -43,12 +44,12 @@ enum NookSpacing {
   static let xxs: CGFloat = 4
   static let xs: CGFloat = 8
   static let sm: CGFloat = 12
-  static let md: CGFloat = 18
+  static let md: CGFloat = 16
   static let lg: CGFloat = 24
   static let xl: CGFloat = 32
   static let xxl: CGFloat = 48
-  static let screen: CGFloat = 18
-  static let section: CGFloat = 28
+  static let screen: CGFloat = 16
+  static let section: CGFloat = 24
 }
 enum NookRadius {
   static let small: CGFloat = 14
@@ -84,8 +85,26 @@ enum NookTypography {
   static let hero = display(46)
   static let title = display(35)
   static let subtitle = business(20, weight: .semibold)
+  static let headline = business(17, weight: .semibold)
   static let body = business(16)
+  static let secondary = business(14)
   static let caption = business(11, weight: .bold)
+  static let button = business(16, weight: .semibold)
+}
+
+enum NookErrorCopy {
+  static func message(for error: Error, fallback: String) -> String {
+    if let urlError = error as? URLError {
+      switch urlError.code {
+      case .notConnectedToInternet:
+        return "Parece que no tienes conexión. Compruébala y vuelve a intentarlo."
+      case .timedOut, .cannotConnectToHost, .networkConnectionLost:
+        return "Nook está tardando más de lo esperado. Vuelve a intentarlo en un momento."
+      default: break
+      }
+    }
+    return fallback
+  }
 }
 
 struct NookBackground: View {
@@ -102,7 +121,7 @@ struct NookRegalCoffeeBackground: View {
 }
 
 struct NookButton: View {
-  enum Kind { case primary, secondary, quiet }
+  enum Kind { case primary, secondary, quiet, destructive }
   let title: String
   var icon: String?
   var secondary = false
@@ -110,11 +129,11 @@ struct NookButton: View {
   var isLoading = false
   let action: () -> Void
   @State private var pressed = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   private var style: Kind { kind ?? (secondary ? .secondary : .primary) }
   var body: some View {
     Button {
       guard !isLoading else { return }
-      Haptics.selection()
       action()
     } label: {
       HStack(spacing: 10) {
@@ -122,26 +141,37 @@ struct NookButton: View {
           ProgressView().controlSize(.small)
             .tint(style == .primary ? NookColors.inverseText : NookColors.espresso)
         } else if let icon { Image(systemName: icon) }
-        Text(title).font(.system(size: 17, weight: .bold, design: .rounded))
+        Text(title).font(NookTypography.button)
       }
-      .frame(maxWidth: .infinity).frame(minHeight: 54)
-      .foregroundStyle(style == .primary ? NookColors.inverseText : NookColors.espresso)
-      .background(backgroundColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .frame(maxWidth: .infinity).frame(minHeight: 50)
+      .foregroundStyle(foregroundColor)
+      .background(backgroundColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
       .overlay(
-        RoundedRectangle(cornerRadius: 18, style: .continuous)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
           .stroke(NookColors.border.opacity(style == .secondary ? 0.9 : 0), lineWidth: 1)
       )
       .shadow(
         color: style == .primary ? NookColors.primaryCoffee.opacity(0.14) : .clear, radius: 12, y: 6
       )
-      .scaleEffect(pressed ? 0.97 : 1)
+      .scaleEffect(pressed && !reduceMotion ? 0.98 : 1)
     }.buttonStyle(PressTrackingStyle(isPressed: $pressed))
       .disabled(isLoading)
       .accessibilityValue(isLoading ? "Procesando" : "")
   }
   private var backgroundColor: Color {
-    style == .primary
-      ? NookColors.primaryCoffee : (style == .secondary ? NookColors.surface : .clear)
+    switch style {
+    case .primary: NookColors.primaryCoffee
+    case .secondary: NookColors.surface
+    case .quiet: .clear
+    case .destructive: NookColors.error.opacity(0.12)
+    }
+  }
+  private var foregroundColor: Color {
+    switch style {
+    case .primary: NookColors.inverseText
+    case .destructive: NookColors.error
+    case .secondary, .quiet: NookColors.espresso
+    }
   }
 }
 
@@ -162,6 +192,7 @@ struct NookHeader: View {
   var secondaryActionAnimated = false
   var secondaryActionRing = false
   @State private var ringRotation = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     HStack(alignment: .center, spacing: NookSpacing.sm) {
@@ -202,13 +233,13 @@ struct NookHeader: View {
             ring: secondaryActionRing, action: secondaryAction)
         }
       }
-      .frame(minWidth: 88, alignment: .trailing)
+      .frame(minWidth: actionIcon == nil && secondaryActionIcon == nil ? 0 : 40, alignment: .trailing)
     }
-    .frame(height: 56, alignment: .center)
-    .padding(.horizontal, NookSpacing.screen).padding(.top, 10).padding(.bottom, 12)
+    .frame(height: 52, alignment: .center)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 6).padding(.bottom, 8)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
-        ringRotation = true
+        ringRotation = !reduceMotion
       }
   }
   private func headerAction(
@@ -228,7 +259,7 @@ struct NookHeader: View {
                 colors: [NookColors.mocha, NookColors.espresso, NookColors.latte, NookColors.mocha],
                 center: .center), lineWidth: 3)
               .rotationEffect(.degrees(ringRotation ? 360 : 0))
-              .animation(.linear(duration: 6).repeatForever(autoreverses: false), value: ringRotation)
+              .animation(reduceMotion ? nil : .linear(duration: 6).repeatForever(autoreverses: false), value: ringRotation)
               .shadow(color: NookColors.mocha.opacity(0.28), radius: 6)
           } else {
             Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1)
@@ -307,6 +338,7 @@ struct NookInlineLoading: View {
   var foreground = NookColors.warmGray
   var accent = NookColors.mocha
   @State private var turning = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var body: some View {
     HStack(spacing: 10) {
       ZStack {
@@ -321,6 +353,7 @@ struct NookInlineLoading: View {
       Text(text).font(.system(size: 13, weight: .semibold, design: .rounded))
         .foregroundStyle(foreground)
     }.onAppear {
+      guard !reduceMotion else { return }
       withAnimation(.linear(duration: 1.05).repeatForever(autoreverses: false)) { turning = true }
     }
   }
@@ -332,11 +365,13 @@ enum NookSkeletonLayout {
   case coffeeCards(rows: Int)
   case coffeeDates(rows: Int)
   case conversations(rows: Int)
+  case messages(rows: Int)
 }
 
 struct NookSkeletonScreen: View {
   let layout: NookSkeletonLayout
   @State private var shimmering = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     Group {
@@ -351,11 +386,14 @@ struct NookSkeletonScreen: View {
         coffeeDates(rows: rows)
       case .conversations(let rows):
         conversations(rows: rows)
+      case .messages(let rows):
+        messages(rows: rows)
       }
     }
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Cargando contenido")
     .onAppear {
+      guard !reduceMotion else { return }
       withAnimation(.linear(duration: 1.35).repeatForever(autoreverses: false)) {
         shimmering = true
       }
@@ -505,6 +543,23 @@ struct NookSkeletonScreen: View {
     }
   }
 
+  private func messages(rows: Int) -> some View {
+    VStack(spacing: NookSpacing.sm) {
+      ForEach(0..<rows, id: \.self) { index in
+        HStack {
+          if index.isMultiple(of: 2) { Spacer(minLength: 54) }
+          skeletonBlock(
+            width: index.isMultiple(of: 3) ? 178 : 232,
+            height: index.isMultiple(of: 2) ? 48 : 66,
+            radius: 18)
+          if !index.isMultiple(of: 2) { Spacer(minLength: 54) }
+        }
+      }
+    }
+    .padding(.horizontal, NookSpacing.screen)
+    .padding(.top, NookSpacing.md)
+  }
+
   private func skeletonBlock(
     width: CGFloat? = nil, height: CGFloat? = nil, radius: CGFloat
   ) -> some View {
@@ -613,12 +668,13 @@ struct NookCoffeeLogo: View {
   var size: CGFloat = 76
   var animated = true
   @State private var appeared = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var body: some View {
     Image("NookBrandMark")
       .resizable().scaledToFit().frame(width: size, height: size)
       .clipShape(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
-      .scaleEffect(animated ? (appeared ? 1 : 0.9) : 1)
-      .opacity(animated ? (appeared ? 1 : 0) : 1)
+      .scaleEffect(animated && !reduceMotion ? (appeared ? 1 : 0.9) : 1)
+      .opacity(animated && !reduceMotion ? (appeared ? 1 : 0) : 1)
       .shadow(color: NookColors.warmBlack.opacity(size > 48 ? 0.16 : 0), radius: 14, y: 7)
       .onAppear {
         guard animated else { return }
@@ -650,16 +706,16 @@ struct NookChatBubble: View {
   let outgoing: Bool
   var body: some View {
     HStack {
-      if outgoing { Spacer(minLength: 24) }
+      if outgoing { Spacer(minLength: 52) }
       Text(text)
         .font(NookTypography.business(16)).lineSpacing(2)
         .foregroundStyle(outgoing ? NookColors.inverseText : NookColors.espresso)
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, 16).padding(.vertical, 12)
+        .padding(.horizontal, 14).padding(.vertical, 10)
         .background(
           outgoing ? NookColors.espresso : NookColors.offWhite,
           in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-      if !outgoing { Spacer(minLength: 24) }
+      if !outgoing { Spacer(minLength: 52) }
     }
   }
 }
@@ -833,6 +889,7 @@ struct NookRemoteImage<Placeholder: View>: View {
 
 private struct NookImageLoadingOverlay: View {
   @State private var moving = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var body: some View {
     GeometryReader { proxy in
       LinearGradient(
@@ -842,6 +899,7 @@ private struct NookImageLoadingOverlay: View {
       .frame(width: max(80, proxy.size.width * 0.55))
       .offset(x: moving ? proxy.size.width : -max(80, proxy.size.width * 0.55))
       .onAppear {
+        guard !reduceMotion else { return }
         withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { moving = true }
       }
     }.allowsHitTesting(false).clipped()
@@ -863,12 +921,12 @@ struct NookErrorView: View {
   let message: String
   let retry: () -> Void
   var body: some View {
-    VStack(spacing: 16) {
+    VStack(spacing: NookSpacing.sm) {
       Image(systemName: "wifi.exclamationmark").font(.system(size: 34)).foregroundStyle(NookColors.mocha)
-      Text("Ese café se nos ha resistido").font(.title3.bold())
-      Text(message).font(.callout).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center)
-      Button("Intentarlo otra vez", action: retry).font(.headline).foregroundStyle(NookColors.espresso)
-    }.padding(26).frame(maxWidth: .infinity)
+      Text("Ese café se nos ha resistido").font(NookTypography.subtitle)
+      Text(message).font(NookTypography.secondary).foregroundStyle(NookColors.warmGray).multilineTextAlignment(.center)
+      Button("Intentarlo otra vez", action: retry).font(NookTypography.button).foregroundStyle(NookColors.primaryCoffee)
+    }.padding(NookSpacing.lg).frame(maxWidth: .infinity)
   }
 }
 

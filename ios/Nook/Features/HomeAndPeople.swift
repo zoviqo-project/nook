@@ -21,7 +21,10 @@ import UserNotifications
     defer { loading = false }
     do {
       people = try await repo.discover()
-    } catch { self.error = error.localizedDescription }
+    } catch {
+      self.error = NookErrorCopy.message(
+        for: error, fallback: "No hemos podido cargar nuevos perfiles. Inténtalo de nuevo.")
+    }
     #if DEBUG
       print("[PERF] Discover API + decode: \(Int(Date().timeIntervalSince(startedAt) * 1_000))ms")
     #endif
@@ -37,7 +40,8 @@ import UserNotifications
       if people.isEmpty { await load(repo) }
     } catch {
       people.insert(person, at: min(index, people.count))
-      self.error = error.localizedDescription
+      self.error = NookErrorCopy.message(
+        for: error, fallback: "No hemos podido guardar esta acción. Inténtalo de nuevo.")
     }
   }
   func coffee(_ person: DiscoverProfile, repo: any NookRepository) async {
@@ -59,7 +63,8 @@ import UserNotifications
       }
       if people.isEmpty { await load(repo) }
     } catch {
-      self.error = error.localizedDescription
+      self.error = NookErrorCopy.message(
+        for: error, fallback: "No hemos podido enviar tu café. Inténtalo de nuevo.")
     }
   }
   func finishMatch(repo: any NookRepository) async {
