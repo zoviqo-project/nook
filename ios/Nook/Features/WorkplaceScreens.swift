@@ -869,6 +869,7 @@ private struct MyCafeUnifiedCard: View {
         if let proposal = item.proposal {
           ShopImage(url: cafePhotoURL(for: proposal), seed: proposal.coffeeShop.name)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
           LinearGradient(
             colors: [
               NookColors.surface.opacity(0.90), NookColors.background.opacity(0.82),
@@ -884,14 +885,17 @@ private struct MyCafeUnifiedCard: View {
       }
       .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
+    // Clip the complete card composition so remote images and their loading
+    // transitions can never paint into the spacing between adjacent cards.
+    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     .overlay(
       RoundedRectangle(cornerRadius: 24, style: .continuous)
         .stroke(attentionColor.opacity(needsAttention ? (attention ? 0.82 : 0.24) : 0.18),
           lineWidth: needsAttention ? (attention ? 2 : 1) : 1)
     )
     .shadow(
-      color: needsAttention ? attentionColor.opacity(attention ? 0.22 : 0.05) : NookColors.warmBlack.opacity(0.12),
-      radius: needsAttention ? (attention ? 18 : 8) : 12, y: 6)
+      color: needsAttention ? attentionColor.opacity(attention ? 0.14 : 0.035) : NookShadow.card,
+      radius: needsAttention ? (attention ? 10 : 5) : 7, y: 3)
     .overlay(alignment: .top) {
       if item.proposal == nil {
         Capsule()
