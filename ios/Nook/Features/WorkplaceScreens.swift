@@ -329,7 +329,16 @@ struct ConversationsView: View {
             VStack(spacing: 7) {
               ShopImage(url: shop.photoUrl, seed: shop.name)
                 .frame(width: 62, height: 62).clipShape(Circle())
-                .overlay(Circle().stroke(NookColors.mocha.opacity(0.42), lineWidth: 1.5))
+                .overlay {
+                  if isNookChoice(shop) {
+                    Circle().stroke(
+                      LinearGradient(
+                        colors: [Color(red: 0.72, green: 0.43, blue: 0.12),
+                          Color(red: 0.98, green: 0.73, blue: 0.20), NookColors.mocha],
+                        startPoint: .topLeading, endPoint: .bottomTrailing),
+                      lineWidth: 4)
+                  }
+                }
               Text(shop.name)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(NookColors.espresso).lineLimit(1)
@@ -343,12 +352,17 @@ struct ConversationsView: View {
     .overlay(alignment: .bottom) { Divider().overlay(NookColors.espresso.opacity(0.08)) }
   }
 
+  private func isNookChoice(_ shop: CoffeeShop) -> Bool {
+    cafeItems.contains {
+      $0.proposal?.coffeeShop.id == shop.id && $0.proposal?.nookChoice == true
+    }
+  }
+
   private func conversationRow(_ conversation: Conversation) -> some View {
     HStack(spacing: 14) {
       ZStack(alignment: .bottomTrailing) {
         ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
           .frame(width: 64, height: 64).clipShape(Circle())
-          .overlay(Circle().stroke(NookColors.mocha.opacity(0.34), lineWidth: 1.5))
         Circle().fill(NookColors.mocha).frame(width: 13, height: 13)
           .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
       }
@@ -865,40 +879,6 @@ private struct MyCafeUnifiedCard: View {
       actionRow
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
-    .background {
-      ZStack {
-        if let proposal = item.proposal {
-          ShopImage(url: cafePhotoURL(for: proposal), seed: proposal.coffeeShop.name)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
-          // Keep the café photograph vivid. The warm surface only protects the
-          // text area and fades away before reaching the photographic side.
-          LinearGradient(
-            colors: [
-              NookColors.surface,
-              NookColors.surface.opacity(0.98),
-              NookColors.surface.opacity(0.72),
-              .clear
-            ],
-            startPoint: .leading, endPoint: .trailing)
-          LinearGradient(
-            colors: [.clear, NookColors.surface.opacity(0.88)],
-            startPoint: .center, endPoint: .bottom)
-        } else {
-          NookColors.offWhite
-          LinearGradient(
-            colors: [matchGold.opacity(0.12), .clear, matchGold.opacity(0.05)],
-            startPoint: .topLeading, endPoint: .bottomTrailing)
-        }
-      }
-      .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    }
-    // Clip the complete card composition so remote images and their loading
-    // transitions can never paint into the spacing between adjacent cards.
-    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    .shadow(
-      color: needsAttention ? attentionColor.opacity(attention ? 0.10 : 0.025) : NookShadow.card.opacity(0.65),
-      radius: needsAttention ? (attention ? 8 : 4) : 6, y: 3)
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     .onTapGesture {
@@ -1051,18 +1031,6 @@ private struct MyCafeUnifiedCard: View {
   }
   private var attentionColor: Color { item.proposal == nil ? matchGold : NookColors.amber }
   private var matchGold: Color { Color(red: 0.96, green: 0.72, blue: 0.2) }
-  private func cafePhotoURL(for proposal: CoffeeDate) -> String? {
-    if let url = proposal.coffeeShop.photoUrl, !url.isEmpty { return url }
-    // Temporary presentation fallback for cafés whose provider has no photo.
-    // It never mutates or replaces the backend model.
-    let demoPhotos = [
-      "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=1200&q=82",
-      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=82",
-      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=82"
-    ]
-    let index = proposal.coffeeShop.id.uuidString.utf8.reduce(0) { $0 + Int($1) } % demoPhotos.count
-    return demoPhotos[index]
-  }
 }
 
 struct CoffeeDatesList: View {

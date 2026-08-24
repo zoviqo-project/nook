@@ -1156,7 +1156,7 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, NookSpacing.screen).padding(.top, NookSpacing.xxs)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, NookSpacing.sm)
     .frame(maxWidth: .infinity).frame(height: 58, alignment: .center)
     .background {
       NookColors.background.ignoresSafeArea(edges: .bottom)

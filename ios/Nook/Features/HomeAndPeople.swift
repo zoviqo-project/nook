@@ -439,8 +439,6 @@ struct MatchCelebration: View {
             -1)
           Text("\(match.person.name) también se tomaría\nun café contigo.").font(.title3)
             .foregroundStyle(.secondary).multilineTextAlignment(.center)
-          Text("El siguiente paso es encontrar un sitio que os vaya bien.")
-            .font(.subheadline).foregroundStyle(NookColors.espresso.opacity(0.55)).multilineTextAlignment(.center)
         }.opacity(meet ? 1 : 0).offset(y: meet ? 0 : 16)
         Spacer()
         VStack(spacing: 10) {
