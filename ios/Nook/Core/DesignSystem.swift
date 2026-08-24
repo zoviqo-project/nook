@@ -508,6 +508,20 @@ struct NookSkeletonScreen: View {
   /// Mirrors ConversationsView: selected cafés rail followed by compact conversation rows.
   private func conversations(rows: Int) -> some View {
     VStack(spacing: 0) {
+      VStack(alignment: .leading, spacing: 10) {
+        skeletonBlock(width: 118, height: 12, radius: 6)
+        HStack(spacing: 15) {
+          ForEach(0..<4, id: \.self) { index in
+            VStack(spacing: 7) {
+              skeletonBlock(width: 62, height: 62, radius: 31)
+              skeletonBlock(width: index.isMultiple(of: 2) ? 54 : 46, height: 10, radius: 5)
+            }
+          }
+          Spacer(minLength: 0)
+        }
+      }
+      .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 13)
+
       LazyVStack(spacing: 0) {
         ForEach(0..<rows, id: \.self) { index in
           HStack(spacing: 14) {
