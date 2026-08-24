@@ -211,8 +211,8 @@ struct WelcomeView: View {
           Text("NOOK").font(.system(size: 24, weight: .black, design: .rounded)).tracking(2)
         }.opacity(phase >= 2 ? 1 : 0)
         VStack(alignment: .leading, spacing: 8) {
-          Text("Todo empieza\npor un café.").font(NookTypography.display(51))
-            .tracking(-1.7).lineSpacing(-3)
+          Text("Todo empieza\npor un café.").font(NookTypography.display(50))
+            .tracking(-0.45).lineSpacing(-1)
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
             .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(NookColors.textSecondary)
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
@@ -289,7 +289,7 @@ private struct QuickAccessView: View {
         if emailLogin {
           VStack(alignment: .leading, spacing: 7) {
             Text(createAccount ? "Tu primer café" : "Qué alegría verte")
-              .font(NookTypography.display(36)).tracking(-0.8)
+              .font(NookTypography.display(38)).tracking(-0.25)
             Text(createAccount ? "Crea tu acceso. El perfil viene después." : "Entra y retomamos ese café.")
               .font(.body).foregroundStyle(NookColors.textSecondary)
           }
@@ -322,7 +322,7 @@ private struct QuickAccessView: View {
           providerButtons
         } else {
           VStack(alignment: .leading, spacing: 7) {
-            Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
+            Text("Entra en Nook").font(NookTypography.display(38)).tracking(-0.25)
             Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(NookColors.textSecondary)
           }
           VStack(spacing: 11) {
@@ -501,8 +501,8 @@ struct LoginView: View {
               Text("NOOK").font(.system(size: 21, weight: .black, design: .rounded)).tracking(2)
             }.foregroundStyle(NookColors.textPrimary)
             VStack(alignment: .leading, spacing: 6) {
-              Text("Qué alegría\nverte.").font(NookTypography.display(48)).tracking(-1.5)
-                .lineSpacing(-3)
+              Text("Qué alegría\nverte.").font(NookTypography.display(49)).tracking(-0.4)
+                .lineSpacing(-1)
               Text("Entra y retomamos ese café.")
                 .font(.system(size: 16, weight: .medium, design: .rounded))
                 .foregroundStyle(NookColors.textSecondary)
@@ -1153,8 +1153,8 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, 18).padding(.top, 7)
-    .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 8)
+    .frame(maxWidth: .infinity).frame(height: 62, alignment: .center)
     .background {
       NookColors.surface.opacity(0.98).ignoresSafeArea(edges: .bottom)
     }

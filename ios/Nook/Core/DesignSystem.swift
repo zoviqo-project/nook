@@ -40,12 +40,15 @@ extension Color {
 }
 
 enum NookSpacing {
-  static let xs: CGFloat = 6
-  static let sm: CGFloat = 10
-  static let md: CGFloat = 16
+  static let xxs: CGFloat = 4
+  static let xs: CGFloat = 8
+  static let sm: CGFloat = 12
+  static let md: CGFloat = 18
   static let lg: CGFloat = 24
-  static let xl: CGFloat = 34
+  static let xl: CGFloat = 32
   static let xxl: CGFloat = 48
+  static let screen: CGFloat = 18
+  static let section: CGFloat = 28
 }
 enum NookRadius {
   static let small: CGFloat = 14
@@ -70,19 +73,19 @@ enum NookShadow {
 
 enum NookTypography {
   static func display(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .bold, design: .rounded)
+    .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold)
   }
   static func displayItalic(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .bold, design: .rounded).italic()
+    .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold).italic()
   }
   static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
     .system(size: size, weight: weight, design: .rounded)
   }
-  static let hero = display(44)
-  static let title = display(34)
+  static let hero = display(46)
+  static let title = display(35)
   static let subtitle = business(20, weight: .semibold)
-  static let body = business(17)
-  static let caption = business(12, weight: .bold)
+  static let body = business(16)
+  static let caption = business(11, weight: .bold)
 }
 
 struct NookBackground: View {
@@ -161,11 +164,11 @@ struct NookHeader: View {
   @State private var ringRotation = false
 
   var body: some View {
-    HStack(alignment: .center, spacing: 16) {
+    HStack(alignment: .center, spacing: NookSpacing.sm) {
       if branded {
-        HStack(spacing: 10) {
+        HStack(spacing: NookSpacing.sm) {
           NookCoffeeLogo(size: 34, animated: false)
-          Text(title).font(NookTypography.display(28)).tracking(-0.35)
+          Text(title).font(NookTypography.display(29)).tracking(-0.15)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
@@ -179,8 +182,8 @@ struct NookHeader: View {
               .font(.system(size: 10, weight: .bold, design: .rounded))
               .tracking(1.7).foregroundStyle(NookColors.mocha)
           }
-          Text(title).font(NookTypography.display(30))
-            .tracking(-0.65).lineLimit(1).minimumScaleFactor(0.76)
+          Text(title).font(NookTypography.display(31))
+            .tracking(-0.2).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
         .transaction { transaction in transaction.animation = nil }
@@ -201,8 +204,8 @@ struct NookHeader: View {
       }
       .frame(minWidth: 88, alignment: .trailing)
     }
-    .frame(height: 52, alignment: .center)
-    .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 10)
+    .frame(height: 56, alignment: .center)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 10).padding(.bottom, 12)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
         ringRotation = true
@@ -555,7 +558,7 @@ struct NookTextField: View {
         }.font(.system(size: 19, weight: .semibold, design: .rounded)).textInputAutocapitalization(
           keyboard == .emailAddress ? .never : .sentences
         ).focused($focused)
-      }.padding(.horizontal, 20).frame(minHeight: 66).background(
+      }.padding(.horizontal, NookSpacing.md).frame(minHeight: 58).background(
         NookColors.offWhite.opacity(0.92),
         in: RoundedRectangle(cornerRadius: NookRadius.medium, style: .continuous)
       ).overlay(
@@ -589,10 +592,13 @@ struct NookCard<Content: View>: View {
   let content: Content
   init(@ViewBuilder content: () -> Content) { self.content = content() }
   var body: some View {
-    content.padding(NookSpacing.lg).background(
+    content.padding(20).background(
       NookColors.offWhite.opacity(0.94),
       in: RoundedRectangle(cornerRadius: NookRadius.large, style: .continuous)
-    ).shadow(color: NookColors.espresso.opacity(0.1), radius: 24, y: 12)
+    ).overlay(
+      RoundedRectangle(cornerRadius: NookRadius.large, style: .continuous)
+        .stroke(NookColors.border.opacity(0.45), lineWidth: 0.75)
+    ).shadow(color: NookShadow.card, radius: 12, y: 5)
   }
 }
 

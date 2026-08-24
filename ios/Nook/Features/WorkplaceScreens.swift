@@ -296,7 +296,7 @@ struct ConversationsView: View {
                     conversationRow(conversation)
                   }
                 }
-              }.padding(.horizontal, 18).padding(.bottom, 20)
+            }.padding(.horizontal, NookSpacing.screen).padding(.bottom, 24)
             }.refreshable { await load(showLoader: false) }
           }
         }
@@ -338,7 +338,7 @@ struct ConversationsView: View {
         }
       }.scrollIndicators(.hidden).frame(height: 84)
     }
-    .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 10).padding(.bottom, 14)
     .overlay(alignment: .bottom) { Divider().overlay(NookColors.espresso.opacity(0.08)) }
   }
 
@@ -355,7 +355,7 @@ struct ConversationsView: View {
         VStack(alignment: .leading, spacing: 6) {
           HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(conversation.person.name)
-              .font(.system(size: 18, weight: .bold, design: .rounded))
+              .font(NookTypography.business(18, weight: .bold))
               .foregroundStyle(NookColors.espresso).lineLimit(1)
             Spacer(minLength: 6)
             Text(relativeDate(conversation.updatedAt))
@@ -363,7 +363,7 @@ struct ConversationsView: View {
               .foregroundStyle(NookColors.espresso.opacity(0.42))
           }
           Text(conversation.lastMessage.isEmpty ? "Da el primer paso y saluda ☕" : conversation.lastMessage)
-            .font(.system(size: 15, weight: conversation.lastMessage.isEmpty ? .medium : .regular, design: .rounded))
+            .font(NookTypography.business(15, weight: conversation.lastMessage.isEmpty ? .medium : .regular))
             .foregroundStyle(NookColors.espresso.opacity(conversation.lastMessage.isEmpty ? 0.62 : 0.7))
             .lineLimit(1)
         }
