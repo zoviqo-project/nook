@@ -319,16 +319,20 @@ private struct QuickAccessView: View {
             withAnimation(NookMotion.fast) { createAccount.toggle(); error = nil }
           }.font(.system(size: 13, weight: .semibold, design: .rounded))
             .foregroundStyle(.white.opacity(0.74)).frame(maxWidth: .infinity)
-          HStack(spacing: 10) {
-            compactProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
-          }
+          NookAuthProviderButton(
+            title: "Google", icon: "g.circle", isLoading: busy && busyAction == 1,
+            disabled: busy
+          ) { Task { await signInWithGoogle() } }
         } else {
           VStack(alignment: .leading, spacing: 7) {
             Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
             Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
           }
           VStack(spacing: 11) {
-            accessButton("Continuar con Google", icon: "g.circle", primary: true, index: 1) { Task { await signInWithGoogle() } }
+            NookAuthProviderButton(
+              title: "Google", icon: "g.circle", isLoading: busy && busyAction == 1,
+              disabled: busy
+            ) { Task { await signInWithGoogle() } }
             accessButton("Entrar con email", icon: "envelope.fill", index: 2) {
               withAnimation(NookMotion.spring) { emailLogin = true }
             }
@@ -347,16 +351,6 @@ private struct QuickAccessView: View {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
     }
-  }
-  private func compactProvider(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-    Button(action: action) {
-      HStack(spacing: 8) {
-        Image(systemName: icon).font(.system(size: 16, weight: .semibold))
-        Text(title).font(.system(size: 14, weight: .semibold, design: .rounded))
-      }.frame(maxWidth: .infinity).frame(height: 46)
-        .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 15).stroke(.white.opacity(0.2)) }
-    }.buttonStyle(.plain).disabled(busy)
   }
   private func accessButton(_ title: String, icon: String, primary: Bool = false, index: Int, action: @escaping () -> Void) -> some View {
     Button(action: action) {
@@ -522,7 +516,10 @@ struct LoginView: View {
                 Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
               }.padding(.vertical, 2)
               VStack(spacing: 10) {
-            loginProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
+                NookAuthProviderButton(
+                  title: "Google", icon: "g.circle", isLoading: providerLoading == "Google",
+                  disabled: busy
+                ) { Task { await signInWithGoogle() } }
               }
               Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -598,20 +595,39 @@ struct LoginView: View {
     let message = error.localizedDescription
     return message.isEmpty ? "No hemos podido iniciar sesión. Inténtalo de nuevo." : message
   }
-  private func loginProvider(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+}
+
+private struct NookAuthProviderButton: View {
+  let title: String
+  let icon: String
+  var isLoading = false
+  var disabled = false
+  let action: () -> Void
+
+  var body: some View {
     Button(action: action) {
-      HStack(spacing: 12) {
-        if providerLoading == title {
-          ProgressView().controlSize(.small).tint(.white).frame(width: 22)
+      HStack(spacing: 13) {
+        if isLoading {
+          ProgressView().controlSize(.small).tint(NookColors.espresso).frame(width: 24)
         } else {
-          Image(systemName: icon).font(.system(size: 17, weight: .semibold)).frame(width: 22)
+          Image(systemName: icon).font(.system(size: 18, weight: .medium)).frame(width: 24)
         }
-        Text("Continuar con \(title)").font(.system(size: 15, weight: .semibold, design: .rounded))
+        Text("Continuar con \(title)")
+          .font(.system(size: 17, weight: .semibold, design: .rounded))
         Spacer()
-      }.foregroundStyle(.white.opacity(0.9)).padding(.horizontal, 17).frame(height: 50)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 17).stroke(.white.opacity(0.2)))
-    }.buttonStyle(.plain).disabled(busy)
+        Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+      }
+      .foregroundStyle(NookColors.espresso)
+      .padding(.horizontal, 18).frame(height: 56)
+      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .stroke(NookColors.espresso.opacity(0.12), lineWidth: 0.75)
+      }
+    }
+    .buttonStyle(.plain)
+    .disabled(disabled)
+    .opacity(disabled && !isLoading ? 0.62 : 1)
   }
 }
 
