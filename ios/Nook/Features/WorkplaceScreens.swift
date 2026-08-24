@@ -344,37 +344,34 @@ struct ConversationsView: View {
   }
 
   private func conversationRow(_ conversation: Conversation) -> some View {
-    VStack(spacing: 0) {
-      HStack(spacing: 14) {
-        ZStack(alignment: .bottomTrailing) {
-          ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-            .frame(width: 64, height: 64).clipShape(Circle())
-            .overlay(Circle().stroke(NookColors.mocha.opacity(0.34), lineWidth: 1.5))
-          Circle().fill(NookColors.mocha).frame(width: 13, height: 13)
-            .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
-        }
-        VStack(alignment: .leading, spacing: 6) {
-          HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(conversation.person.name)
-              .font(NookTypography.business(18, weight: .bold))
-              .foregroundStyle(NookColors.espresso).lineLimit(1)
-            Spacer(minLength: 6)
-            Text(relativeDate(conversation.updatedAt))
-              .font(.system(size: 11, weight: .medium, design: .rounded))
-              .foregroundStyle(NookColors.espresso.opacity(0.42))
-          }
-          Text(conversation.lastMessage.isEmpty ? "Da el primer paso y saluda ☕" : conversation.lastMessage)
-            .font(NookTypography.business(15, weight: conversation.lastMessage.isEmpty ? .medium : .regular))
-            .foregroundStyle(NookColors.espresso.opacity(conversation.lastMessage.isEmpty ? 0.62 : 0.7))
-            .lineLimit(1)
-        }
-        Image(systemName: "chevron.right")
-          .font(.system(size: 11, weight: .semibold))
-          .foregroundStyle(NookColors.espresso.opacity(0.25))
+    HStack(spacing: 14) {
+      ZStack(alignment: .bottomTrailing) {
+        ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
+          .frame(width: 64, height: 64).clipShape(Circle())
+          .overlay(Circle().stroke(NookColors.mocha.opacity(0.34), lineWidth: 1.5))
+        Circle().fill(NookColors.mocha).frame(width: 13, height: 13)
+          .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
       }
-      .padding(.vertical, 13)
-      Divider().overlay(NookColors.espresso.opacity(0.08)).padding(.leading, 78)
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+          Text(conversation.person.name)
+            .font(NookTypography.business(18, weight: .bold))
+            .foregroundStyle(NookColors.espresso).lineLimit(1)
+          Spacer(minLength: 6)
+          Text(relativeDate(conversation.updatedAt))
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundStyle(NookColors.espresso.opacity(0.42))
+        }
+        Text(conversation.lastMessage.isEmpty ? "Da el primer paso y saluda ☕" : conversation.lastMessage)
+          .font(NookTypography.business(15, weight: conversation.lastMessage.isEmpty ? .medium : .regular))
+          .foregroundStyle(NookColors.espresso.opacity(conversation.lastMessage.isEmpty ? 0.62 : 0.7))
+          .lineLimit(1)
+      }
+      Image(systemName: "chevron.right")
+        .font(.system(size: 11, weight: .semibold))
+        .foregroundStyle(NookColors.espresso.opacity(0.25))
     }
+    .padding(.vertical, 13)
     .contentShape(Rectangle())
   }
 
