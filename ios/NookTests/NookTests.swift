@@ -3,6 +3,19 @@ import XCTest
 @testable import Nook
 
 final class NookTests: XCTestCase {
+  func testNavigationBadgesUseOnlyUnreadBackendNotifications() {
+    let userID = UUID()
+    let values = [
+      NookNotification(id: UUID(), type: "MESSAGE", title: "Mensaje", body: "Hola", resourceId: nil, createdAt: "2026-08-24T10:00:00Z", read: false),
+      NookNotification(id: UUID(), type: "MESSAGE", title: "Leído", body: "Hola", resourceId: nil, createdAt: "2026-08-24T09:00:00Z", read: true),
+      NookNotification(id: UUID(), type: "COFFEE_ACCEPTED", title: "Confirmado", body: "Café", resourceId: nil, createdAt: "2026-08-24T08:00:00Z", read: false),
+      NookNotification(id: UUID(), type: "MATCH", title: "Match", body: "Match", resourceId: nil, createdAt: "2026-08-24T07:00:00Z", read: false),
+    ]
+    let counts = NavigationBadgeCounts.calculate(notifications: values, dates: [], currentUserID: userID)
+    XCTAssertEqual(counts.coffees, 1)
+    XCTAssertEqual(counts.chats, 1)
+  }
+
   func testPaymentOptionsAreComplete() { XCTAssertEqual(PaymentPreference.allCases.count, 4) }
   func testCoffeeDateStatesDecode() throws {
     let value = try JSONDecoder().decode(CoffeeDateStatus.self, from: Data("\"ACCEPTED\"".utf8))

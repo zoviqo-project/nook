@@ -360,6 +360,24 @@ struct NookNotification: Codable, Identifiable, Sendable {
   let createdAt: String
   let read: Bool
 }
+struct NavigationBadgeCounts: Equatable {
+  let coffees: Int
+  let chats: Int
+
+  static func calculate(
+    notifications: [NookNotification], dates: [CoffeeDate], currentUserID: UUID
+  ) -> NavigationBadgeCounts {
+    let unread = notifications.filter { !$0.read }
+    let coffeeTypes = Set(["COFFEE_ACCEPTED", "COFFEE_PROPOSAL", "COFFEE_COUNTER_PROPOSAL", "COFFEE_CANCELLED"])
+    let unreadCoffees = unread.filter { coffeeTypes.contains($0.type) }.count
+    let actionableDates = dates.filter {
+      ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == currentUserID
+    }.count
+    return NavigationBadgeCounts(
+      coffees: max(unreadCoffees, actionableDates),
+      chats: unread.filter { $0.type == "MESSAGE" }.count)
+  }
+}
 struct PhoneOtpChallenge: Codable, Sendable {
   let challengeId: UUID
   let expiresIn: Int

@@ -267,6 +267,77 @@ struct ChatsView: View {
   }
 }
 
+struct ConversationsView: View {
+  @EnvironmentObject var app: AppSession
+  @State private var conversations: [Conversation] = []
+  @State private var loading = true
+  @State private var error: String?
+
+  var body: some View {
+    NookScreenContainer(eyebrow: "CONVERSACIONES", title: "Chats") {
+      Group {
+        if loading && conversations.isEmpty {
+          NookSkeletonScreen(layout: .coffeeDates(rows: 4))
+        } else if let error, conversations.isEmpty {
+          NookErrorView(message: error) { Task { await load() } }
+        } else if conversations.isEmpty {
+          NookEmptyState(
+            icon: "bubble.left.and.bubble.right", title: "Aún no hay chats",
+            text: "Cuando hagáis match, vuestra conversación aparecerá aquí.")
+            .containerRelativeFrame(.vertical, alignment: .center)
+        } else {
+          ScrollView {
+            LazyVStack(spacing: 12) {
+              ForEach(conversations) { conversation in
+                NavigationLink { ChatDetail(conversation: conversation) } label: {
+                  conversationRow(conversation)
+                }
+              }
+            }.padding(.horizontal, 16).padding(.vertical, 12)
+          }.refreshable { await load(showLoader: false) }
+        }
+      }
+    }
+    .task {
+      await load()
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(30))
+        guard !Task.isCancelled else { break }
+        await load(showLoader: false)
+      }
+    }
+  }
+
+  private func conversationRow(_ conversation: Conversation) -> some View {
+    HStack(spacing: 13) {
+      ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
+        .frame(width: 62, height: 62).clipShape(Circle())
+      VStack(alignment: .leading, spacing: 6) {
+        Text(conversation.person.name).font(.title3.bold()).foregroundStyle(NookColors.espresso)
+        Text(conversation.lastMessage.isEmpty ? "Decid hola ☕" : conversation.lastMessage)
+          .font(.subheadline).foregroundStyle(NookColors.espresso.opacity(0.68)).lineLimit(2)
+      }
+      Spacer()
+      Image(systemName: "chevron.right").font(.caption.bold())
+        .foregroundStyle(NookColors.espresso.opacity(0.38))
+    }.padding(13).minimalListCard()
+  }
+
+  @MainActor private func load(showLoader: Bool = true) async {
+    if showLoader && conversations.isEmpty { loading = true }
+    defer { loading = false }
+    do {
+      conversations = try await app.repository.conversations()
+      error = nil
+      NookImagePrefetch.schedule(conversations.prefix(12).flatMap { $0.person.photos.map(\.url) })
+    } catch {
+      if conversations.isEmpty {
+        self.error = "No hemos podido cargar tus conversaciones. Comprueba la conexión y reintenta."
+      }
+    }
+  }
+}
+
 struct ChatDetail: View {
   @EnvironmentObject var app: AppSession
   let conversation: Conversation

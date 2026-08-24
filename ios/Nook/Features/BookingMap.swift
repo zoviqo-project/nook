@@ -1599,7 +1599,8 @@ struct ProposalSheet: View {
         dismiss()
         Task { @MainActor in
           await Task.yield()
-          app.selectedTab = 2
+          app.selectedCoffeeMatch = nil
+          app.selectedTab = 1
           app.coffeeProposalPersisted()
         }
       }

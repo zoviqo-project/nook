@@ -1075,9 +1075,12 @@ struct MainTabView: View {
       Group {
         switch app.selectedTab {
         case 0: NavigationStack { DiscoverView() }
-        case 1: NavigationStack { CoffeeShopsView().id(app.placesReloadID) }
-        case 2: NavigationStack { ChatsView() }
-        default: NavigationStack { ProfileView() }
+        case 1:
+          NavigationStack {
+            if app.selectedCoffeeMatch != nil { CoffeeShopsView().id(app.placesReloadID) }
+            else { ChatsView() }
+          }
+        default: NavigationStack { ConversationsView() }
         }
       }
       .id(app.selectedTab)
@@ -1102,15 +1105,11 @@ struct FloatingTabBar: View {
   @EnvironmentObject var app: AppSession
   @Binding var selection: Int
   @State private var coffeeNotifications = 0
-  @State private var matchCount = 0
-  @State private var hasConfirmedCoffee = false
-  @State private var profileRingPulse = false
-  @State private var profileRingRotation = false
+  @State private var chatNotifications = 0
   let items = [
     ("cup.and.saucer", "Descubrir"),
-    ("mappin.and.ellipse", "Lugares"),
-    ("calendar", "Mis cafés"),
-    ("person.crop.circle", "Perfil"),
+    ("cup.and.saucer.fill", "Mis cafés"),
+    ("bubble.left.and.bubble.right.fill", "Chats"),
   ]
   var body: some View {
     HStack(spacing: 0) {
@@ -1119,62 +1118,34 @@ struct FloatingTabBar: View {
           Haptics.selection()
           if i == 1 {
             app.selectedCoffeeMatch = nil
-            app.placesReloadID = UUID()
           }
           withAnimation(NookMotion.fast) { selection = i }
         } label: {
           VStack(spacing: 5) {
             ZStack {
-            if i == 3, let me = app.me {
-              ZStack {
-                Circle().stroke(
-                    AngularGradient(
-                      colors: [NookColors.mocha, NookColors.latte, NookColors.espresso, NookColors.mocha],
-                      center: .center), lineWidth: selection == i ? 4.2 : 2.6)
-                  .frame(width: 36, height: 36)
-                  .rotationEffect(.degrees(profileRingRotation ? 360 : 0))
-                  .scaleEffect(profileRingPulse && selection == i ? 1.08 : 1)
-                  .shadow(
-                    color: NookColors.mocha.opacity(selection == i ? 0.3 : 0.08), radius: 6)
-                ProfileImage(url: me.photos.first?.url, name: me.name)
-                  .frame(width: 28, height: 28).clipShape(Circle())
-              }
-              .frame(width: 38, height: 38)
-            } else {
               Image(systemName: items[i].0)
                 .font(.system(size: 22, weight: selection == i ? .medium : .light))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(selection == i ? NookColors.espresso : NookColors.espresso.opacity(0.48))
-                .scaleEffect(selection == i ? 1.04 : 1)
-            }
-            if i == 2 && hasConfirmedCoffee {
-              Image(systemName: "cup.and.saucer.fill")
-                .font(.system(size: 9, weight: .bold)).foregroundStyle(NookColors.inverseText)
-                .frame(width: 21, height: 21).background(NookColors.mocha, in: Circle())
-                .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
-                .offset(x: 15, y: -13)
-                .symbolEffect(.bounce, value: hasConfirmedCoffee)
-                .accessibilityLabel("Han confirmado un café")
-            } else if i == 2 && coffeeNotifications > 0 {
+                .scaleEffect(selection == i ? 1.1 : 1)
+                .symbolEffect(.bounce, value: selection == i)
+            if i == 1 && coffeeNotifications > 0 {
               Text(coffeeNotifications > 9 ? "9+" : "\(coffeeNotifications)")
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
                 .foregroundStyle(NookColors.inverseText)
                 .frame(minWidth: 18, minHeight: 18).background(NookColors.mocha, in: Circle())
                 .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
                 .offset(x: 14, y: -12)
-                .accessibilityLabel("\(coffeeNotifications) propuestas pendientes")
+                .accessibilityLabel("\(coffeeNotifications) acciones de café pendientes")
             }
-            if i == 2 && matchCount > 0 {
-              Text(matchCount > 99 ? "99+" : "\(matchCount)")
-                .font(.system(size: 10, weight: .heavy, design: .rounded))
-                .foregroundStyle(NookColors.warmBlack)
-                .padding(.horizontal, matchCount > 9 ? 6 : 0)
-                .frame(minWidth: 20, minHeight: 20)
-                .background(Color(red: 0.96, green: 0.72, blue: 0.2), in: Capsule())
-                .overlay(Capsule().stroke(.white.opacity(0.9), lineWidth: 1.5))
-                .shadow(color: Color(red: 0.96, green: 0.72, blue: 0.2).opacity(0.38), radius: 5)
-                .offset(x: 17, y: -14)
-                .accessibilityLabel("\(matchCount) matches")
+            if i == 2 && chatNotifications > 0 {
+              Text(chatNotifications > 99 ? "99+" : "\(chatNotifications)")
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white).padding(.horizontal, chatNotifications > 9 ? 5 : 0)
+                .frame(minWidth: 18, minHeight: 18).background(NookColors.mocha, in: Capsule())
+                .overlay(Capsule().stroke(NookColors.cream, lineWidth: 2))
+                .offset(x: 15, y: -12)
+                .accessibilityLabel("\(chatNotifications) mensajes sin leer")
             }
             }
             Circle().fill(NookColors.mocha).frame(width: 4, height: 4)
@@ -1186,53 +1157,46 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, 26).padding(.top, 7)
+    .padding(.horizontal, 18).padding(.top, 7)
     .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
     .background {
       NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
     }
     .animation(NookMotion.fast, value: selection)
-    .onAppear {
-      withAnimation(.linear(duration: 6.5).repeatForever(autoreverses: false)) {
-        profileRingRotation = true
-      }
-    }
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()
-    }
-    .onChange(of: selection) { _, value in
-      guard value == 3 else { profileRingPulse = false; return }
-      profileRingPulse = true
-      Task {
-        try? await Task.sleep(for: .milliseconds(650))
-        await MainActor.run { withAnimation(NookMotion.fast) { profileRingPulse = false } }
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(30))
+        guard !Task.isCancelled else { break }
+        await refreshNotifications()
       }
     }
   }
   @MainActor private func refreshNotifications() async {
     guard app.me != nil else {
-      coffeeNotifications = 0; matchCount = 0; hasConfirmedCoffee = false; return
+      coffeeNotifications = 0; chatNotifications = 0; return
     }
     async let notificationRequest = try? app.repository.notifications()
     async let dateRequest = try? app.repository.dates()
-    async let matchRequest = try? app.repository.matches()
     let notifications = await notificationRequest ?? []
     let dates = await dateRequest ?? []
-    let matches = await matchRequest ?? []
     let unread = notifications.filter { !$0.read }
+    let unreadCoffee = unread.filter { ["COFFEE_ACCEPTED", "COFFEE_PROPOSAL", "COFFEE_COUNTER_PROPOSAL", "COFFEE_CANCELLED"].contains($0.type) }
+    let unreadChats = unread.filter { $0.type == "MESSAGE" }
+    let counts = NavigationBadgeCounts.calculate(
+      notifications: notifications, dates: dates, currentUserID: app.me!.id)
     withAnimation(NookMotion.fast) {
-      coffeeNotifications = dates.filter {
-        ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == app.me?.id
-      }.count
-      matchCount = matches.count
-      hasConfirmedCoffee = dates.contains { $0.status == .accepted }
+      coffeeNotifications = counts.coffees
+      chatNotifications = counts.chats
     }
-    if selection == 2 && !unread.isEmpty {
-      try? await Task.sleep(for: .milliseconds(1_100))
-      for notification in unread where notification.type == "COFFEE_ACCEPTED" || notification.type == "COFFEE_PROPOSAL" {
+    if selection == 1 && !unreadCoffee.isEmpty {
+      for notification in unreadCoffee {
         try? await app.repository.markNotificationRead(notification.id)
       }
       await refreshDatesOnly()
+    } else if selection == 2 && !unreadChats.isEmpty {
+      for notification in unreadChats { try? await app.repository.markNotificationRead(notification.id) }
+      withAnimation(NookMotion.fast) { chatNotifications = 0 }
     }
   }
   @MainActor private func refreshDatesOnly() async {
@@ -1241,7 +1205,6 @@ struct FloatingTabBar: View {
       coffeeNotifications = dates.filter {
         ($0.status == .pending || $0.status == .counterProposed) && $0.receiverId == app.me?.id
       }.count
-      hasConfirmedCoffee = dates.contains { $0.status == .accepted }
     }
   }
 }

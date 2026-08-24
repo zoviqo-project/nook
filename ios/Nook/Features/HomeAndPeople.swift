@@ -77,6 +77,7 @@ struct DiscoverView: View {
   @State private var liking = false
   @State private var entrance = false
   @State private var showFilters = false
+  @State private var showProfile = false
   @State private var selectedProfile: DiscoverProfile?
   @AppStorage("didSeeDiscoverySwipeHint") private var didSeeSwipeHint = false
   @State private var showSwipeHint = false
@@ -87,7 +88,9 @@ struct DiscoverView: View {
       eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.warmBlack,
       brandedHeader: true,
       actionIcon: "slider.horizontal.3",
-      actionLabel: "Filtros", action: { showFilters = true }
+      actionLabel: "Filtros", action: { showFilters = true },
+      secondaryActionIcon: "person.crop.circle",
+      secondaryActionLabel: "Mi perfil", secondaryAction: { showProfile = true }
     ) {
       Group {
           if vm.loading && vm.people.isEmpty {
@@ -126,6 +129,7 @@ struct DiscoverView: View {
       Task { await vm.finishMatch(repo: app.repository) }
     }) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
+      .sheet(isPresented: $showProfile) { NavigationStack { ProfileView() } }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
       .onChange(of: vm.people) { _, people in
         app.cacheDiscover(people)
