@@ -859,7 +859,11 @@ private struct MyCafeUnifiedCard: View {
           .buttonStyle(.plain).foregroundStyle(NookColors.espresso).accessibilityLabel("Ver detalle")
         }
       }
-      HStack { statusBadge; Spacer(minLength: 8) }
+      HStack(spacing: 8) {
+        statusBadge
+        if item.proposal?.nookChoice == true { nookChoiceBadge }
+        Spacer(minLength: 8)
+      }
       context
       actionRow
     }
@@ -929,6 +933,24 @@ private struct MyCafeUnifiedCard: View {
       .lineLimit(1).minimumScaleFactor(0.64).allowsTightening(true).padding(.horizontal, 10).frame(height: 28)
       .background(statusColor, in: Capsule()).foregroundStyle(statusForeground)
       .scaleEffect(needsAttention && attention ? 1.035 : 1)
+  }
+  private var nookChoiceBadge: some View {
+    Label("ELECCIÓN NOOK", systemImage: "sparkles")
+      .font(.system(size: 9, weight: .heavy, design: .rounded))
+      .tracking(0.65)
+      .lineLimit(1)
+      .minimumScaleFactor(0.75)
+      .foregroundStyle(NookColors.inverseText)
+      .padding(.horizontal, 10)
+      .frame(height: 28)
+      .background(
+        LinearGradient(
+          colors: [Color(red: 0.72, green: 0.43, blue: 0.12), NookColors.mocha,
+            Color(red: 0.92, green: 0.64, blue: 0.20)],
+          startPoint: .leading, endPoint: .trailing),
+        in: Capsule())
+      .shadow(color: NookColors.amber.opacity(attention ? 0.24 : 0.08), radius: attention ? 7 : 3)
+      .accessibilityLabel("Elección Nook")
   }
   @ViewBuilder private var context: some View {
     if let proposal = item.proposal {
