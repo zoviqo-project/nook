@@ -297,7 +297,7 @@ struct ConversationsView: View {
                     conversationRow(conversation)
                   }
                 }
-            }.padding(.horizontal, NookSpacing.screen).padding(.bottom, 24)
+            }.padding(.horizontal, NookSpacing.screen).padding(.bottom, NookSpacing.xs)
             }.refreshable { await load(showLoader: false) }
           }
         }

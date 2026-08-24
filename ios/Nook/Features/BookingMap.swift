@@ -185,7 +185,6 @@ struct CoffeeShopsView: View {
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
         LocationPermissionState(openSettings: location.openSettings)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .padding(.bottom, 66)
       } else {
         NookScreenContainer(
           eyebrow: otherPlaceMode ? "OTRO LUGAR" : (targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO"),

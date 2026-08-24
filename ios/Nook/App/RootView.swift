@@ -1069,6 +1069,8 @@ struct OnboardingView: View {
 struct MainTabView: View {
   @EnvironmentObject var app: AppSession
   var body: some View {
+    // The body and navigation share the vertical layout. Keeping the footer out of
+    // overlays/safeAreaInsets guarantees that every scroll view ends above it.
     VStack(spacing: 0) {
       Group {
         switch app.selectedTab {
@@ -1099,6 +1101,7 @@ struct MainTabView: View {
 
 struct FloatingTabBar: View {
   @EnvironmentObject var app: AppSession
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @Binding var selection: Int
   @State private var coffeeNotifications = 0
   @State private var chatNotifications = 0
@@ -1123,8 +1126,8 @@ struct FloatingTabBar: View {
                 .font(.system(size: 22, weight: selection == i ? .medium : .light))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(selection == i ? NookColors.primaryCoffee : NookColors.textSecondary.opacity(0.62))
-                .scaleEffect(selection == i ? 1.1 : 1)
-                .symbolEffect(.bounce, value: selection == i)
+                .scaleEffect(selection == i && !reduceMotion ? 1.08 : 1)
+                .symbolEffect(.bounce, value: selection == i && !reduceMotion)
             if i == 1 && coffeeNotifications > 0 {
               Text(coffeeNotifications > 9 ? "9+" : "\(coffeeNotifications)")
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
@@ -1153,12 +1156,17 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, NookSpacing.screen).padding(.top, 8)
-    .frame(maxWidth: .infinity).frame(height: 62, alignment: .center)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, NookSpacing.xxs)
+    .frame(maxWidth: .infinity).frame(height: 58, alignment: .center)
     .background {
-      NookColors.surface.opacity(0.98).ignoresSafeArea(edges: .bottom)
+      NookColors.background.ignoresSafeArea(edges: .bottom)
     }
-    .overlay(alignment: .top) { Rectangle().fill(NookColors.divider).frame(height: 0.5) }
+    .overlay(alignment: .top) {
+      LinearGradient(
+        colors: [NookColors.primaryCoffee.opacity(0.035), .clear],
+        startPoint: .top, endPoint: .bottom)
+        .frame(height: 8).allowsHitTesting(false)
+    }
     .animation(NookMotion.fast, value: selection)
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()
