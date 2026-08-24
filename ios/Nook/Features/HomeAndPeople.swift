@@ -405,6 +405,7 @@ struct MatchCelebration: View {
   @State private var cups = false
   @State private var coffeeBurst = false
   @State private var matchRing = false
+  @State private var departing = false
   var body: some View {
     ZStack {
       NookBackground()
@@ -443,7 +444,7 @@ struct MatchCelebration: View {
         Spacer()
         VStack(spacing: 10) {
           matchAction("Proponer un lugar", icon: "mappin.and.ellipse", primary: true) {
-            app.selectedCoffeeMatch = match.id; app.selectedTab = 1; dismiss()
+            beginMidpointTransition()
           }
           matchAction("Dejarlo para otro momento", icon: "clock", primary: false) {
             Haptics.selection()
@@ -451,6 +452,15 @@ struct MatchCelebration: View {
           }
         }.frame(maxWidth: 286)
       }.padding(NookSpacing.lg)
+        .opacity(departing ? 0 : 1)
+        .scaleEffect(departing ? 0.96 : 1)
+        .blur(radius: departing ? 5 : 0)
+        .allowsHitTesting(!departing)
+      if departing {
+        MidpointBridgeTransition()
+          .transition(.opacity.combined(with: .scale(scale: 0.94)))
+          .zIndex(20)
+      }
     }.onAppear {
       withAnimation(NookMotion.playful) { meet = true }
       withAnimation(NookMotion.playful.delay(0.38)) { cups = true }
@@ -460,6 +470,17 @@ struct MatchCelebration: View {
       }
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.72) { Haptics.success() }
       NookSoundManager.shared.play(.match)
+    }
+  }
+  private func beginMidpointTransition() {
+    guard !departing else { return }
+    Haptics.selection()
+    withAnimation(.easeInOut(duration: 0.48)) { departing = true }
+    Task {
+      try? await Task.sleep(for: .milliseconds(1_050))
+      app.selectedCoffeeMatch = match.id
+      app.selectedTab = 1
+      dismiss()
     }
   }
   private func avatar(name: String, photo: String?, fromLeft: Bool) -> some View {
@@ -479,6 +500,46 @@ struct MatchCelebration: View {
         .background(primary ? NookColors.espresso : .clear, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 15).stroke(NookColors.espresso.opacity(primary ? 0 : 0.22), lineWidth: 0.8) }
     }.buttonStyle(.plain)
+  }
+}
+
+private struct MidpointBridgeTransition: View {
+  @State private var expanded = false
+  @State private var locating = false
+
+  var body: some View {
+    ZStack {
+      NookColors.warmBlack.ignoresSafeArea()
+      Circle()
+        .fill(NookColors.mocha.opacity(expanded ? 0.08 : 0.3))
+        .frame(width: expanded ? 760 : 82, height: expanded ? 760 : 82)
+      Circle()
+        .stroke(NookColors.latte.opacity(expanded ? 0.12 : 0.72), lineWidth: expanded ? 1 : 3)
+        .frame(width: expanded ? 360 : 86, height: expanded ? 360 : 86)
+      VStack(spacing: 24) {
+        ZStack {
+          Circle().stroke(NookColors.mocha.opacity(0.28), lineWidth: 2).frame(width: 104, height: 104)
+          Circle()
+            .trim(from: 0.08, to: locating ? 0.94 : 0.28)
+            .stroke(NookColors.latte, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+            .frame(width: 104, height: 104).rotationEffect(.degrees(-90))
+          NookCoffeeLogo(size: 84, animated: false).clipShape(Circle())
+          Image(systemName: "location.fill")
+            .font(.system(size: 13, weight: .bold)).foregroundStyle(NookColors.warmBlack)
+            .frame(width: 30, height: 30).background(NookColors.latte, in: Circle())
+            .offset(x: locating ? 44 : 0, y: locating ? -36 : 0)
+            .opacity(locating ? 1 : 0)
+        }
+        Text("Buscando\npunto medio")
+          .font(NookTypography.display(38)).tracking(-0.7)
+          .foregroundStyle(.white).multilineTextAlignment(.center)
+          .opacity(locating ? 1 : 0).offset(y: locating ? 0 : 12)
+      }
+    }
+    .onAppear {
+      withAnimation(.easeInOut(duration: 0.82)) { expanded = true }
+      withAnimation(.spring(response: 0.62, dampingFraction: 0.8).delay(0.16)) { locating = true }
+    }
   }
 }
 

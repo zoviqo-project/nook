@@ -287,13 +287,13 @@ struct ConversationsView: View {
             .containerRelativeFrame(.vertical, alignment: .center)
         } else {
           ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 0) {
               ForEach(conversations) { conversation in
                 NavigationLink { ChatDetail(conversation: conversation) } label: {
                   conversationRow(conversation)
                 }
               }
-            }.padding(.horizontal, 16).padding(.vertical, 12)
+            }.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 20)
           }.refreshable { await load(showLoader: false) }
         }
       }
@@ -309,18 +309,47 @@ struct ConversationsView: View {
   }
 
   private func conversationRow(_ conversation: Conversation) -> some View {
-    HStack(spacing: 13) {
-      ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-        .frame(width: 62, height: 62).clipShape(Circle())
-      VStack(alignment: .leading, spacing: 6) {
-        Text(conversation.person.name).font(.title3.bold()).foregroundStyle(NookColors.espresso)
-        Text(conversation.lastMessage.isEmpty ? "Decid hola ☕" : conversation.lastMessage)
-          .font(.subheadline).foregroundStyle(NookColors.espresso.opacity(0.68)).lineLimit(2)
+    VStack(spacing: 0) {
+      HStack(spacing: 14) {
+        ZStack(alignment: .bottomTrailing) {
+          ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
+            .frame(width: 64, height: 64).clipShape(Circle())
+            .overlay(Circle().stroke(NookColors.mocha.opacity(0.34), lineWidth: 1.5))
+          Circle().fill(NookColors.mocha).frame(width: 13, height: 13)
+            .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
+        }
+        VStack(alignment: .leading, spacing: 6) {
+          HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(conversation.person.name)
+              .font(.system(size: 18, weight: .bold, design: .rounded))
+              .foregroundStyle(NookColors.espresso).lineLimit(1)
+            Spacer(minLength: 6)
+            Text(relativeDate(conversation.updatedAt))
+              .font(.system(size: 11, weight: .medium, design: .rounded))
+              .foregroundStyle(NookColors.espresso.opacity(0.42))
+          }
+          Text(conversation.lastMessage.isEmpty ? "Da el primer paso y saluda ☕" : conversation.lastMessage)
+            .font(.system(size: 15, weight: conversation.lastMessage.isEmpty ? .medium : .regular, design: .rounded))
+            .foregroundStyle(NookColors.espresso.opacity(conversation.lastMessage.isEmpty ? 0.62 : 0.7))
+            .lineLimit(1)
+        }
+        Image(systemName: "chevron.right")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(NookColors.espresso.opacity(0.25))
       }
-      Spacer()
-      Image(systemName: "chevron.right").font(.caption.bold())
-        .foregroundStyle(NookColors.espresso.opacity(0.38))
-    }.padding(13).minimalListCard()
+      .padding(.vertical, 13)
+      Divider().overlay(NookColors.espresso.opacity(0.08)).padding(.leading, 78)
+    }
+    .contentShape(Rectangle())
+  }
+
+  private func relativeDate(_ value: String) -> String {
+    guard let date = ISO8601DateFormatter.nook.date(from: value) else { return "" }
+    if Calendar.current.isDateInToday(date) {
+      return date.formatted(date: .omitted, time: .shortened)
+    }
+    if Calendar.current.isDateInYesterday(date) { return "Ayer" }
+    return date.formatted(.dateTime.day().month(.abbreviated))
   }
 
   @MainActor private func load(showLoader: Bool = true) async {
