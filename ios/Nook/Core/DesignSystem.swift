@@ -476,25 +476,12 @@ struct NookSkeletonScreen: View {
     }.padding(.horizontal, 12).padding(.top, 4).padding(.bottom, 14)
   }
 
-  /// Mirrors CoffeeDatesList: 38pt filters, section caption and 242pt tickets.
-  /// Keeping these dimensions shared prevents a layout jump when data arrives.
+  /// Mirrors MyCafesUnifiedList: only cards that remain once loading completes.
   private func coffeeDates(rows: Int) -> some View {
-    VStack(spacing: 10) {
-      HStack(spacing: 8) {
-        skeletonBlock(width: 91, height: 38, radius: 19)
-        skeletonBlock(width: 82, height: 38, radius: 19)
-        skeletonBlock(width: 68, height: 38, radius: 19)
-        skeletonBlock(width: 96, height: 38, radius: 19)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
-
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 14) {
-          skeletonBlock(width: 142, height: 13, radius: 6)
-            .padding(.top, 12).padding(.leading, 4)
-          ForEach(0..<rows, id: \.self) { index in
-            skeletonBlock(height: 242, radius: 25)
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: 14) {
+        ForEach(0..<rows, id: \.self) { index in
+          skeletonBlock(height: 205, radius: NookRadius.card)
               .overlay(alignment: .top) {
                 HStack {
                   if index.isMultiple(of: 2) {
@@ -515,11 +502,10 @@ struct NookSkeletonScreen: View {
                   skeletonBlock(width: 138, height: 34, radius: 17)
                 }.padding(14)
               }
-          }
         }
-        .padding(.horizontal, 16).padding(.bottom, 18)
-      }.scrollIndicators(.hidden)
-    }
+      }
+      .padding(.horizontal, 16).padding(.vertical, 8)
+    }.scrollIndicators(.hidden)
   }
 
   /// Mirrors ConversationsView: selected cafés rail followed by compact conversation rows.
