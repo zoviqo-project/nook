@@ -1092,7 +1092,6 @@ struct MainTabView: View {
           .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     }
-    .animation(NookMotion.fast, value: app.selectedTab)
     .animation(NookMotion.fast, value: app.tabBarHidden)
     .background {
       if app.selectedTab == 0 { NookColors.warmBlack.ignoresSafeArea() }
@@ -1119,7 +1118,7 @@ struct FloatingTabBar: View {
           if i == 1 {
             app.selectedCoffeeMatch = nil
           }
-          withAnimation(NookMotion.fast) { selection = i }
+          selection = i
         } label: {
           VStack(spacing: 5) {
             ZStack {

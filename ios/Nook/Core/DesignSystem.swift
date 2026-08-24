@@ -188,10 +188,9 @@ struct NookHeader: View {
     }
     .frame(height: 52, alignment: .center)
     .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 10)
+    .transaction { transaction in transaction.animation = nil }
       .onAppear {
-        withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
-          ringRotation = true
-        }
+        ringRotation = true
       }
   }
   private func headerAction(
@@ -211,6 +210,7 @@ struct NookHeader: View {
                 colors: [NookColors.mocha, NookColors.espresso, NookColors.latte, NookColors.mocha],
                 center: .center), lineWidth: 3)
               .rotationEffect(.degrees(ringRotation ? 360 : 0))
+              .animation(.linear(duration: 6).repeatForever(autoreverses: false), value: ringRotation)
               .shadow(color: NookColors.mocha.opacity(0.28), radius: 6)
           } else {
             Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1)
@@ -313,6 +313,7 @@ enum NookSkeletonLayout {
   case list(rows: Int)
   case coffeeCards(rows: Int)
   case coffeeDates(rows: Int)
+  case conversations(rows: Int)
 }
 
 struct NookSkeletonScreen: View {
@@ -330,6 +331,8 @@ struct NookSkeletonScreen: View {
         coffeeCards(rows: rows)
       case .coffeeDates(let rows):
         coffeeDates(rows: rows)
+      case .conversations(let rows):
+        conversations(rows: rows)
       }
     }
     .accessibilityElement(children: .ignore)
@@ -443,6 +446,44 @@ struct NookSkeletonScreen: View {
         }
         .padding(.horizontal, 16).padding(.bottom, 18)
       }.scrollIndicators(.hidden)
+    }
+  }
+
+  /// Mirrors ConversationsView: selected cafés rail followed by compact conversation rows.
+  private func conversations(rows: Int) -> some View {
+    VStack(spacing: 0) {
+      VStack(alignment: .leading, spacing: 10) {
+        skeletonBlock(width: 118, height: 12, radius: 6)
+        HStack(spacing: 15) {
+          ForEach(0..<4, id: \.self) { index in
+            VStack(spacing: 7) {
+              skeletonBlock(width: 62, height: 62, radius: 31)
+              skeletonBlock(width: index.isMultiple(of: 2) ? 54 : 46, height: 10, radius: 5)
+            }
+          }
+          Spacer(minLength: 0)
+        }
+      }
+      .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 13)
+
+      LazyVStack(spacing: 0) {
+        ForEach(0..<rows, id: \.self) { index in
+          HStack(spacing: 14) {
+            skeletonBlock(width: 64, height: 64, radius: 32)
+            VStack(alignment: .leading, spacing: 9) {
+              HStack {
+                skeletonBlock(width: index.isMultiple(of: 2) ? 132 : 164, height: 18, radius: 7)
+                Spacer()
+                skeletonBlock(width: 38, height: 10, radius: 5)
+              }
+              skeletonBlock(width: index.isMultiple(of: 2) ? 206 : 174, height: 14, radius: 6)
+            }
+          }
+          .frame(height: 91)
+          Divider().overlay(NookColors.espresso.opacity(0.08)).padding(.leading, 78)
+        }
+      }.padding(.horizontal, 18)
+      Spacer(minLength: 0)
     }
   }
 

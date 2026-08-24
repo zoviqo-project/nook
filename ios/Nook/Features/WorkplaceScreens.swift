@@ -270,6 +270,7 @@ struct ChatsView: View {
 struct ConversationsView: View {
   @EnvironmentObject var app: AppSession
   @State private var conversations: [Conversation] = []
+  @State private var cafeItems: [MyCafeItem] = []
   @State private var loading = true
   @State private var error: String?
 
@@ -277,7 +278,7 @@ struct ConversationsView: View {
     NookScreenContainer(eyebrow: "CONVERSACIONES", title: "Chats") {
       Group {
         if loading && conversations.isEmpty {
-          NookSkeletonScreen(layout: .coffeeDates(rows: 4))
+          NookSkeletonScreen(layout: .conversations(rows: 4))
         } else if let error, conversations.isEmpty {
           NookErrorView(message: error) { Task { await load() } }
         } else if conversations.isEmpty {
@@ -286,15 +287,18 @@ struct ConversationsView: View {
             text: "Cuando hagáis match, vuestra conversación aparecerá aquí.")
             .containerRelativeFrame(.vertical, alignment: .center)
         } else {
-          ScrollView {
-            LazyVStack(spacing: 0) {
-              ForEach(conversations) { conversation in
-                NavigationLink { ChatDetail(conversation: conversation) } label: {
-                  conversationRow(conversation)
+          VStack(spacing: 0) {
+            if !selectedCafes.isEmpty { selectedCafesRail }
+            ScrollView {
+              LazyVStack(spacing: 0) {
+                ForEach(conversations) { conversation in
+                  NavigationLink { ChatDetail(conversation: conversation) } label: {
+                    conversationRow(conversation)
+                  }
                 }
-              }
-            }.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 20)
-          }.refreshable { await load(showLoader: false) }
+              }.padding(.horizontal, 18).padding(.bottom, 20)
+            }.refreshable { await load(showLoader: false) }
+          }
         }
       }
     }
@@ -306,6 +310,36 @@ struct ConversationsView: View {
         await load(showLoader: false)
       }
     }
+  }
+
+  private var selectedCafes: [CoffeeShop] {
+    var seen = Set<UUID>()
+    return cafeItems.compactMap(\.proposal).map(\.coffeeShop).filter { seen.insert($0.id).inserted }
+  }
+
+  private var selectedCafesRail: some View {
+    VStack(alignment: .leading, spacing: 9) {
+      Text("VUESTROS CAFÉS")
+        .font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1.4)
+        .foregroundStyle(NookColors.mocha)
+      ScrollView(.horizontal) {
+        LazyHStack(spacing: 15) {
+          ForEach(selectedCafes) { shop in
+            VStack(spacing: 7) {
+              ShopImage(url: shop.photoUrl, seed: shop.name)
+                .frame(width: 62, height: 62).clipShape(Circle())
+                .overlay(Circle().stroke(NookColors.mocha.opacity(0.42), lineWidth: 1.5))
+              Text(shop.name)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(NookColors.espresso).lineLimit(1)
+                .frame(width: 72)
+            }
+          }
+        }
+      }.scrollIndicators(.hidden)
+    }
+    .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
+    .overlay(alignment: .bottom) { Divider().overlay(NookColors.espresso.opacity(0.08)) }
   }
 
   private func conversationRow(_ conversation: Conversation) -> some View {
@@ -356,9 +390,14 @@ struct ConversationsView: View {
     if showLoader && conversations.isEmpty { loading = true }
     defer { loading = false }
     do {
-      conversations = try await app.repository.conversations()
+      async let conversationsRequest = app.repository.conversations()
+      async let cafesRequest = app.repository.myCafes()
+      let (loadedConversations, loadedCafes) = try await (conversationsRequest, cafesRequest)
+      conversations = loadedConversations
+      cafeItems = loadedCafes
       error = nil
       NookImagePrefetch.schedule(conversations.prefix(12).flatMap { $0.person.photos.map(\.url) })
+      NookImagePrefetch.schedule(selectedCafes.compactMap(\.photoUrl))
     } catch {
       if conversations.isEmpty {
         self.error = "No hemos podido cargar tus conversaciones. Comprueba la conexión y reintenta."
