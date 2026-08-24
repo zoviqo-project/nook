@@ -348,8 +348,7 @@ struct ConversationsView: View {
         }
       }.scrollIndicators(.hidden).frame(height: 84)
     }
-    .padding(.horizontal, NookSpacing.screen).padding(.top, 10).padding(.bottom, 14)
-    .overlay(alignment: .bottom) { Divider().overlay(NookColors.espresso.opacity(0.08)) }
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 0).padding(.bottom, 10)
   }
 
   private func isNookChoice(_ shop: CoffeeShop) -> Bool {
