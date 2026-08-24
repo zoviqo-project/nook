@@ -149,7 +149,7 @@ struct NookHeader: View {
     HStack(alignment: .center, spacing: 16) {
       if branded {
         HStack(spacing: 10) {
-          NookCoffeeLogo(size: 34)
+          NookCoffeeLogo(size: 34, animated: false)
           Text(title).font(NookTypography.display(28)).tracking(-0.35)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
@@ -180,7 +180,10 @@ struct NookHeader: View {
             ring: secondaryActionRing, action: secondaryAction)
         }
       }
-    }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 12)
+      .frame(minWidth: 88, alignment: .trailing)
+    }
+    .frame(height: 52, alignment: .center)
+    .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 10)
       .onAppear {
         withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
           ringRotation = true

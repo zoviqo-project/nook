@@ -1086,7 +1086,7 @@ struct MainTabView: View {
       .id(app.selectedTab)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .clipped()
-      .transition(.opacity.combined(with: .scale(scale: 0.985)))
+      .transition(.opacity)
       if !app.tabBarHidden {
         NookFloatingTabBar(selection: $app.selectedTab)
           .transition(.move(edge: .bottom).combined(with: .opacity))
