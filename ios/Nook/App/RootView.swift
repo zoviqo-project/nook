@@ -200,6 +200,7 @@ struct WelcomeView: View {
   @EnvironmentObject var app: AppSession
   @State private var phase = 0
   @State private var quickAccess = false
+  @State private var quickAccessLogin = false
   var body: some View {
     ZStack(alignment: .bottom) {
       NookWelcomeGallery(active: phase >= 1)
@@ -215,12 +216,18 @@ struct WelcomeView: View {
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
             .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(.white.opacity(0.76))
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
-        NookButton(title: "EMPEZAR", icon: "arrow.right") { quickAccess = true }
+        NookButton(title: "EMPEZAR", icon: "arrow.right") {
+          quickAccessLogin = false
+          quickAccess = true
+        }
           .opacity(phase >= 5 ? 1 : 0)
           .offset(y: phase >= 5 ? 0 : 42)
           .scaleEffect(phase >= 5 ? 1 : 0.96)
           .blur(radius: phase >= 5 ? 0 : 5)
-        Button("Ya tengo cuenta") { app.stage = .login }
+        Button("Ya tengo cuenta") {
+          quickAccessLogin = true
+          quickAccess = true
+        }
           .frame(maxWidth: .infinity)
           .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
           .opacity(phase >= 5 ? 1 : 0)
@@ -228,7 +235,7 @@ struct WelcomeView: View {
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
         .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
       if quickAccess {
-        QuickAccessView(isPresented: $quickAccess)
+        QuickAccessView(isPresented: $quickAccess, startWithLogin: quickAccessLogin)
           .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     }.animation(NookMotion.spring, value: quickAccess)
@@ -248,10 +255,17 @@ private struct QuickAccessView: View {
   @State private var busy = false
   @State private var busyAction: Int?
   @State private var error: String?
+  @State private var emailLogin: Bool
+  @State private var email = ""
+  @State private var password = ""
   @StateObject private var apple = AppleSignInCoordinator()
   @StateObject private var google = GoogleSignInCoordinator()
   @State private var revealed = false
   @State private var brewed = false
+  init(isPresented: Binding<Bool>, startWithLogin: Bool = false) {
+    _isPresented = isPresented
+    _emailLogin = State(initialValue: startWithLogin)
+  }
   var body: some View {
     ZStack(alignment: .bottom) {
       LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.78), NookColors.warmBlack.opacity(0.98)], startPoint: .top, endPoint: .bottom)
@@ -259,27 +273,63 @@ private struct QuickAccessView: View {
       VStack(alignment: .leading, spacing: 18) {
         HStack {
           Button {
-            withAnimation(NookMotion.spring) { isPresented = false }
+            withAnimation(NookMotion.spring) {
+              if emailLogin { emailLogin = false; error = nil }
+              else { isPresented = false }
+            }
           } label: {
-            Image(systemName: "xmark")
+            Image(systemName: emailLogin ? "chevron.left" : "xmark")
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
               .background(.white.opacity(0.14), in: Circle())
           }
           Spacer()
           NookCoffeeLogo(size: 34, animated: false).opacity(0.94)
         }
-        VStack(alignment: .leading, spacing: 7) {
-          Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
-          Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
+        if emailLogin {
+          VStack(alignment: .leading, spacing: 7) {
+            Text("Qué alegría verte").font(NookTypography.display(36)).tracking(-0.8)
+            Text("Entra y retomamos ese café.").font(.body).foregroundStyle(.white.opacity(0.66))
+          }
+          VStack(spacing: 12) {
+            CinematicLoginField(
+              label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
+            CinematicLoginField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
+            if let error {
+              Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            accessButton(busy ? "Entrando…" : "Entrar", icon: "arrow.right", primary: true, index: 2) {
+              Task { await signInWithEmail() }
+            }.disabled(email.isEmpty || password.count < 8)
+              .opacity(email.isEmpty || password.count < 8 ? 0.45 : 1)
+          }
+          HStack(spacing: 10) {
+            Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+            Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
+              .tracking(1.3).foregroundStyle(.white.opacity(0.5)).fixedSize()
+            Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+          }
+          HStack(spacing: 10) {
+            compactProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
+            compactProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
+          }
+        } else {
+          VStack(alignment: .leading, spacing: 7) {
+            Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
+            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
+          }
+          VStack(spacing: 11) {
+            accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
+            accessButton("Continuar con Google", icon: "g.circle", index: 1) { Task { await signInWithGoogle() } }
+            accessButton("Entrar con email", icon: "envelope.fill", index: 2) {
+              withAnimation(NookMotion.spring) { emailLogin = true }
+            }
+          }
+          Button("Crear una cuenta con email") {
+            isPresented = false; app.stage = .registration
+          }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
+            .frame(maxWidth: .infinity).padding(.top, 2)
         }
-        VStack(spacing: 11) {
-          accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
-          accessButton("Continuar con Google", icon: "g.circle", index: 1) { Task { await signInWithGoogle() } }
-        }
-        Button("Crear una cuenta con email") {
-          isPresented = false; app.stage = .registration
-        }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
-          .frame(maxWidth: .infinity).padding(.top, 2)
         Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
           .font(.caption).foregroundStyle(.white.opacity(0.48)).multilineTextAlignment(.center)
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
@@ -288,6 +338,16 @@ private struct QuickAccessView: View {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
     }
+  }
+  private func compactProvider(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      HStack(spacing: 8) {
+        Image(systemName: icon).font(.system(size: 16, weight: .semibold))
+        Text(title).font(.system(size: 14, weight: .semibold, design: .rounded))
+      }.frame(maxWidth: .infinity).frame(height: 46)
+        .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 15).stroke(.white.opacity(0.2)) }
+    }.buttonStyle(.plain).disabled(busy)
   }
   private func accessButton(_ title: String, icon: String, primary: Bool = false, index: Int, action: @escaping () -> Void) -> some View {
     Button(action: action) {
@@ -325,6 +385,16 @@ private struct QuickAccessView: View {
       isPresented = false
     } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
       return
+    } catch { self.error = error.localizedDescription }
+  }
+  private func signInWithEmail() async {
+    guard !busy, !email.isEmpty, password.count >= 8 else { return }
+    busy = true; busyAction = 2; error = nil
+    defer { busy = false; busyAction = nil }
+    do {
+      try await app.login(email, password)
+      Haptics.success()
+      isPresented = false
     } catch { self.error = error.localizedDescription }
   }
 }
