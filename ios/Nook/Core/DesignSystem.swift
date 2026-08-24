@@ -86,22 +86,22 @@ enum NookTypography {
     .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold)
   }
   static func display(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .semibold, design: .rounded)
+    .system(size: size, weight: .bold, design: .rounded)
   }
   static func displayItalic(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .semibold, design: .rounded).italic()
+    .system(size: size, weight: .bold, design: .rounded).italic()
   }
   static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
     .system(size: size, weight: weight, design: .rounded)
   }
   static let hero = display(44)
   static let title = display(32)
-  static let subtitle = business(20, weight: .semibold)
-  static let headline = business(17, weight: .semibold)
+  static let subtitle = business(20, weight: .bold)
+  static let headline = business(17, weight: .bold)
   static let body = business(16)
   static let secondary = business(14)
   static let caption = business(11, weight: .bold)
-  static let button = business(16, weight: .semibold)
+  static let button = business(16, weight: .bold)
   static let sectionLabel = business(10, weight: .bold)
   static let metadata = business(12, weight: .medium)
   static let compactHeadline = business(15, weight: .semibold)
@@ -216,7 +216,7 @@ struct NookHeader: View {
       if branded {
         HStack(spacing: NookSpacing.sm) {
           NookCoffeeLogo(size: 36, animated: false)
-          Text(title).font(NookTypography.business(27, weight: .semibold)).tracking(-0.35)
+          Text(title).font(NookTypography.business(27, weight: .bold)).tracking(-0.55)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
@@ -230,8 +230,8 @@ struct NookHeader: View {
               .font(.system(size: 10, weight: .bold, design: .rounded))
               .tracking(1.7).foregroundStyle(NookColors.mocha)
           }
-          Text(title).font(NookTypography.business(29, weight: .semibold))
-            .tracking(-0.35).lineLimit(1).minimumScaleFactor(0.76)
+          Text(title).font(NookTypography.business(29, weight: .bold))
+            .tracking(-0.55).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
         .transaction { transaction in transaction.animation = nil }
