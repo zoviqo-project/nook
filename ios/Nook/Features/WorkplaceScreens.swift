@@ -419,6 +419,7 @@ struct ConversationsView: View {
 
 struct ChatDetail: View {
   @EnvironmentObject var app: AppSession
+  @Environment(\.dismiss) private var dismiss
   let conversation: Conversation
   @State private var messages: [ChatMessage] = []
   @State private var dates: [CoffeeDate] = []
@@ -435,6 +436,7 @@ struct ChatDetail: View {
     ZStack {
       NookBackground()
       VStack(spacing: 0) {
+        chatHeader
         if let date = visibleCoffeeDates.first {
           NookChatCoffeeBanner(
             date: date, canAccept: date.receiverId == app.me?.id,
@@ -467,17 +469,9 @@ struct ChatDetail: View {
             .onChange(of: messages.count) { _, _ in withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } }
             .onChange(of: focused) { _, value in if value { withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } } }
         }
-      }.safeAreaInset(edge: .bottom, spacing: 0) { composer }.toolbar {
-        ToolbarItem(placement: .topBarLeading) {
-          HStack(spacing: 9) {
-            ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name).frame(width: 34, height: 34).clipShape(Circle())
-            VStack(alignment: .leading, spacing: 1) {
-              Text(conversation.person.name).font(NookTypography.business(16, weight: .bold))
-              Text(chatStatus.0).font(NookTypography.business(11, weight: .semibold)).foregroundStyle(chatStatus.1)
-            }
-          }
-        }
-      }.navigationBarTitleDisplayMode(.inline).task {
+      }.safeAreaInset(edge: .bottom, spacing: 0) { composer }
+      .toolbar(.hidden, for: .navigationBar)
+      .task {
         await refreshConversation()
         while !Task.isCancelled {
           try? await Task.sleep(for: .seconds(10))
@@ -516,6 +510,38 @@ struct ChatDetail: View {
           for: error, fallback: "No hemos podido actualizar la conversación. Inténtalo de nuevo.")
       }
     }
+  }
+
+  private var chatHeader: some View {
+    HStack(spacing: 9) {
+      Button {
+        dismiss()
+      } label: {
+        Image(systemName: "chevron.left")
+          .font(.system(size: 17, weight: .semibold))
+          .frame(width: 34, height: 40)
+      }
+      .buttonStyle(.plain)
+      .foregroundStyle(NookColors.espresso)
+      .accessibilityLabel("Volver")
+
+      ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
+        .frame(width: 36, height: 36)
+        .clipShape(Circle())
+      VStack(alignment: .leading, spacing: 1) {
+        Text(conversation.person.name)
+          .font(NookTypography.business(16, weight: .bold))
+          .lineLimit(1)
+        Text(chatStatus.0)
+          .font(NookTypography.business(11, weight: .semibold))
+          .foregroundStyle(chatStatus.1)
+          .lineLimit(1)
+      }
+      Spacer(minLength: 0)
+    }
+    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+    .padding(.horizontal, NookSpacing.sm)
+    .padding(.vertical, NookSpacing.xxs)
   }
   private var chatStatus: (String, Color) {
     let related = dates.filter { $0.matchId == conversation.matchId }
