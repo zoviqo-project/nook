@@ -319,23 +319,21 @@ private struct QuickAccessView: View {
             withAnimation(NookMotion.fast) { createAccount.toggle(); error = nil }
           }.font(.system(size: 13, weight: .semibold, design: .rounded))
             .foregroundStyle(.white.opacity(0.74)).frame(maxWidth: .infinity)
-          NookAuthProviderButton(
-            title: "Google", icon: "g.circle", isLoading: busy && busyAction == 1,
-            disabled: busy
-          ) { Task { await signInWithGoogle() } }
+          providerButtons
         } else {
           VStack(alignment: .leading, spacing: 7) {
             Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
             Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
           }
           VStack(spacing: 11) {
-            NookAuthProviderButton(
-              title: "Google", icon: "g.circle", isLoading: busy && busyAction == 1,
-              disabled: busy
-            ) { Task { await signInWithGoogle() } }
+            providerButtons
             accessButton("Entrar con email", icon: "envelope.fill", index: 2) {
               withAnimation(NookMotion.spring) { emailLogin = true }
             }
+          }
+          if let error {
+            Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral)
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
           Button("Crear una cuenta con email") {
             createAccount = true
@@ -350,6 +348,19 @@ private struct QuickAccessView: View {
     }.onAppear {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
+    }
+  }
+  private var providerButtons: some View {
+    VStack(spacing: 10) {
+      NookAuthProviderButton(
+        provider: .google, isLoading: busy && busyAction == 1, disabled: busy
+      ) { Task { await signInWithGoogle() } }
+      NookAuthProviderButton(provider: .apple, disabled: busy) {
+        error = "Apple necesita activar Sign in with Apple en una cuenta Developer de pago."
+      }
+      NookAuthProviderButton(provider: .facebook, disabled: busy) {
+        error = "Facebook necesita configurar su App ID y secreto para continuar."
+      }
     }
   }
   private func accessButton(_ title: String, icon: String, primary: Bool = false, index: Int, action: @escaping () -> Void) -> some View {
@@ -517,9 +528,14 @@ struct LoginView: View {
               }.padding(.vertical, 2)
               VStack(spacing: 10) {
                 NookAuthProviderButton(
-                  title: "Google", icon: "g.circle", isLoading: providerLoading == "Google",
-                  disabled: busy
+                  provider: .google, isLoading: providerLoading == "Google", disabled: busy
                 ) { Task { await signInWithGoogle() } }
+                NookAuthProviderButton(provider: .apple, disabled: busy) {
+                  state = .error("Apple necesita activar Sign in with Apple en una cuenta Developer de pago.")
+                }
+                NookAuthProviderButton(provider: .facebook, disabled: busy) {
+                  state = .error("Facebook necesita configurar su App ID y secreto para continuar.")
+                }
               }
               Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -598,8 +614,19 @@ struct LoginView: View {
 }
 
 private struct NookAuthProviderButton: View {
-  let title: String
-  let icon: String
+  enum Provider: Equatable {
+    case google, apple, facebook
+
+    var title: String {
+      switch self {
+      case .google: "Google"
+      case .apple: "Apple"
+      case .facebook: "Facebook"
+      }
+    }
+  }
+
+  let provider: Provider
   var isLoading = false
   var disabled = false
   let action: () -> Void
@@ -608,27 +635,48 @@ private struct NookAuthProviderButton: View {
     Button(action: action) {
       HStack(spacing: 13) {
         if isLoading {
-          ProgressView().controlSize(.small).tint(NookColors.espresso).frame(width: 24)
+          ProgressView().controlSize(.small).tint(foreground).frame(width: 24)
         } else {
-          Image(systemName: icon).font(.system(size: 18, weight: .medium)).frame(width: 24)
+          providerIcon.frame(width: 24)
         }
-        Text("Continuar con \(title)")
+        Text("Continuar con \(provider.title)")
           .font(.system(size: 17, weight: .semibold, design: .rounded))
         Spacer()
         Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
       }
-      .foregroundStyle(NookColors.espresso)
+      .foregroundStyle(foreground)
       .padding(.horizontal, 18).frame(height: 56)
-      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+      .background(background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
       .overlay {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
-          .stroke(NookColors.espresso.opacity(0.12), lineWidth: 0.75)
+          .stroke(border, lineWidth: 0.75)
       }
     }
     .buttonStyle(.plain)
     .disabled(disabled)
     .opacity(disabled && !isLoading ? 0.62 : 1)
   }
+
+  @ViewBuilder private var providerIcon: some View {
+    switch provider {
+    case .google:
+      Text("G").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
+    case .apple:
+      Image(systemName: "apple.logo").font(.system(size: 20, weight: .medium))
+    case .facebook:
+      Text("f").font(.system(size: 24, weight: .bold, design: .rounded)).offset(y: 2)
+    }
+  }
+
+  private var background: Color {
+    switch provider {
+    case .google: NookColors.offWhite
+    case .apple: .black
+    case .facebook: Color(red: 0.09, green: 0.39, blue: 0.78)
+    }
+  }
+  private var foreground: Color { provider == .google ? NookColors.espresso : .white }
+  private var border: Color { provider == .google ? NookColors.espresso.opacity(0.12) : .white.opacity(0.16) }
 }
 
 private struct CinematicLoginField: View {
