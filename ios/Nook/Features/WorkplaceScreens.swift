@@ -865,16 +865,24 @@ private struct MyCafeUnifiedCard: View {
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
     .background {
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .fill(NookColors.offWhite.opacity(0.94))
-        .overlay {
-          if item.proposal == nil {
-            LinearGradient(
-              colors: [matchGold.opacity(0.2), .clear, matchGold.opacity(0.08)],
-              startPoint: .topLeading, endPoint: .bottomTrailing)
-              .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-          }
+      ZStack {
+        if let proposal = item.proposal {
+          ShopImage(url: cafePhotoURL(for: proposal), seed: proposal.coffeeShop.name)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+          LinearGradient(
+            colors: [
+              NookColors.surface.opacity(0.90), NookColors.background.opacity(0.82),
+              NookColors.surface.opacity(0.94)
+            ],
+            startPoint: .topLeading, endPoint: .bottomTrailing)
+        } else {
+          NookColors.offWhite.opacity(0.94)
+          LinearGradient(
+            colors: [matchGold.opacity(0.2), .clear, matchGold.opacity(0.08)],
+            startPoint: .topLeading, endPoint: .bottomTrailing)
         }
+      }
+      .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
     .overlay(
       RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -1028,6 +1036,18 @@ private struct MyCafeUnifiedCard: View {
   }
   private var attentionColor: Color { item.proposal == nil ? matchGold : NookColors.amber }
   private var matchGold: Color { Color(red: 0.96, green: 0.72, blue: 0.2) }
+  private func cafePhotoURL(for proposal: CoffeeDate) -> String? {
+    if let url = proposal.coffeeShop.photoUrl, !url.isEmpty { return url }
+    // Temporary presentation fallback for cafés whose provider has no photo.
+    // It never mutates or replaces the backend model.
+    let demoPhotos = [
+      "https://images.unsplash.com/photo-1445116572660-236099ec97a0?auto=format&fit=crop&w=1200&q=82",
+      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=82",
+      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=1200&q=82"
+    ]
+    let index = proposal.coffeeShop.id.uuidString.utf8.reduce(0) { $0 + Int($1) } % demoPhotos.count
+    return demoPhotos[index]
+  }
 }
 
 struct CoffeeDatesList: View {
