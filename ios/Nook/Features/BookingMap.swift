@@ -181,7 +181,9 @@ struct CoffeeShopsView: View {
     ZStack(alignment: .top) {
       NookBackground()
       if searching && app.selectedCoffeeMatch != nil {
-        MidpointSearchState().transition(.opacity)
+        MidpointSearchState()
+          .ignoresSafeArea()
+          .transition(.opacity)
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
         LocationPermissionState(openSettings: location.openSettings)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -207,6 +209,11 @@ struct CoffeeShopsView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .toolbar(.hidden, for: .navigationBar)
+    .onAppear {
+      // Reserve the entire screen before the first loading frame is laid out;
+      // otherwise the outgoing tab bar briefly leaves an empty strip below.
+      if app.selectedCoffeeMatch != nil { app.tabBarHidden = true }
+    }
     .task {
       vm.beginLocationRequest()
       let midpointMode = app.selectedCoffeeMatch != nil
