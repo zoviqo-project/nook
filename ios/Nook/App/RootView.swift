@@ -1158,15 +1158,6 @@ struct FloatingTabBar: View {
     }
     .padding(.horizontal, NookSpacing.screen).padding(.top, NookSpacing.sm)
     .frame(maxWidth: .infinity).frame(height: 58, alignment: .center)
-    .background {
-      NookColors.background.ignoresSafeArea(edges: .bottom)
-    }
-    .overlay(alignment: .top) {
-      LinearGradient(
-        colors: [NookColors.primaryCoffee.opacity(0.035), .clear],
-        startPoint: .top, endPoint: .bottom)
-        .frame(height: 8).allowsHitTesting(false)
-    }
     .animation(NookMotion.fast, value: selection)
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()
