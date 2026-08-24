@@ -427,6 +427,7 @@ protocol CoffeeDateRepository: Sendable {
   func propose(match: UUID, shop: UUID, date: Date, payment: PaymentPreference, nookChoice: Bool, idempotencyKey: UUID) async throws
     -> CoffeeDate
   func updateDate(_ id: UUID, status: CoffeeDateStatus) async throws -> CoffeeDate
+  func counterDate(_ id: UUID, shop: UUID, date: Date, payment: PaymentPreference) async throws -> CoffeeDate
 }
 protocol NotificationRepository: Sendable {
   func notifications() async throws -> [NookNotification]

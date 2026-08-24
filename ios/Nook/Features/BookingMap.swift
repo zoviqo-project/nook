@@ -1356,6 +1356,7 @@ struct ProposalSheet: View {
   let shop: CoffeeShop
   let matches: [Match]
   var isNookChoice = false
+  var existingProposal: CoffeeDate? = nil
   @State private var step = 0
   @State private var selectedMatch: UUID?
   // Payment is deliberately not part of the proposal funnel. A first coffee should
@@ -1475,9 +1476,15 @@ struct ProposalSheet: View {
                 Task {
                   sending = true
                   do {
-                    let persisted = try await app.repository.propose(
-                      match: match, shop: shop.id, date: date, payment: payment,
-                      nookChoice: isNookChoice, idempotencyKey: idempotencyKey)
+                    let persisted: CoffeeDate
+                    if let existingProposal {
+                      persisted = try await app.repository.counterDate(
+                        existingProposal.id, shop: shop.id, date: date, payment: payment)
+                    } else {
+                      persisted = try await app.repository.propose(
+                        match: match, shop: shop.id, date: date, payment: payment,
+                        nookChoice: isNookChoice, idempotencyKey: idempotencyKey)
+                    }
                     app.coffeeProposalPersisted(persisted)
                     Haptics.success()
                     NookSoundManager.shared.play(.proposal)
@@ -1510,7 +1517,14 @@ struct ProposalSheet: View {
     .onChange(of: date) { _, _ in
       if flowStep == 0 { selectedSlot = nil }
     }
-    .onAppear { selectedMatch = app.selectedCoffeeMatch }
+    .onAppear {
+      selectedMatch = existingProposal?.matchId ?? app.selectedCoffeeMatch
+      if let existingProposal,
+        let proposedDate = ISO8601DateFormatter.nook.date(from: existingProposal.proposedAt)
+      {
+        date = proposedDate
+      }
+    }
   }
   private var needsPersonChoice: Bool { app.selectedCoffeeMatch == nil }
   private var flowStep: Int { step - (needsPersonChoice ? 1 : 0) }

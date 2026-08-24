@@ -11,7 +11,8 @@ import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
 import com.nook.service.*;
 import com.nook.application.port.out.PushNotificationPort;
-import java.time.Instant;
+import java.time.*;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -160,5 +161,44 @@ class CoffeeDateServiceTest {
     assertThat(proposal.status).isEqualTo(DateStatus.COUNTER_PROPOSED);
     verify(push).deliver(eq(originalSender),eq("COFFEE_PROPOSAL"),contains("cambiado"),
         eq("Nook Coffee"),eq(proposal.id));
+  }
+
+  @Test void acceptedCoffeePreventsCreatingAnotherProposalForTheSameMatch(){
+    UUID user=UUID.randomUUID(),matchId=UUID.randomUUID();
+    CoffeeDateProposal accepted=new CoffeeDateProposal();accepted.status=DateStatus.ACCEPTED;
+    when(repository.matchMember(matchId,user)).thenReturn(true);
+    Match match=new Match();match.id=matchId;match.userOneId=user;match.userTwoId=UUID.randomUUID();
+    when(repository.find(Match.class,matchId)).thenReturn(match);
+    when(repository.activeDate(matchId)).thenReturn(Optional.of(accepted));
+    var request=new CreateDate(matchId,UUID.randomUUID(),Instant.now().plusSeconds(3_600),
+        PaymentPreference.SPLIT,false,UUID.randomUUID(),"Europe/Madrid");
+
+    assertThatThrownBy(()->service().create(user,request)).isInstanceOf(ApiException.class)
+        .hasMessageContaining("propuesta activa");
+    verify(repository,never()).save(any(CoffeeDateProposal.class));
+  }
+
+  @Test void counterProposalCannotSelectAClosedTime(){
+    UUID sender=UUID.randomUUID(),recipient=UUID.randomUUID();
+    CoffeeDateProposal proposal=new CoffeeDateProposal();proposal.id=UUID.randomUUID();
+    proposal.senderId=sender;proposal.receiverId=recipient;proposal.matchId=UUID.randomUUID();
+    proposal.coffeeShopId=UUID.randomUUID();proposal.status=DateStatus.PENDING;
+    proposal.proposedAt=Instant.now().plusSeconds(3_600);
+    Match match=new Match();match.id=proposal.matchId;match.active=true;
+    CoffeeShop shop=new CoffeeShop();shop.id=proposal.coffeeShopId;
+    shop.openingHours="Monday: 09:00–17:00";
+    Instant closedMonday=ZonedDateTime.now(ZoneId.of("Europe/Madrid"))
+        .with(TemporalAdjusters.next(DayOfWeek.MONDAY)).withHour(23).withMinute(0)
+        .withSecond(0).withNano(0).toInstant();
+    when(repository.find(CoffeeDateProposal.class,proposal.id)).thenReturn(proposal);
+    when(repository.find(Match.class,proposal.matchId)).thenReturn(match);
+    when(repository.find(CoffeeShop.class,proposal.coffeeShopId)).thenReturn(shop);
+    when(repository.dateTimeZone(proposal.id)).thenReturn("Europe/Madrid");
+
+    assertThatThrownBy(()->service().update(recipient,proposal.id,
+        new UpdateDate(null,closedMonday,null,null))).isInstanceOf(ApiException.class)
+        .hasMessageContaining("cerrada");
+    assertThat(proposal.proposedAt).isNotEqualTo(closedMonday);
+    assertThat(proposal.status).isEqualTo(DateStatus.PENDING);
   }
 }

@@ -276,6 +276,7 @@ struct ChatDetail: View {
   @State private var sending = false
   @State private var pendingMessageID: UUID?
   @State private var proposing = false
+  @State private var proposalToChange: CoffeeDate?
   @State private var error: String?
   @State private var initialLoading = true
   @State private var updatingDates: Set<UUID> = []
@@ -315,7 +316,10 @@ struct ChatDetail: View {
                       NookSoundManager.shared.play(.confirmed)
                     } catch { self.error = error.localizedDescription }
                   }
-                } change: { proposing = true }
+                } change: {
+                  proposalToChange = date
+                  proposing = true
+                }
               }
               Color.clear.frame(height: 1).id("chat-bottom")
             }.padding(.horizontal, 12).padding(.vertical, 14)
@@ -340,7 +344,9 @@ struct ChatDetail: View {
           guard !Task.isCancelled else { break }
           await refreshConversation(silent: true)
         }
-      }.sheet(isPresented: $proposing) { ChatCoffeePicker(conversation: conversation) }
+      }.sheet(isPresented: $proposing, onDismiss: { proposalToChange = nil }) {
+        ChatCoffeePicker(conversation: conversation, proposal: proposalToChange)
+      }
         .alert("No hemos podido continuar", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
           Button("Entendido") { error = nil }
         } message: { Text(error ?? "") }
@@ -385,6 +391,7 @@ struct ChatDetail: View {
     HStack(spacing: 9) {
       Button {
         focused = false
+        proposalToChange = nil
         proposing = true
         Haptics.selection()
       } label: {
@@ -489,7 +496,7 @@ struct NookCoffeeProposalBubble: View {
     .padding(.vertical, 4)
   }
   @ViewBuilder private var actionRow: some View {
-    if date.status == .pending {
+    if date.status == .pending || date.status == .counterProposed {
       HStack(spacing: 8) {
         if canAccept {
           proposalButton(updating ? "Aceptando…" : "Aceptar", primary: true, action: accept)
@@ -522,6 +529,7 @@ struct ChatCoffeePicker: View {
   @EnvironmentObject var app: AppSession
   @Environment(\.dismiss) private var dismiss
   let conversation: Conversation
+  let proposal: CoffeeDate?
   @StateObject private var location = LocationManager()
   @State private var shops: [CoffeeShop] = []
   @State private var selected: CoffeeShop?
@@ -568,7 +576,12 @@ struct ChatCoffeePicker: View {
           catch { locationMessage = "No hemos podido obtener cafeterías reales." }
         }
         .sheet(item: $selected) { shop in
-          ProposalSheet(shop: shop, matches: [Match(id: conversation.matchId, person: conversation.person, matchedAt: conversation.updatedAt, conversationId: conversation.id)])
+          ProposalSheet(
+            shop: shop,
+            matches: [Match(
+              id: conversation.matchId, person: conversation.person,
+              matchedAt: conversation.updatedAt, conversationId: conversation.id)],
+            existingProposal: proposal)
         }
         .onDisappear { location.stop() }
     }

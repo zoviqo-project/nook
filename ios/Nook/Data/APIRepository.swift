@@ -232,6 +232,15 @@ actor APIRepository: NookRepository {
   func updateDate(_ id: UUID, status: CoffeeDateStatus) async throws -> CoffeeDate {
     try await call("coffee-dates/\(id)", method: "PATCH", body: StatusBody(status: status))
   }
+  func counterDate(
+    _ id: UUID, shop: UUID, date: Date, payment: PaymentPreference
+  ) async throws -> CoffeeDate {
+    try await call(
+      "coffee-dates/\(id)/counter", method: "POST",
+      body: CounterDateBody(
+        proposedAt: ISO8601DateFormatter().string(from: date), coffeeShopId: shop,
+        paymentPreference: payment))
+  }
   func notifications() async throws -> [NookNotification] {
     var result: [NookNotification] = []
     var page = 0
@@ -368,6 +377,11 @@ private struct DateBody: Codable {
   let timeZoneId: String
 }
 private struct StatusBody: Codable { let status: CoffeeDateStatus }
+private struct CounterDateBody: Codable {
+  let proposedAt: String
+  let coffeeShopId: UUID
+  let paymentPreference: PaymentPreference
+}
 private struct DeviceTokenBody: Codable { let token: String }
 private struct ReportBody: Codable { let reason: String; let details: String? }
 private struct PhotoOrderBody: Codable { let photoIds: [UUID] }

@@ -130,14 +130,26 @@ public class CoffeeDateService {
       throw new ApiException(HttpStatus.CONFLICT, "PROPOSAL_NOT_ACTIVE", "La propuesta ya no está pendiente");
     }
     boolean counterProposal = request.proposedAt() != null || request.coffeeShopId() != null;
+    Instant proposedAt = request.proposedAt() == null ? proposal.proposedAt : request.proposedAt();
+    if (proposedAt.isBefore(Instant.now())) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "PAST_DATE", "La propuesta debe ser futura");
+    }
+    UUID shopId = request.coffeeShopId() == null ? proposal.coffeeShopId : request.coffeeShopId();
+    CoffeeShop shop = repo.find(CoffeeShop.class, shopId);
+    if (shop == null) throw new ApiException(HttpStatus.NOT_FOUND, "SHOP_NOT_FOUND", "Cafetería no encontrada");
+    String timeZoneId = repo.dateTimeZone(proposal.id);
+    if (timeZoneId == null || timeZoneId.isBlank()) timeZoneId = "UTC";
+    ZoneId timeZone;
+    try { timeZone = ZoneId.of(timeZoneId); }
+    catch (DateTimeException error) { throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TIME_ZONE", "Zona horaria no válida"); }
+    if (ShopHours.isOpenAt(shop.openingHours, proposedAt, timeZone).orElse(true) == false) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, "SHOP_CLOSED", "La cafetería está cerrada a esa hora");
+    }
     if (request.proposedAt() != null) {
-      if (request.proposedAt().isBefore(Instant.now())) throw new ApiException(HttpStatus.BAD_REQUEST, "PAST_DATE", "La propuesta debe ser futura");
-      proposal.proposedAt = request.proposedAt();
+      proposal.proposedAt = proposedAt;
       proposal.status = DateStatus.COUNTER_PROPOSED;
     }
     if (request.coffeeShopId() != null) {
-      CoffeeShop shop = repo.find(CoffeeShop.class, request.coffeeShopId());
-      if (shop == null) throw new ApiException(HttpStatus.NOT_FOUND, "SHOP_NOT_FOUND", "Cafetería no encontrada");
       proposal.coffeeShopId = shop.id;
       proposal.coffeeShopSnapshot = snapshot(shop);
       proposal.status = DateStatus.COUNTER_PROPOSED;

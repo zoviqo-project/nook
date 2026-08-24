@@ -407,6 +407,24 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
       demoDates[index] = value
       return value
     }
+    func counterDate(
+      _ id: UUID, shop: UUID, date: Date, payment: PaymentPreference
+    ) async throws -> CoffeeDate {
+      guard let index = demoDates.firstIndex(where: { $0.id == id }) else {
+        throw URLError(.fileDoesNotExist)
+      }
+      let old = demoDates[index]
+      let receiver = old.senderId == current.id ? old.receiverId : old.senderId
+      let value = CoffeeDate(
+        id: old.id, matchId: old.matchId, senderId: current.id, receiverId: receiver,
+        coffeeShop: liveShops.first(where: { $0.id == shop })
+          ?? demoShops.first(where: { $0.id == shop }) ?? old.coffeeShop,
+        proposedAt: ISO8601DateFormatter().string(from: date), paymentPreference: payment,
+        status: .counterProposed, createdAt: old.createdAt, nookChoice: old.nookChoice,
+        timeZoneId: old.timeZoneId)
+      demoDates[index] = value
+      return value
+    }
     func notifications() async throws -> [NookNotification] { [] }
     func markNotificationRead(_ id: UUID) async throws {}
     func registerDeviceToken(_ token: String) async throws {}

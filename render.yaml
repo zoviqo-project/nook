@@ -8,7 +8,7 @@ services:
     healthCheckPath: /actuator/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
-        value: prod,staging
+        value: prod
       - key: DB_HOST
         fromDatabase: {name: nook-postgres, property: host}
       - key: DB_PORT
@@ -23,6 +23,8 @@ services:
         generateValue: true
       - key: GOOGLE_CLIENT_ID
         value: 87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com
+      - key: APPLE_CLIENT_ID
+        value: com.albertesteveferres.nook
 databases:
   - name: nook-postgres
     plan: free

@@ -67,6 +67,34 @@ request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' 
 PROPOSAL_ID="$(jq -r .id "$TMP_DIR/proposal.json")"
 request -H "Authorization: Bearer $TOKEN_B" -X POST "$API_URL/coffee-dates/$PROPOSAL_ID/accept" > "$TMP_DIR/accepted.json"
 
+# An accepted coffee is still active and must prevent duplicate proposals.
+DUPLICATE_STATUS="$(curl --silent --output "$TMP_DIR/duplicate.json" --write-out '%{http_code}' \
+  --connect-timeout 10 --max-time 150 -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -X POST "$API_URL/coffee-dates" \
+  -d "{\"matchId\":\"$MATCH_ID\",\"coffeeShopId\":\"$CAFE_ID\",\"proposedAt\":\"$PROPOSED_AT\",\"paymentPreference\":\"SPLIT\",\"nookChoice\":false,\"idempotencyKey\":\"$(uuidgen | tr '[:upper:]' '[:lower:]')\",\"timeZoneId\":\"Europe/Madrid\"}")"
+[[ "$DUPLICATE_STATUS" == "409" ]]
+
+request -H "Authorization: Bearer $TOKEN_A" -X POST "$API_URL/coffee-dates/$PROPOSAL_ID/cancel" > "$TMP_DIR/cancelled.json"
+
+# Create a second proposal, counter it through the dedicated endpoint and accept it.
+SECOND_KEY="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X POST "$API_URL/coffee-dates" \
+  -d "{\"matchId\":\"$MATCH_ID\",\"coffeeShopId\":\"$CAFE_ID\",\"proposedAt\":\"$PROPOSED_AT\",\"paymentPreference\":\"SPLIT\",\"nookChoice\":false,\"idempotencyKey\":\"$SECOND_KEY\",\"timeZoneId\":\"Europe/Madrid\"}" > "$TMP_DIR/proposal-2.json"
+PROPOSAL_2_ID="$(jq -r .id "$TMP_DIR/proposal-2.json")"
+request -H "Authorization: Bearer $TOKEN_B" -H 'Content-Type: application/json' -X POST \
+  "$API_URL/coffee-dates/$PROPOSAL_2_ID/counter" \
+  -d "{\"proposedAt\":\"$PROPOSED_AT\",\"coffeeShopId\":\"$CAFE_ID\",\"paymentPreference\":\"SPLIT\"}" \
+  > "$TMP_DIR/counter.json"
+request -H "Authorization: Bearer $TOKEN_A" -X POST "$API_URL/coffee-dates/$PROPOSAL_2_ID/accept" > "$TMP_DIR/accepted-2.json"
+request -H "Authorization: Bearer $TOKEN_B" -X POST "$API_URL/coffee-dates/$PROPOSAL_2_ID/cancel" > "$TMP_DIR/cancelled-2.json"
+
+# A rejected proposal must persist and return the card to a state that can propose again.
+THIRD_KEY="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X POST "$API_URL/coffee-dates" \
+  -d "{\"matchId\":\"$MATCH_ID\",\"coffeeShopId\":\"$CAFE_ID\",\"proposedAt\":\"$PROPOSED_AT\",\"paymentPreference\":\"SPLIT\",\"nookChoice\":false,\"idempotencyKey\":\"$THIRD_KEY\",\"timeZoneId\":\"Europe/Madrid\"}" > "$TMP_DIR/proposal-3.json"
+PROPOSAL_3_ID="$(jq -r .id "$TMP_DIR/proposal-3.json")"
+request -H "Authorization: Bearer $TOKEN_B" -X POST "$API_URL/coffee-dates/$PROPOSAL_3_ID/decline" > "$TMP_DIR/declined.json"
+
 CLIENT_MESSAGE_ID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X POST "$API_URL/conversations/$CONVERSATION_ID/messages" \
   -d "{\"body\":\"Mensaje persistente E2E ☕\",\"clientMessageId\":\"$CLIENT_MESSAGE_ID\"}" > "$TMP_DIR/message.json"
@@ -76,14 +104,27 @@ request -H 'Content-Type: application/json' -X POST "$API_URL/auth/login" \
 TOKEN_B2="$(jq -r .accessToken "$TMP_DIR/relogin.json")"
 request -H "Authorization: Bearer $TOKEN_B2" "$API_URL/matches" > "$TMP_DIR/matches.json"
 request -H "Authorization: Bearer $TOKEN_B2" "$API_URL/coffee-dates" > "$TMP_DIR/dates.json"
+request -H "Authorization: Bearer $TOKEN_B2" "$API_URL/my-cafes" > "$TMP_DIR/my-cafes.json"
 request -H "Authorization: Bearer $TOKEN_B2" "$API_URL/conversations/$CONVERSATION_ID/messages" > "$TMP_DIR/messages.json"
+
+REFRESH_B2="$(jq -r .refreshToken "$TMP_DIR/relogin.json")"
+request -H 'Content-Type: application/json' -X POST "$API_URL/auth/logout" \
+  -d "{\"refreshToken\":\"$REFRESH_B2\"}" >/dev/null
+REVOKED_STATUS="$(curl --silent --output "$TMP_DIR/revoked.json" --write-out '%{http_code}' \
+  --connect-timeout 10 --max-time 150 -H 'Content-Type: application/json' -X POST "$API_URL/auth/refresh" \
+  -d "{\"refreshToken\":\"$REFRESH_B2\"}")"
+[[ "$REVOKED_STATUS" == "401" ]]
 
 jq -n \
   --arg auth "$(jq -r 'if .accessToken then "ok" else "failed" end' "$TMP_DIR/relogin.json")" \
   --arg match "$(jq -r --arg id "$MATCH_ID" 'if any(.[]; .id == $id) then "persisted" else "missing" end' "$TMP_DIR/matches.json")" \
-  --arg proposal "$(jq -r --arg id "$PROPOSAL_ID" 'if any(.[]; .id == $id and .status == "ACCEPTED") then "accepted" else "missing" end' "$TMP_DIR/dates.json")" \
+  --arg proposal "$(jq -r --arg accepted "$PROPOSAL_2_ID" --arg declined "$PROPOSAL_3_ID" 'if (any(.[]; .id == $accepted and .status == "CANCELLED") and any(.[]; .id == $declined and .status == "DECLINED")) then "lifecycle-persisted" else "missing" end' "$TMP_DIR/dates.json")" \
+  --arg counter "$(jq -r --arg id "$PROPOSAL_2_ID" 'if (.id == $id and .status == "COUNTER_PROPOSED") then "persisted" else "missing" end' "$TMP_DIR/counter.json")" \
+  --arg myCafes "$(jq -r --arg match "$MATCH_ID" 'if any(.[]; .matchId == $match and (.availableActions | index("PROPOSE"))) then "consistent" else "missing" end' "$TMP_DIR/my-cafes.json")" \
+  --arg duplicate "$([[ "$DUPLICATE_STATUS" == "409" ]] && echo blocked || echo allowed)" \
+  --arg logout "$([[ "$REVOKED_STATUS" == "401" ]] && echo revoked || echo active)" \
   --arg message "$(jq -r 'if any(.content[]; .body == "Mensaje persistente E2E ☕") then "persisted" else "missing" end' "$TMP_DIR/messages.json")" \
   --arg cafes "$(jq -r 'if length > 0 then "real-results" else "missing" end' "$TMP_DIR/cafes.json")" \
   --arg midpoint "$(jq -r 'if (.latitude > 41.38 and .latitude < 41.41 and .longitude > 2.07 and .longitude < 2.10) then "geographic" else "invalid" end' "$TMP_DIR/midpoint.json")" \
   --arg photo "$([[ -s "$TMP_DIR/photo-content" ]] && echo persisted || echo missing)" \
-  '{authentication:$auth,photo:$photo,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,message:$message}'
+  '{authentication:$auth,photo:$photo,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,counter:$counter,myCafes:$myCafes,duplicateProposal:$duplicate,message:$message,logout:$logout}'

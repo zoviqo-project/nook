@@ -245,10 +245,6 @@ struct WelcomeView: View {
 private struct QuickAccessView: View {
   @EnvironmentObject var app: AppSession
   @Binding var isPresented: Bool
-  @State private var phoneEntry = false
-  @State private var phone = ""
-  @State private var otp = ""
-  @State private var otpChallenge: PhoneOtpChallenge?
   @State private var busy = false
   @State private var busyAction: Int?
   @State private var error: String?
@@ -256,69 +252,36 @@ private struct QuickAccessView: View {
   @StateObject private var google = GoogleSignInCoordinator()
   @State private var revealed = false
   @State private var brewed = false
-  init(isPresented: Binding<Bool>, startWithPhone: Bool = false) {
-    _isPresented = isPresented
-    _phoneEntry = State(initialValue: startWithPhone)
-  }
   var body: some View {
     ZStack(alignment: .bottom) {
       LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.78), NookColors.warmBlack.opacity(0.98)], startPoint: .top, endPoint: .bottom)
-        .ignoresSafeArea().onTapGesture { if !phoneEntry { isPresented = false } }
+        .ignoresSafeArea().onTapGesture { isPresented = false }
       VStack(alignment: .leading, spacing: 18) {
         HStack {
           Button {
-            withAnimation(NookMotion.spring) {
-              if phoneEntry { phoneEntry = false } else { isPresented = false }
-            }
+            withAnimation(NookMotion.spring) { isPresented = false }
           } label: {
-            Image(systemName: phoneEntry ? "chevron.left" : "xmark")
+            Image(systemName: "xmark")
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
               .background(.white.opacity(0.14), in: Circle())
           }
           Spacer()
           NookCoffeeLogo(size: 34, animated: false).opacity(0.94)
         }
-        if phoneEntry {
-          VStack(alignment: .leading, spacing: 14) {
-            Text(otpChallenge == nil ? "Tu número" : "Código de acceso").font(.system(size: 34, weight: .bold, design: .rounded))
-            Text(otpChallenge == nil ? "Te enviaremos un código para confirmar que eres tú." : "Introduce los seis números que acabamos de enviarte.").foregroundStyle(.white.opacity(0.66))
-            if otpChallenge == nil {
-              TextField("+44 7700 900000", text: $phone).keyboardType(.phonePad)
-                .textContentType(.telephoneNumber).font(.title3.weight(.medium)).padding(.vertical, 13)
-                .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
-              Text("Incluye el prefijo internacional de tu país.").font(.caption)
-                .foregroundStyle(.white.opacity(0.58))
-              accessButton(busy ? "Enviando…" : "Continuar", icon: "arrow.right", primary: true, index: 0) { Task { await requestCode() } }
-                .disabled(busy || normalizedPhone == nil).opacity(normalizedPhone == nil ? 0.4 : 1)
-            } else {
-              TextField("000000", text: $otp).keyboardType(.numberPad).textContentType(.oneTimeCode)
-                .font(.system(size: 28, weight: .bold, design: .monospaced)).tracking(8).padding(.vertical, 13)
-                .overlay(alignment: .bottom) { Rectangle().fill(.white.opacity(0.5)).frame(height: 1) }
-              accessButton(busy ? "Comprobando…" : "Entrar", icon: "cup.and.saucer.fill", primary: true, index: 0) { Task { await verifyCode() } }
-                .disabled(busy || otp.count != 6).opacity(otp.count == 6 ? 1 : 0.4)
-            }
-            if let error { Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral) }
-          }.transition(.move(edge: .trailing).combined(with: .opacity))
-        } else {
-          VStack(alignment: .leading, spacing: 7) {
-            Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
-            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
-          }
-          VStack(spacing: 11) {
-            accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
-            accessButton("Continuar con Google", icon: "g.circle", index: 1) { Task { await signInWithGoogle() } }
-            accessButton("Continuar con Facebook", icon: "f.circle", index: 2) {
-              error = "Facebook Login necesita configurar su aplicación y SDK. No se ha iniciado ninguna sesión."
-            }
-            accessButton("Continuar con teléfono", icon: "phone", index: 3) { phoneEntry = true }
-          }
-          Button("Crear una cuenta con email") {
-            isPresented = false; app.stage = .registration
-          }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
-            .frame(maxWidth: .infinity).padding(.top, 2)
-          Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
-            .font(.caption).foregroundStyle(.white.opacity(0.48)).multilineTextAlignment(.center)
+        VStack(alignment: .leading, spacing: 7) {
+          Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
+          Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
         }
+        VStack(spacing: 11) {
+          accessButton("Continuar con Apple", icon: "apple.logo", primary: true, index: 0) { Task { await signInWithApple() } }
+          accessButton("Continuar con Google", icon: "g.circle", index: 1) { Task { await signInWithGoogle() } }
+        }
+        Button("Crear una cuenta con email") {
+          isPresented = false; app.stage = .registration
+        }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
+          .frame(maxWidth: .infinity).padding(.top, 2)
+        Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
+          .font(.caption).foregroundStyle(.white.opacity(0.48)).multilineTextAlignment(.center)
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
       CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
     }.onAppear {
@@ -363,32 +326,6 @@ private struct QuickAccessView: View {
     } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
       return
     } catch { self.error = error.localizedDescription }
-  }
-  private func requestCode() async {
-    guard let normalizedPhone else { return }
-    guard !busy else { return }
-    busy = true; busyAction = 0; defer { busy = false; busyAction = nil }
-    do {
-      let challenge = try await app.requestPhoneOtp(normalizedPhone)
-      otpChallenge = challenge
-      #if DEBUG
-        if let code = challenge.developmentCode { otp = code }
-      #endif
-    } catch { self.error = error.localizedDescription }
-  }
-  private var normalizedPhone: String? {
-    let value = phone.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard value.hasPrefix("+") else { return nil }
-    let digits = value.filter(\.isNumber)
-    guard (8...15).contains(digits.count), digits.first != "0" else { return nil }
-    return "+\(digits)"
-  }
-  private func verifyCode() async {
-    guard let challenge = otpChallenge else { return }
-    guard !busy else { return }
-    busy = true; busyAction = 0; defer { busy = false; busyAction = nil }
-    do { try await app.verifyPhoneOtp(challengeId: challenge.challengeId, code: otp); isPresented = false }
-    catch { self.error = error.localizedDescription }
   }
 }
 
@@ -446,7 +383,6 @@ struct LoginView: View {
   @State private var email = ""
   @State private var password = ""
   @State private var state: LoginPhase = .idle
-  @State private var phoneAccess = false
   @State private var waitingForServer = false
   @State private var providerLoading: String?
   @StateObject private var apple = AppleSignInCoordinator()
@@ -491,8 +427,6 @@ struct LoginView: View {
           VStack(spacing: 10) {
             loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
             loginProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
-            loginProvider("Facebook", icon: "f.circle") { providerUnavailable("Facebook") }
-            loginProvider("Teléfono", icon: "phone.fill") { phoneAccess = true }
           }
           Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
             .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -510,9 +444,6 @@ struct LoginView: View {
           }
         }
       }.toolbarBackground(.hidden, for: .navigationBar)
-        .sheet(isPresented: $phoneAccess) {
-          QuickAccessView(isPresented: $phoneAccess, startWithPhone: true)
-        }
     }
   }
   private func submit() async {
@@ -558,10 +489,6 @@ struct LoginView: View {
     } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
       state = .idle
     } catch { state = .error(friendly(error)) }
-  }
-  private func providerUnavailable(_ provider: String) {
-    Haptics.selection()
-    state = .error("El acceso con \(provider) necesita configurar sus credenciales externas. Puedes entrar con email, Apple o teléfono.")
   }
   private func friendly(_ error: Error) -> String {
     let message = error.localizedDescription
