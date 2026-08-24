@@ -441,18 +441,15 @@ struct NookSkeletonScreen: View {
       LazyVStack(spacing: 14) {
         ForEach(0..<rows, id: \.self) { index in
           HStack(spacing: 14) {
-            skeletonBlock(width: 82, height: 92, radius: 19)
+            skeletonBlock(width: 74, height: 74, radius: 20)
             VStack(alignment: .leading, spacing: 10) {
               skeletonBlock(width: index.isMultiple(of: 2) ? 154 : 188, height: 19, radius: 7)
               skeletonBlock(height: 13, radius: 6)
               skeletonBlock(width: 118, height: 13, radius: 6)
-              skeletonBlock(width: 92, height: 25, radius: 13)
             }
             Spacer(minLength: 0)
           }
-          .padding(12)
-          .background(NookColors.offWhite.opacity(0.46), in: RoundedRectangle(cornerRadius: 23))
-          .overlay(RoundedRectangle(cornerRadius: 23).stroke(NookColors.espresso.opacity(0.05)))
+          .frame(minHeight: 82)
         }
       }.padding(.horizontal, 16).padding(.top, 6)
     }.scrollIndicators(.hidden)
@@ -511,20 +508,6 @@ struct NookSkeletonScreen: View {
   /// Mirrors ConversationsView: selected cafés rail followed by compact conversation rows.
   private func conversations(rows: Int) -> some View {
     VStack(spacing: 0) {
-      VStack(alignment: .leading, spacing: 10) {
-        skeletonBlock(width: 118, height: 12, radius: 6)
-        HStack(spacing: 15) {
-          ForEach(0..<4, id: \.self) { index in
-            VStack(spacing: 7) {
-              skeletonBlock(width: 62, height: 62, radius: 31)
-              skeletonBlock(width: index.isMultiple(of: 2) ? 54 : 46, height: 10, radius: 5)
-            }
-          }
-          Spacer(minLength: 0)
-        }
-      }
-      .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 13)
-
       LazyVStack(spacing: 0) {
         ForEach(0..<rows, id: \.self) { index in
           HStack(spacing: 14) {

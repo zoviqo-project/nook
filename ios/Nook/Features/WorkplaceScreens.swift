@@ -279,7 +279,7 @@ struct ConversationsView: View {
     NookScreenContainer(eyebrow: "CONVERSACIONES", title: "Chats") {
       Group {
         if loading && conversations.isEmpty {
-          NookSkeletonScreen(layout: .conversations(rows: 4))
+          NookSkeletonScreen(layout: .conversations(rows: 6))
         } else if let error, conversations.isEmpty {
           NookErrorView(message: error) { Task { await load() } }
         } else if conversations.isEmpty {
@@ -448,7 +448,7 @@ struct ChatDetail: View {
           ScrollView {
             LazyVStack(spacing: 10) {
               if initialLoading {
-                NookSkeletonScreen(layout: .messages(rows: 5))
+                NookSkeletonScreen(layout: .messages(rows: 6))
               } else if messages.isEmpty {
                 Text("Rompe el hielo con un café ☕").font(NookTypography.secondary.weight(.semibold))
                   .foregroundStyle(NookColors.warmGray).padding(.top, 30)
@@ -774,7 +774,7 @@ struct ChatCoffeePicker: View {
           LazyVStack(alignment: .leading, spacing: 14) {
             Text("Elige vuestro café").font(NookTypography.title).padding(.bottom, 8)
             if loading {
-              NookSkeletonScreen(layout: .list(rows: 4))
+              NookSkeletonScreen(layout: .list(rows: 5))
             } else if shops.isEmpty && locationMessage == nil {
               NookEmptyState(icon: "cup.and.saucer", title: "No encontramos cafeterías",
                 text: "Prueba de nuevo desde otra zona.")

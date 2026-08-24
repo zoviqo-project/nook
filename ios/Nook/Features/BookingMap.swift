@@ -312,7 +312,7 @@ struct CoffeeShopsView: View {
           if vm.loading { Text("Buscando…").font(.caption.weight(.semibold)).foregroundStyle(NookColors.warmGray) }
         }.padding(.horizontal, 6).padding(.bottom, 2)
         if vm.loading {
-          NookSkeletonScreen(layout: .coffeeCards(rows: 3))
+          NookSkeletonScreen(layout: .coffeeCards(rows: 2))
             .padding(.horizontal, -12)
         } else if let error = vm.error {
           NookErrorView(message: error) {
