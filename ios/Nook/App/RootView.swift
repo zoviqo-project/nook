@@ -385,6 +385,7 @@ struct LoginView: View {
   @State private var state: LoginPhase = .idle
   @State private var waitingForServer = false
   @State private var providerLoading: String?
+  @State private var appeared = false
   @StateObject private var apple = AppleSignInCoordinator()
   @StateObject private var google = GoogleSignInCoordinator()
   private var busy: Bool { state == .loading }
@@ -392,55 +393,75 @@ struct LoginView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookWelcomeGallery(active: appeared)
+        LinearGradient(
+          colors: [.clear, NookColors.warmBlack.opacity(0.5), NookColors.warmBlack.opacity(0.98)],
+          startPoint: .top, endPoint: .bottom
+        ).ignoresSafeArea()
         ScrollView {
-          VStack(alignment: .leading, spacing: 16) {
-            HStack {
-              Spacer()
-              NookCoffeeLogo(size: 54, animated: false)
-              Spacer()
-            }.padding(.top, 18)
-            VStack(alignment: .leading, spacing: 4) {
-              Text("Qué alegría verte").font(NookTypography.display(38)).tracking(-0.8)
-              Text("Entra y retomamos ese café.").font(.callout.weight(.medium))
-                .foregroundStyle(NookColors.warmGray)
-            }.padding(.bottom, 4)
-          NookTextField(
-            label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
-          NookTextField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
-          if let error {
-            Text(error).font(.callout.weight(.semibold)).foregroundStyle(.red).padding(
-              .horizontal, 4
-            ).transition(.move(edge: .top).combined(with: .opacity))
+          VStack(alignment: .leading, spacing: 18) {
+            Spacer(minLength: 126)
+            HStack(spacing: 10) {
+              NookCoffeeLogo(size: 42, animated: false)
+              Text("NOOK").font(.system(size: 21, weight: .black, design: .rounded)).tracking(2)
+            }.foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 6) {
+              Text("Qué alegría\nverte.").font(NookTypography.display(48)).tracking(-1.5)
+                .lineSpacing(-3)
+              Text("Entra y retomamos ese café.")
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.74))
+            }.foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 15) {
+              NookTextField(
+                label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
+              NookTextField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
+              if let error {
+                Text(error).font(.callout.weight(.semibold)).foregroundStyle(.red).padding(.horizontal, 4)
+                  .transition(.move(edge: .top).combined(with: .opacity))
+              }
+              NookButton(
+                title: busy ? (waitingForServer ? "DESPERTANDO NOOK…" : "ENTRANDO…") : "ENTRAR",
+                icon: "arrow.right", isLoading: busy
+              ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
+                .opacity(busy ? 0.65 : 1)
+              HStack(spacing: 12) {
+                Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+                Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
+                  .tracking(1.4).foregroundStyle(NookColors.warmGray).fixedSize()
+                Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+              }.padding(.vertical, 2)
+              VStack(spacing: 10) {
+                loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
+                loginProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
+              }
+              Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(NookColors.espresso.opacity(0.72)).frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+            }
+            .padding(18)
+            .background(NookColors.offWhite.opacity(0.96), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay {
+              RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(.white.opacity(0.42), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.22), radius: 30, y: 16)
           }
-          NookButton(
-            title: busy ? (waitingForServer ? "DESPERTANDO NOOK…" : "ENTRANDO…") : "ENTRAR",
-            icon: "arrow.right", isLoading: busy
-          ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
-            .opacity(busy ? 0.65 : 1)
-          HStack(spacing: 12) {
-            Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
-            Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
-              .tracking(1.4).foregroundStyle(NookColors.warmGray).fixedSize()
-            Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
-          }.padding(.vertical, 4)
-          VStack(spacing: 10) {
-            loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
-            loginProvider("Google", icon: "g.circle") { Task { await signInWithGoogle() } }
-          }
-          Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
-            .font(.system(size: 14, weight: .semibold, design: .rounded))
-            .foregroundStyle(NookColors.espresso.opacity(0.72)).frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-          }.padding(.horizontal, 22).padding(.bottom, 28)
+          .padding(.horizontal, 20).padding(.bottom, 24)
+          .offset(y: appeared ? 0 : 22).opacity(appeared ? 1 : 0)
         }.scrollDismissesKeyboard(.interactively)
+      }.onAppear {
+        withAnimation(.easeOut(duration: 0.75)) { appeared = true }
       }.toolbar {
         ToolbarItem(placement: .topBarLeading) {
           Button {
             app.stage = .welcome
           } label: {
             Image(systemName: "chevron.left").font(.headline).frame(width: 42, height: 42)
-              .background(NookColors.offWhite.opacity(0.9), in: Circle())
+              .foregroundStyle(.white)
+              .background(NookColors.warmBlack.opacity(0.32), in: Circle())
+              .overlay { Circle().stroke(.white.opacity(0.22), lineWidth: 1) }
           }
         }
       }.toolbarBackground(.hidden, for: .navigationBar)
