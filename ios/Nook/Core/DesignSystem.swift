@@ -153,6 +153,8 @@ struct NookHeader: View {
           Text(title).font(NookTypography.display(28)).tracking(-0.35)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
+        .frame(height: 44, alignment: .leading)
+        .transaction { transaction in transaction.animation = nil }
         .foregroundStyle(NookColors.espresso)
       } else {
         VStack(alignment: .leading, spacing: 3) {
@@ -165,6 +167,8 @@ struct NookHeader: View {
           Text(title).font(NookTypography.display(30))
             .tracking(-0.65).lineLimit(1).minimumScaleFactor(0.76)
         }
+        .frame(height: 44, alignment: .leading)
+        .transaction { transaction in transaction.animation = nil }
       }
       Spacer(minLength: 10)
       HStack(spacing: 8) {
