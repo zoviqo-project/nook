@@ -82,17 +82,20 @@ enum NookShadow {
 }
 
 enum NookTypography {
-  static func display(_ size: CGFloat) -> Font {
+  static func brand(_ size: CGFloat) -> Font {
     .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold)
   }
+  static func display(_ size: CGFloat) -> Font {
+    .system(size: size, weight: .semibold, design: .rounded)
+  }
   static func displayItalic(_ size: CGFloat) -> Font {
-    .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold).italic()
+    .system(size: size, weight: .semibold, design: .rounded).italic()
   }
   static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
     .system(size: size, weight: weight, design: .rounded)
   }
-  static let hero = display(46)
-  static let title = display(35)
+  static let hero = display(44)
+  static let title = display(32)
   static let subtitle = business(20, weight: .semibold)
   static let headline = business(17, weight: .semibold)
   static let body = business(16)
@@ -212,8 +215,8 @@ struct NookHeader: View {
     HStack(alignment: .center, spacing: NookSpacing.sm) {
       if branded {
         HStack(spacing: NookSpacing.sm) {
-          NookCoffeeLogo(size: 34, animated: false)
-          Text(title).font(NookTypography.display(29)).tracking(-0.15)
+          NookCoffeeLogo(size: 36, animated: false)
+          Text(title).font(NookTypography.business(27, weight: .semibold)).tracking(-0.35)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
@@ -227,8 +230,8 @@ struct NookHeader: View {
               .font(.system(size: 10, weight: .bold, design: .rounded))
               .tracking(1.7).foregroundStyle(NookColors.mocha)
           }
-          Text(title).font(NookTypography.display(31))
-            .tracking(-0.2).lineLimit(1).minimumScaleFactor(0.76)
+          Text(title).font(NookTypography.business(29, weight: .semibold))
+            .tracking(-0.35).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
         .transaction { transaction in transaction.animation = nil }
@@ -249,8 +252,8 @@ struct NookHeader: View {
       }
       .frame(minWidth: actionIcon == nil && secondaryActionIcon == nil ? 0 : 40, alignment: .trailing)
     }
-    .frame(height: 52, alignment: .center)
-    .padding(.horizontal, NookSpacing.screen).padding(.top, 6).padding(.bottom, 8)
+    .frame(height: 56, alignment: .center)
+    .padding(.horizontal, NookSpacing.screen).padding(.top, 7).padding(.bottom, 7)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
         ringRotation = !reduceMotion

@@ -211,7 +211,7 @@ struct WelcomeView: View {
           Text("NOOK").font(NookTypography.business(22, weight: .bold)).tracking(1.8)
         }.opacity(phase >= 2 ? 1 : 0)
         VStack(alignment: .leading, spacing: 8) {
-          Text("Todo empieza\npor un café.").font(NookTypography.display(50))
+          Text("Todo empieza\npor un café.").font(NookTypography.brand(50))
             .tracking(-0.45).lineSpacing(-1)
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
             .font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
