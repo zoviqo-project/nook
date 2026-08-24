@@ -879,6 +879,9 @@ private struct MyCafeUnifiedCard: View {
       actionRow
     }
     .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
+    .background(
+      NookColors.surface.opacity(0.88),
+      in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     .onTapGesture {
