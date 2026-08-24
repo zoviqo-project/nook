@@ -32,7 +32,7 @@ extension Notification.Name { static let nookDeviceToken=Notification.Name("Nook
   }
   var body: some Scene {
     WindowGroup {
-      RootView().environmentObject(app).tint(.nookCoral).preferredColorScheme(.dark).task {
+      RootView().environmentObject(app).tint(NookColors.primaryCoffee).preferredColorScheme(.light).task {
         #if DEBUG
           if ProcessInfo.processInfo.environment["NOOK_PREVIEW_ONBOARDING"] == "1" {
             await app.enterOfflineDemo()

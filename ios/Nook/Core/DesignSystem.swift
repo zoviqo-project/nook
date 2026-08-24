@@ -4,17 +4,31 @@ import UIKit
 import Vision
 
 enum NookColors {
-  static let cream = Color(red: 0.105, green: 0.057, blue: 0.035)
-  static let oat = Color(red: 0.78, green: 0.65, blue: 0.50)
-  static let latte = Color(red: 0.72, green: 0.54, blue: 0.37)
-  static let mocha = Color(red: 0.89, green: 0.67, blue: 0.43)
-  static let espresso = Color(red: 0.96, green: 0.90, blue: 0.80)
-  static let warmBlack = Color(red: 0.075, green: 0.035, blue: 0.021)
-  static let offWhite = Color(red: 0.17, green: 0.095, blue: 0.058)
-  static let inverseText = Color(red: 0.10, green: 0.052, blue: 0.031)
-  static let warmGray = Color(red: 0.73, green: 0.65, blue: 0.57)
+  // Semantic palette. All global surfaces should be sourced from these tokens.
+  static let background = Color(red: 0.982, green: 0.965, blue: 0.933)
+  static let surface = Color(red: 1.000, green: 0.992, blue: 0.976)
+  static let surfaceSecondary = Color(red: 0.949, green: 0.914, blue: 0.867)
+  static let primaryCoffee = Color(red: 0.455, green: 0.282, blue: 0.190)
+  static let primaryCoffeePressed = Color(red: 0.345, green: 0.200, blue: 0.133)
+  static let textPrimary = Color(red: 0.180, green: 0.125, blue: 0.098)
+  static let textSecondary = Color(red: 0.430, green: 0.371, blue: 0.337)
+  static let border = Color(red: 0.855, green: 0.800, blue: 0.737)
+  static let divider = Color(red: 0.894, green: 0.851, blue: 0.800)
   static let success = Color(red: 0.31, green: 0.48, blue: 0.36)
-  static let amber = Color(red: 0.79, green: 0.47, blue: 0.22)
+  static let warning = Color(red: 0.72, green: 0.43, blue: 0.16)
+  static let error = Color(red: 0.68, green: 0.25, blue: 0.21)
+
+  // Coffee-family aliases retained for existing feature code.
+  static let cream = background
+  static let oat = surfaceSecondary
+  static let latte = Color(red: 0.735, green: 0.596, blue: 0.463)
+  static let mocha = primaryCoffee
+  static let espresso = textPrimary
+  static let warmBlack = Color(red: 0.125, green: 0.078, blue: 0.057)
+  static let offWhite = surface
+  static let inverseText = surface
+  static let warmGray = textSecondary
+  static let amber = warning
 }
 
 extension Color {
@@ -49,9 +63,9 @@ enum NookMotion {
 }
 
 enum NookShadow {
-  static let subtle = Color.black.opacity(0.06)
-  static let card = NookColors.warmBlack.opacity(0.11)
-  static let floating = NookColors.warmBlack.opacity(0.19)
+  static let subtle = NookColors.primaryCoffee.opacity(0.045)
+  static let card = NookColors.primaryCoffee.opacity(0.075)
+  static let floating = NookColors.primaryCoffee.opacity(0.12)
 }
 
 enum NookTypography {
@@ -73,7 +87,7 @@ enum NookTypography {
 
 struct NookBackground: View {
   var body: some View {
-    NookColors.warmBlack.ignoresSafeArea()
+    NookColors.background.ignoresSafeArea()
   }
 }
 
@@ -109,12 +123,13 @@ struct NookButton: View {
       }
       .frame(maxWidth: .infinity).frame(minHeight: 54)
       .foregroundStyle(style == .primary ? NookColors.inverseText : NookColors.espresso)
-      .background(backgroundColor, in: Capsule())
+      .background(backgroundColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
       .overlay(
-        Capsule().stroke(NookColors.latte.opacity(style == .secondary ? 0.35 : 0), lineWidth: 1)
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+          .stroke(NookColors.border.opacity(style == .secondary ? 0.9 : 0), lineWidth: 1)
       )
       .shadow(
-        color: style == .primary ? NookColors.espresso.opacity(0.22) : .clear, radius: 18, y: 9
+        color: style == .primary ? NookColors.primaryCoffee.opacity(0.14) : .clear, radius: 12, y: 6
       )
       .scaleEffect(pressed ? 0.97 : 1)
     }.buttonStyle(PressTrackingStyle(isPressed: $pressed))
@@ -123,7 +138,7 @@ struct NookButton: View {
   }
   private var backgroundColor: Color {
     style == .primary
-      ? NookColors.espresso : (style == .secondary ? NookColors.offWhite.opacity(0.9) : .clear)
+      ? NookColors.primaryCoffee : (style == .secondary ? NookColors.surface : .clear)
   }
 }
 

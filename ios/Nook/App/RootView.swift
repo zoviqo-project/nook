@@ -82,17 +82,17 @@ struct NookIntroView: View {
   @State private var pulsing = false
   var body: some View {
     ZStack {
-      NookColors.warmBlack.ignoresSafeArea()
+      NookColors.background.ignoresSafeArea()
       VStack(spacing: 18) {
         ZStack {
           Circle()
-            .stroke(.white.opacity(0.28), lineWidth: 1)
+            .stroke(NookColors.primaryCoffee.opacity(0.18), lineWidth: 1)
             .frame(width: 190, height: 190)
             .scaleEffect(haloExpanded ? 1.18 : 0.62)
             .opacity(haloExpanded ? 0 : 0.78)
           Circle()
             .trim(from: 0.08, to: 0.7)
-            .stroke(.white.opacity(0.58), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .stroke(NookColors.primaryCoffee.opacity(0.58), style: StrokeStyle(lineWidth: 2, lineCap: .round))
             .frame(width: 148, height: 148)
             .rotationEffect(.degrees(orbiting ? 360 : -35))
           Circle().fill(.white).frame(width: 126, height: 126)
@@ -100,7 +100,7 @@ struct NookIntroView: View {
         }
         .frame(width: 190, height: 190)
         .scaleEffect(pulsing ? 1.035 : 1)
-        .shadow(color: .white.opacity(0.16), radius: 34)
+        .shadow(color: NookColors.primaryCoffee.opacity(0.12), radius: 34)
         .shadow(color: NookColors.mocha.opacity(0.3), radius: 24, y: 12)
       }
       .scaleEffect(appeared ? 1 : 0.76)
@@ -204,7 +204,7 @@ struct WelcomeView: View {
   var body: some View {
     ZStack(alignment: .bottom) {
       NookWelcomeGallery(active: phase >= 1)
-      LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.18), NookColors.warmBlack.opacity(0.96)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+      LinearGradient(colors: [.clear, NookColors.background.opacity(0.82), NookColors.background], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
       VStack(alignment: .leading, spacing: 18) {
         HStack(spacing: 10) {
           NookCoffeeLogo(size: 46, animated: false)
@@ -214,7 +214,7 @@ struct WelcomeView: View {
           Text("Todo empieza\npor un café.").font(NookTypography.display(51))
             .tracking(-1.7).lineSpacing(-3)
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
-            .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(.white.opacity(0.76))
+            .font(.system(size: 17, weight: .medium, design: .rounded)).foregroundStyle(NookColors.textSecondary)
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
         NookButton(title: "EMPEZAR", icon: "arrow.right") {
           quickAccessLogin = false
@@ -229,10 +229,10 @@ struct WelcomeView: View {
           quickAccess = true
         }
           .frame(maxWidth: .infinity)
-          .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.82))
+          .font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(NookColors.primaryCoffee)
           .opacity(phase >= 5 ? 1 : 0)
-        Text("Solo para mayores de 18 años").font(.caption.weight(.semibold)).foregroundStyle(.white.opacity(0.48))
-      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
+        Text("Solo para mayores de 18 años").font(.caption.weight(.semibold)).foregroundStyle(NookColors.textSecondary.opacity(0.72))
+      }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 22).padding(.bottom, 16)
         .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
       if quickAccess {
         QuickAccessView(isPresented: $quickAccess, startWithLogin: quickAccessLogin)
@@ -269,7 +269,7 @@ private struct QuickAccessView: View {
   }
   var body: some View {
     ZStack(alignment: .bottom) {
-      LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.78), NookColors.warmBlack.opacity(0.98)], startPoint: .top, endPoint: .bottom)
+      LinearGradient(colors: [.clear, NookColors.background.opacity(0.9), NookColors.background], startPoint: .top, endPoint: .bottom)
         .ignoresSafeArea().onTapGesture { isPresented = false }
       VStack(alignment: .leading, spacing: 18) {
         HStack {
@@ -281,7 +281,7 @@ private struct QuickAccessView: View {
           } label: {
             Image(systemName: emailLogin ? "chevron.left" : "xmark")
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
-              .background(.white.opacity(0.14), in: Circle())
+              .background(NookColors.surfaceSecondary, in: Circle())
           }
           Spacer()
           NookCoffeeLogo(size: 34, animated: false).opacity(0.94)
@@ -291,7 +291,7 @@ private struct QuickAccessView: View {
             Text(createAccount ? "Tu primer café" : "Qué alegría verte")
               .font(NookTypography.display(36)).tracking(-0.8)
             Text(createAccount ? "Crea tu acceso. El perfil viene después." : "Entra y retomamos ese café.")
-              .font(.body).foregroundStyle(.white.opacity(0.66))
+              .font(.body).foregroundStyle(NookColors.textSecondary)
           }
           VStack(spacing: 12) {
             CinematicLoginField(
@@ -310,20 +310,20 @@ private struct QuickAccessView: View {
               .opacity(email.isEmpty || password.count < 8 ? 0.45 : 1)
           }
           HStack(spacing: 10) {
-            Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+            Rectangle().fill(NookColors.divider).frame(height: 1)
             Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
-              .tracking(1.3).foregroundStyle(.white.opacity(0.5)).fixedSize()
-            Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+              .tracking(1.3).foregroundStyle(NookColors.textSecondary).fixedSize()
+            Rectangle().fill(NookColors.divider).frame(height: 1)
           }
           Button(createAccount ? "Ya tengo cuenta" : "Soy nuevo · Crear cuenta con email") {
             withAnimation(NookMotion.fast) { createAccount.toggle(); error = nil }
           }.font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white.opacity(0.74)).frame(maxWidth: .infinity)
+            .foregroundStyle(NookColors.primaryCoffee).frame(maxWidth: .infinity)
           providerButtons
         } else {
           VStack(alignment: .leading, spacing: 7) {
             Text("Entra en Nook").font(.system(size: 34, weight: .bold, design: .rounded)).tracking(-1)
-            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.66))
+            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(NookColors.textSecondary)
           }
           VStack(spacing: 11) {
             providerButtons
@@ -338,12 +338,12 @@ private struct QuickAccessView: View {
           Button("Crear una cuenta con email") {
             createAccount = true
             withAnimation(NookMotion.spring) { emailLogin = true }
-          }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.86))
+          }.font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.primaryCoffee)
             .frame(maxWidth: .infinity).padding(.top, 2)
         }
         Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
-          .font(.caption).foregroundStyle(.white.opacity(0.48)).multilineTextAlignment(.center)
-      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
+          .font(.caption).foregroundStyle(NookColors.textSecondary.opacity(0.78)).multilineTextAlignment(.center)
+      }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 22).padding(.bottom, 18)
       CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
     }.onAppear {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
@@ -376,7 +376,7 @@ private struct QuickAccessView: View {
         }
       }.foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
         .padding(.horizontal, 18).frame(height: 56)
-        .background(primary ? NookColors.espresso : NookColors.offWhite, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(primary ? NookColors.primaryCoffee : NookColors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18).stroke(NookColors.espresso.opacity(primary ? 0 : 0.12), lineWidth: 0.75) }
     }.buttonStyle(.plain).disabled(busy)
       .opacity(revealed ? 1 : 0)
@@ -490,7 +490,7 @@ struct LoginView: View {
       ZStack {
         NookWelcomeGallery(active: appeared)
         LinearGradient(
-          colors: [.clear, NookColors.warmBlack.opacity(0.5), NookColors.warmBlack.opacity(0.98)],
+          colors: [.clear, NookColors.background.opacity(0.88), NookColors.background],
           startPoint: .top, endPoint: .bottom
         ).ignoresSafeArea()
         ScrollView {
@@ -499,14 +499,14 @@ struct LoginView: View {
             HStack(spacing: 10) {
               NookCoffeeLogo(size: 42, animated: false)
               Text("NOOK").font(.system(size: 21, weight: .black, design: .rounded)).tracking(2)
-            }.foregroundStyle(.white)
+            }.foregroundStyle(NookColors.textPrimary)
             VStack(alignment: .leading, spacing: 6) {
               Text("Qué alegría\nverte.").font(NookTypography.display(48)).tracking(-1.5)
                 .lineSpacing(-3)
               Text("Entra y retomamos ese café.")
                 .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.74))
-            }.foregroundStyle(.white)
+                .foregroundStyle(NookColors.textSecondary)
+            }.foregroundStyle(NookColors.textPrimary)
             VStack(alignment: .leading, spacing: 14) {
               CinematicLoginField(
                 label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
@@ -521,10 +521,10 @@ struct LoginView: View {
               ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
                 .opacity(busy ? 0.65 : 1)
               HStack(spacing: 12) {
-                Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+                Rectangle().fill(NookColors.divider).frame(height: 1)
                 Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
-                  .tracking(1.4).foregroundStyle(.white.opacity(0.56)).fixedSize()
-                Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
+                  .tracking(1.4).foregroundStyle(NookColors.textSecondary).fixedSize()
+                Rectangle().fill(NookColors.divider).frame(height: 1)
               }.padding(.vertical, 2)
               VStack(spacing: 10) {
                 NookAuthProviderButton(
@@ -539,7 +539,7 @@ struct LoginView: View {
               }
               Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.8)).frame(maxWidth: .infinity)
+                .foregroundStyle(NookColors.primaryCoffee).frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
             }
             .padding(.top, 6)
@@ -555,9 +555,9 @@ struct LoginView: View {
             app.stage = .welcome
           } label: {
             Image(systemName: "chevron.left").font(.headline).frame(width: 42, height: 42)
-              .foregroundStyle(.white)
-              .background(NookColors.warmBlack.opacity(0.32), in: Circle())
-              .overlay { Circle().stroke(.white.opacity(0.22), lineWidth: 1) }
+              .foregroundStyle(NookColors.textPrimary)
+              .background(NookColors.surface.opacity(0.94), in: Circle())
+              .overlay { Circle().stroke(NookColors.border, lineWidth: 1) }
           }
         }
       }.toolbarBackground(.hidden, for: .navigationBar)
@@ -670,13 +670,11 @@ private struct NookAuthProviderButton: View {
 
   private var background: Color {
     switch provider {
-    case .google: NookColors.offWhite
-    case .apple: .black
-    case .facebook: Color(red: 0.09, green: 0.39, blue: 0.78)
+    case .google, .apple, .facebook: NookColors.surface
     }
   }
-  private var foreground: Color { provider == .google ? NookColors.espresso : .white }
-  private var border: Color { provider == .google ? NookColors.espresso.opacity(0.12) : .white.opacity(0.16) }
+  private var foreground: Color { NookColors.textPrimary }
+  private var border: Color { NookColors.border.opacity(0.9) }
 }
 
 private struct CinematicLoginField: View {
@@ -689,21 +687,21 @@ private struct CinematicLoginField: View {
   var body: some View {
     HStack(spacing: 13) {
       Image(systemName: icon).font(.system(size: 16, weight: .semibold))
-        .foregroundStyle(focused ? .white : .white.opacity(0.54)).frame(width: 22)
+        .foregroundStyle(focused ? NookColors.primaryCoffee : NookColors.textSecondary).frame(width: 22)
       Group {
         if secure { SecureField(label, text: $text) }
         else { TextField(label, text: $text).keyboardType(keyboard) }
       }
       .font(.system(size: 17, weight: .semibold, design: .rounded))
-      .foregroundStyle(.white).tint(.white)
+      .foregroundStyle(NookColors.textPrimary).tint(NookColors.primaryCoffee)
       .textInputAutocapitalization(keyboard == .emailAddress ? .never : .sentences)
       .focused($focused)
     }
     .padding(.horizontal, 17).frame(height: 56)
-    .background(.black.opacity(focused ? 0.3 : 0.2), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     .overlay {
       RoundedRectangle(cornerRadius: 18, style: .continuous)
-        .stroke(.white.opacity(focused ? 0.48 : 0.2), lineWidth: focused ? 1.5 : 1)
+        .stroke(focused ? NookColors.primaryCoffee : NookColors.border, lineWidth: focused ? 1.5 : 1)
     }
     .animation(NookMotion.fast, value: focused)
   }
@@ -1094,8 +1092,7 @@ struct MainTabView: View {
     }
     .animation(NookMotion.fast, value: app.tabBarHidden)
     .background {
-      if app.selectedTab == 0 { NookColors.warmBlack.ignoresSafeArea() }
-      else { NookBackground() }
+      NookBackground()
     }
   }
 }
@@ -1125,7 +1122,7 @@ struct FloatingTabBar: View {
               Image(systemName: items[i].0)
                 .font(.system(size: 22, weight: selection == i ? .medium : .light))
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(selection == i ? NookColors.espresso : NookColors.espresso.opacity(0.48))
+                .foregroundStyle(selection == i ? NookColors.primaryCoffee : NookColors.textSecondary.opacity(0.62))
                 .scaleEffect(selection == i ? 1.1 : 1)
                 .symbolEffect(.bounce, value: selection == i)
             if i == 1 && coffeeNotifications > 0 {
@@ -1159,8 +1156,9 @@ struct FloatingTabBar: View {
     .padding(.horizontal, 18).padding(.top, 7)
     .frame(maxWidth: .infinity).frame(height: 60, alignment: .center)
     .background {
-      NookColors.warmBlack.ignoresSafeArea(edges: .bottom)
+      NookColors.surface.opacity(0.98).ignoresSafeArea(edges: .bottom)
     }
+    .overlay(alignment: .top) { Rectangle().fill(NookColors.divider).frame(height: 0.5) }
     .animation(NookMotion.fast, value: selection)
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()

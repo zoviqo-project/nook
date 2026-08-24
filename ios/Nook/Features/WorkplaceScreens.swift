@@ -336,7 +336,7 @@ struct ConversationsView: View {
             }
           }
         }
-      }.scrollIndicators(.hidden)
+      }.scrollIndicators(.hidden).frame(height: 84)
     }
     .padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 12)
     .overlay(alignment: .bottom) { Divider().overlay(NookColors.espresso.opacity(0.08)) }

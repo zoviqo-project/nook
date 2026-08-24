@@ -85,7 +85,7 @@ struct DiscoverView: View {
   @State private var matchProgress = false
   var body: some View {
     NookScreenContainer(
-      eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.warmBlack,
+      eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.background,
       brandedHeader: true,
       actionIcon: "slider.horizontal.3",
       actionLabel: "Filtros", action: { showFilters = true },
@@ -509,7 +509,7 @@ private struct MidpointBridgeTransition: View {
 
   var body: some View {
     ZStack {
-      NookColors.warmBlack.ignoresSafeArea()
+      NookColors.background.ignoresSafeArea()
       Circle()
         .fill(NookColors.mocha.opacity(expanded ? 0.08 : 0.3))
         .frame(width: expanded ? 760 : 82, height: expanded ? 760 : 82)
