@@ -123,6 +123,7 @@ struct Me: Codable {
   let favoriteCoffeeMoment: String?
   let minAge, maxAge, maxDistanceKm: Int
   let visible, hidden, onboardingComplete: Bool
+  var onboardingStep: Int? = nil
   let coffeePreferences: [String]
   let photos: [Photo]
   var desiredGenders: [String]? = nil
@@ -375,10 +376,7 @@ struct UserSettingsUpdate: Codable, Sendable {
   var locale: String?
 }
 protocol UserRepository: Sendable {
-  func register(
-    email: String, password: String, name: String, birthDate: Date, gender: Gender,
-    lookingFor: LookingFor
-  ) async throws -> Me
+  func register(email: String, password: String) async throws -> Me
   func login(email: String, password: String) async throws -> Me
   func federatedLogin(provider: String, identityToken: String, displayName: String?) async throws -> Me
   func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge
@@ -446,6 +444,9 @@ protocol NookRepository: UserRepository, DiscoveryRepository, MatchRepository,
   CoffeeShopRepository, CoffeeDateRepository, ConversationRepository, NotificationRepository,
   ModerationRepository {}
 struct ProfileUpdate: Codable {
+  var name: String?
+  var birthDate: String?
+  var gender: Gender?
   var bio: String?
   var city: String?
   var latitude: Double?
@@ -463,6 +464,7 @@ struct ProfileUpdate: Codable {
   var hidden: Bool?
   var coffeePreferences: [String]?
   var onboardingComplete: Bool?
+  var onboardingStep: Int?
   var desiredGenders: [String]?
   var discoveryIntentions: [String]?
   var discoveryVibes: [String]?

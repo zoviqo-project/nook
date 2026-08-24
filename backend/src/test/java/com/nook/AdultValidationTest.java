@@ -28,7 +28,7 @@ class AdultValidationTest {
     var update = new UpdateMe(
         null, null, null, null, null, null, null, null, null, null,
         "CALM", 5, "AFTERWORK", null, null, null, null, null, null, null,
-        null, null, null, null, null);
+        null, null, null, null, null, null);
     try (var factory = Validation.buildDefaultValidatorFactory()) {
       var violations = factory.getValidator().validate(update);
       assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("coffeesPerDay")));

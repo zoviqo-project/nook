@@ -16,7 +16,7 @@ request() {
 register() {
   local email="$1" name="$2" output="$3"
   request -H 'Content-Type: application/json' -X POST "$API_URL/auth/register" \
-    -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\",\"name\":\"$name\",\"birthDate\":\"1994-04-12\",\"gender\":\"OTHER\",\"lookingFor\":\"OPEN_ENDED\"}" > "$output"
+    -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\"}" > "$output"
 }
 
 register "$EMAIL_A" 'E2E A' "$TMP_DIR/a.json"
@@ -26,12 +26,21 @@ TOKEN_B="$(jq -r .accessToken "$TMP_DIR/b.json")"
 USER_A="$(jq -r .user.id "$TMP_DIR/a.json")"
 USER_B="$(jq -r .user.id "$TMP_DIR/b.json")"
 
+# Onboarding progress is server-owned and must survive a new session/device.
+request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X PATCH "$API_URL/users/me" \
+  -d '{"name":"E2E A","birthDate":"1994-04-12","gender":"OTHER","lookingFor":"OPEN_ENDED","onboardingStep":4}' >/dev/null
+request -H "Authorization: Bearer $TOKEN_A" "$API_URL/users/me" > "$TMP_DIR/onboarding-resume.json"
+[[ "$(jq -r .onboardingStep "$TMP_DIR/onboarding-resume.json")" == "4" ]]
+
 if ! request -H "Authorization: Bearer $TOKEN_A" -X POST "$API_URL/users/me/photos" \
   -F "file=@ios/Nook/Resources/Assets.xcassets/NookBrandMark.imageset/NookBrandMark.png;type=image/png" \
   > "$TMP_DIR/photo.json"; then
   jq '{status,code,message,path}' "$TMP_DIR/photo.json"
   exit 1
 fi
+request -H "Authorization: Bearer $TOKEN_B" -X POST "$API_URL/users/me/photos" \
+  -F "file=@ios/Nook/Resources/Assets.xcassets/NookBrandMark.imageset/NookBrandMark.png;type=image/png" \
+  > "$TMP_DIR/photo-b.json"
 PHOTO_URL="$(jq -r .url "$TMP_DIR/photo.json")"
 API_ORIGIN="${API_URL%/api/v1}"
 if ! request -H 'Accept: image/*' "$API_ORIGIN$PHOTO_URL" > "$TMP_DIR/photo-content"; then
@@ -40,9 +49,9 @@ if ! request -H 'Accept: image/*' "$API_ORIGIN$PHOTO_URL" > "$TMP_DIR/photo-cont
 fi
 
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X PATCH "$API_URL/users/me" \
-  -d '{"bio":"Cuenta de validación end-to-end","city":"Sant Vicenç dels Horts","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true}' >/dev/null
+  -d '{"bio":"Cuenta de validación end-to-end","city":"Sant Vicenç dels Horts","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true,"onboardingStep":15}' >/dev/null
 request -H "Authorization: Bearer $TOKEN_B" -H 'Content-Type: application/json' -X PATCH "$API_URL/users/me" \
-  -d '{"bio":"Cuenta de validación end-to-end","city":"Barcelona","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true}' >/dev/null
+  -d '{"name":"E2E B","birthDate":"1994-04-12","gender":"OTHER","lookingFor":"OPEN_ENDED","bio":"Cuenta de validación end-to-end","city":"Barcelona","coffeePersonality":"Cortado","preferredPlan":"LONG_TALKS","preferredVibe":"CALM","coffeesPerDay":2,"favoriteCoffeeMoment":"AFTERWORK","minAge":18,"maxAge":80,"maxDistanceKm":50,"coffeePreferences":["CORTADO"],"onboardingComplete":true,"onboardingStep":15}' >/dev/null
 
 CAPTURED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 request -H "Authorization: Bearer $TOKEN_A" -H 'Content-Type: application/json' -X PUT "$API_URL/users/me/location" \
@@ -127,4 +136,5 @@ jq -n \
   --arg cafes "$(jq -r 'if length > 0 then "real-results" else "missing" end' "$TMP_DIR/cafes.json")" \
   --arg midpoint "$(jq -r 'if (.latitude > 41.38 and .latitude < 41.41 and .longitude > 2.07 and .longitude < 2.10) then "geographic" else "invalid" end' "$TMP_DIR/midpoint.json")" \
   --arg photo "$([[ -s "$TMP_DIR/photo-content" ]] && echo persisted || echo missing)" \
-  '{authentication:$auth,photo:$photo,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,counter:$counter,myCafes:$myCafes,duplicateProposal:$duplicate,message:$message,logout:$logout}'
+  --arg onboarding "$([[ "$(jq -r .onboardingStep "$TMP_DIR/onboarding-resume.json")" == "4" ]] && echo resumed || echo lost)" \
+  '{authentication:$auth,onboarding:$onboarding,photo:$photo,match:$match,midpoint:$midpoint,cafes:$cafes,proposal:$proposal,counter:$counter,myCafes:$myCafes,duplicateProposal:$duplicate,message:$message,logout:$logout}'

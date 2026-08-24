@@ -113,9 +113,7 @@ struct DiscoverSnapshot {
       if let m = restored {
         me = m
         enterAuthenticated(m)
-      } else {
-        stage = .login
-      }
+      } else { stage = .welcome }
     } catch is CancellationError {
       return
     } catch {
@@ -136,13 +134,11 @@ struct DiscoverSnapshot {
   func verifyPhoneOtp(challengeId: UUID, code: String) async throws {
     enterAuthenticated(try await repository.verifyPhoneOtp(challengeId: challengeId, code: code))
   }
-  func register(
-    email: String, password: String, name: String, birth: Date, gender: Gender, looking: LookingFor
-  ) async throws {
-    me = try await repository.register(
-      email: email, password: password, name: name, birthDate: birth, gender: gender,
-      lookingFor: looking)
-    stage = .onboarding
+  func register(email: String, password: String) async throws {
+    enterAuthenticated(try await repository.register(email: email, password: password))
+  }
+  func saveOnboarding(_ update: ProfileUpdate) async throws {
+    me = try await repository.updateProfile(update)
   }
   func finish(_ p: ProfileUpdate) async throws {
     me = try await repository.updateProfile(p)

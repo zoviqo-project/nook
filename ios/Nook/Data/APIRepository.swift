@@ -23,15 +23,8 @@ actor APIRepository: NookRepository {
     self.tokens = tokens
     decoder = JSONDecoder()
   }
-  func register(
-    email: String, password: String, name: String, birthDate: Date, gender: Gender,
-    lookingFor: LookingFor
-  ) async throws -> Me {
-    let f = DateFormatter()
-    f.dateFormat = "yyyy-MM-dd"
-    let body = RegisterBody(
-      email: email, password: password, name: name, birthDate: f.string(from: birthDate),
-      gender: gender, lookingFor: lookingFor)
+  func register(email: String, password: String) async throws -> Me {
+    let body = RegisterBody(email: email, password: password)
     let t: TokenResponse = try await call("auth/register", method: "POST", body: body, auth: false)
     try tokens.save(
       .init(
@@ -75,6 +68,10 @@ actor APIRepository: NookRepository {
   func restore() async throws -> Me? {
     guard (try? tokens.load()) != nil else { return nil }
     do { return try await me() }
+    catch AuthenticationError.invalidCredentials {
+      try? tokens.clear()
+      return nil
+    }
     catch let error as NookAPIError where error.statusCode == 401 || error.statusCode == 403 {
       try? tokens.clear()
       return nil
@@ -357,11 +354,7 @@ private struct TokenResponse: Codable {
   let expiresIn: Int
   let user: Me
 }
-private struct RegisterBody: Codable {
-  let email, password, name, birthDate: String
-  let gender: Gender
-  let lookingFor: LookingFor
-}
+private struct RegisterBody: Codable { let email, password: String }
 private struct LoginBody: Codable { let email, password: String }
 private struct FederatedBody: Codable { let identityToken: String; let displayName: String? }
 private struct PhoneRequestBody: Codable { let phone: String }

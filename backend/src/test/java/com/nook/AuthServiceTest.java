@@ -35,6 +35,31 @@ class AuthServiceTest {
 
   private AuthService service(){return new AuthService(repository,encoder,jwt,mapper,entityManager,30,identities,otp,audit);}
 
+  @Test void emailRegistrationCreatesOnlyCredentialsAndAProvisionalProfile(){
+    when(repository.userByEmail("new@nook.app")).thenReturn(Optional.empty());
+    when(encoder.encode(anyString())).thenReturn("hash");
+    doAnswer(invocation->{Object value=invocation.getArgument(0);if(value instanceof User user)user.id=UUID.randomUUID();return value;})
+        .when(repository).save(any());
+
+    service().register(new Register(" NEW@NOOK.APP ","coffee123"));
+
+    verify(repository).save(argThat(value->value instanceof User user
+        && user.email.equals("new@nook.app")&&user.passwordHash.equals("hash")));
+    verify(repository).save(argThat(value->value instanceof Profile profile
+        && profile.name.equals("Nuevo café")&&!profile.onboardingComplete));
+    verify(repository).save(argThat(value->value instanceof AuthIdentity identity
+        && identity.provider==AuthProvider.EMAIL&&identity.providerSubject.equals("new@nook.app")));
+  }
+
+  @Test void repeatedEmailRegistrationNeverCreatesADuplicate(){
+    when(repository.userByEmail("member@nook.app")).thenReturn(Optional.of(new User()));
+
+    assertThatThrownBy(()->service().register(new Register("member@nook.app","coffee123")))
+        .isInstanceOf(com.nook.exception.ApiException.class);
+
+    verify(repository,never()).save(any());
+  }
+
   @Test void federatedLoginTrustsVerifiedProviderSubjectNotClientProfile(){
     UUID userId=UUID.randomUUID();
     User user=new User();user.id=userId;user.email="verified@nook.app";

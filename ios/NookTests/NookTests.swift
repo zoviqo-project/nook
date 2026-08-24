@@ -55,7 +55,8 @@ final class NookTests: XCTestCase {
   func testSpanishCafeHoursProduceOnlyOpenSlots() throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Madrid"))
-    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 24, hour: 12)))
+    let day = try XCTUnwrap(calendar.nextDate(
+      after: Date(), matching: DateComponents(hour: 12, weekday: 2), matchingPolicy: .nextTime))
     let slots = try XCTUnwrap(CoffeeOpeningSchedule.slots(
       from: "lunes: 08:00–20:00 · martes: Cerrado", on: day, calendar: calendar))
     XCTAssertEqual(slots.count, 24)
@@ -66,7 +67,8 @@ final class NookTests: XCTestCase {
   func testClosedCafeDayHasNoSlots() throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Madrid"))
-    let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 8, day: 25, hour: 12)))
+    let day = try XCTUnwrap(calendar.nextDate(
+      after: Date(), matching: DateComponents(hour: 12, weekday: 3), matchingPolicy: .nextTime))
     XCTAssertEqual(CoffeeOpeningSchedule.slots(
       from: "Monday: 8:00\u{202F}AM\u{2009}–\u{2009}8:00\u{202F}PM · Tuesday: Closed", on: day, calendar: calendar), [])
   }

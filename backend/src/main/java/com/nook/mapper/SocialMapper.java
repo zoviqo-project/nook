@@ -31,6 +31,7 @@ public class SocialMapper {
         profile.preferredPlan, profile.preferredVibe, profile.coffeesPerDay,
         profile.favoriteCoffeeMoment, preferences.minAge, preferences.maxAge,
         preferences.maxDistanceKm, preferences.visible, user.hidden, profile.onboardingComplete,
+        profile.onboardingStep,
         repo.coffees(user.id), repo.photos(user.id).stream().map(this::photo).toList(),
         split(preferences.desiredGenders), split(preferences.intentions),
         split(preferences.preferredVibes), split(preferences.preferredMoments),

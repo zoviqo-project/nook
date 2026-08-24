@@ -264,10 +264,7 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
       }
       people.removeFirst(3)
     }
-    func register(
-      email: String, password: String, name: String, birthDate: Date, gender: Gender,
-      lookingFor: LookingFor
-    ) async throws -> Me { current }
+    func register(email: String, password: String) async throws -> Me { current }
     func login(email: String, password: String) async throws -> Me { current }
     func federatedLogin(provider: String, identityToken: String, displayName: String?) async throws -> Me { current }
     func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge { .init(challengeId: UUID(), expiresIn: 300, developmentCode: "123456") }

@@ -6,7 +6,11 @@ import static org.mockito.Mockito.*;
 
 import com.nook.application.port.out.MediaStoragePort;
 import com.nook.domain.SocialEntities.Photo;
+import com.nook.domain.SocialEntities.Preference;
+import com.nook.domain.SocialEntities.Profile;
 import com.nook.domain.SocialEntities.User;
+import com.nook.dto.ApiDtos.UpdateMe;
+import com.nook.exception.ApiException;
 import com.nook.mapper.SocialMapper;
 import com.nook.repository.SocialRepository;
 import com.nook.service.AuditService;
@@ -72,5 +76,37 @@ class UserServiceTest {
     verify(repository).save(saved.capture());
     assertThat(saved.getValue().primary).isFalse();
     assertThat(saved.getValue().position).isEqualTo(1);
+  }
+
+  @Test void onboardingProgressIsPersistedWithoutMovingBackwards(){
+    UUID userId=UUID.randomUUID();User user=new User();user.id=userId;
+    Profile profile=new Profile();profile.userId=userId;profile.name="Nuevo café";profile.onboardingStep=5;
+    Preference preference=new Preference();preference.userId=userId;
+    when(repository.user(userId)).thenReturn(user);when(repository.profile(userId)).thenReturn(profile);
+    when(repository.preference(userId)).thenReturn(preference);
+    var service=new UserService(repository,mapper,new AuditService(repository),media);
+
+    service.update(userId,update(3,false));
+    assertThat(profile.onboardingStep).isEqualTo(5);
+    service.update(userId,update(8,false));
+    assertThat(profile.onboardingStep).isEqualTo(8);
+  }
+
+  @Test void incompleteProfileCannotBePublished(){
+    UUID userId=UUID.randomUUID();User user=new User();user.id=userId;
+    Profile profile=new Profile();profile.userId=userId;profile.name="Nuevo café";
+    Preference preference=new Preference();preference.userId=userId;
+    when(repository.user(userId)).thenReturn(user);when(repository.profile(userId)).thenReturn(profile);
+    when(repository.preference(userId)).thenReturn(preference);
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(()->
+        new UserService(repository,mapper,new AuditService(repository),media)
+            .update(userId,update(15,true))).isInstanceOf(ApiException.class);
+  }
+
+  private UpdateMe update(Integer step,Boolean complete){
+    return new UpdateMe(
+        null,null,null,null,null,null,null,null,null,null,null,null,null,
+        null,null,null,null,null,null,complete,step,null,null,null,null,null);
   }
 }
