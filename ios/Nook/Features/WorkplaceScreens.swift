@@ -333,6 +333,7 @@ struct ConversationsView: View {
               ShopImage(url: shop.photoUrl, seed: shop.name)
                 .frame(width: 62, height: 62).clipShape(Circle())
                 .overlay { AnimatedCafeRailRing(premium: isNookChoice(shop)) }
+                .frame(width: 70, height: 70)
               Text(shop.name)
                 .font(NookTypography.caption)
                 .foregroundStyle(NookColors.espresso).lineLimit(1)
@@ -340,7 +341,7 @@ struct ConversationsView: View {
             }
           }
         }
-      }.scrollIndicators(.hidden).frame(height: 84)
+      }.scrollIndicators(.hidden).frame(height: 98)
     }
     .padding(.horizontal, NookSpacing.screen).padding(.top, 0).padding(.bottom, 10)
   }
@@ -639,24 +640,22 @@ private struct AnimatedCafeRailRing: View {
   var body: some View {
     ZStack {
       Circle().stroke(
-        (premium ? NookColors.nookGold : NookColors.primaryCoffee).opacity(0.18),
+        NookColors.oat.opacity(0.22),
         lineWidth: premium ? 4 : 3)
       Circle()
         .trim(from: 0.06, to: 0.72)
         .stroke(
           AngularGradient(
-            colors: premium
-              ? [NookColors.nookGold, NookColors.caramel, NookColors.mocha, NookColors.nookGold]
-              : [NookColors.primaryCoffee, NookColors.latte, NookColors.primaryCoffeeSoft,
-                 NookColors.primaryCoffee],
+            colors: [NookColors.mocha, NookColors.mocha.opacity(0.72),
+                     NookColors.primaryCoffeeSoft, NookColors.mocha],
             center: .center),
           style: StrokeStyle(lineWidth: premium ? 4 : 3, lineCap: .round))
         .rotationEffect(.degrees(rotating ? 360 : 0))
         .shadow(
-          color: (premium ? NookColors.nookGold : NookColors.primaryCoffee).opacity(0.16),
+          color: NookColors.mocha.opacity(0.16),
           radius: 4)
     }
-    .padding(-3)
+    .frame(width: 68, height: 68)
     .onAppear {
       guard !reduceMotion else { return }
       withAnimation(.linear(duration: premium ? 5.2 : 6.4).repeatForever(autoreverses: false)) {
