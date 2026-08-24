@@ -171,6 +171,8 @@ struct CoffeeFoamSpiral: Shape {
 }
 
 struct NookLoadingView: View {
+  var title = "Preparando el café…"
+  var subtitle = "Un momento, ya casi está"
   @State private var floating = false
   @State private var turning = false
   var body: some View {
@@ -183,9 +185,9 @@ struct NookLoadingView: View {
         NookCoffeeLogo(size: 54).offset(y: floating ? -2 : 2)
       }
       VStack(spacing: 5) {
-        Text("Preparando el café…").font(.system(size: 16, weight: .bold, design: .rounded))
+        Text(title).font(.system(size: 16, weight: .bold, design: .rounded))
           .foregroundStyle(NookColors.espresso)
-        Text("Un momento, ya casi está").font(.caption.weight(.medium))
+        Text(subtitle).font(.caption.weight(.medium))
           .foregroundStyle(NookColors.warmGray)
       }
     }.frame(maxWidth: .infinity, maxHeight: .infinity)

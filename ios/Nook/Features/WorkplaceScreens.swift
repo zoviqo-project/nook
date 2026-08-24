@@ -113,7 +113,10 @@ struct ChatsView: View {
     ) {
       Group {
         if vm.loading {
-          NookSkeletonScreen(layout: .coffeeDates(rows: 3))
+          NookLoadingView(
+            title: "Preparando tus cafés…",
+            subtitle: "Estamos actualizando tus encuentros")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let error = vm.error {
           NookErrorView(message: error) { Task { await vm.load(app.repository) } }
         } else {
