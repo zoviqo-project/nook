@@ -412,10 +412,10 @@ struct LoginView: View {
                 .font(.system(size: 16, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.74))
             }.foregroundStyle(.white)
-            VStack(alignment: .leading, spacing: 15) {
-              NookTextField(
+            VStack(alignment: .leading, spacing: 14) {
+              CinematicLoginField(
                 label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
-              NookTextField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
+              CinematicLoginField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
               if let error {
                 Text(error).font(.callout.weight(.semibold)).foregroundStyle(.red).padding(.horizontal, 4)
                   .transition(.move(edge: .top).combined(with: .opacity))
@@ -426,10 +426,10 @@ struct LoginView: View {
               ) { Task { await submit() } }.disabled(busy || email.isEmpty || password.count < 8)
                 .opacity(busy ? 0.65 : 1)
               HStack(spacing: 12) {
-                Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+                Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
                 Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
-                  .tracking(1.4).foregroundStyle(NookColors.warmGray).fixedSize()
-                Rectangle().fill(NookColors.espresso.opacity(0.12)).frame(height: 1)
+                  .tracking(1.4).foregroundStyle(.white.opacity(0.56)).fixedSize()
+                Rectangle().fill(.white.opacity(0.18)).frame(height: 1)
               }.padding(.vertical, 2)
               VStack(spacing: 10) {
                 loginProvider("Apple", icon: "apple.logo") { Task { await signInWithApple() } }
@@ -437,16 +437,10 @@ struct LoginView: View {
               }
               Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(NookColors.espresso.opacity(0.72)).frame(maxWidth: .infinity)
+                .foregroundStyle(.white.opacity(0.8)).frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
             }
-            .padding(18)
-            .background(NookColors.offWhite.opacity(0.96), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay {
-              RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(.white.opacity(0.42), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.22), radius: 30, y: 16)
+            .padding(.top, 6)
           }
           .padding(.horizontal, 20).padding(.bottom, 24)
           .offset(y: appeared ? 0 : 22).opacity(appeared ? 1 : 0)
@@ -519,15 +513,46 @@ struct LoginView: View {
     Button(action: action) {
       HStack(spacing: 12) {
         if providerLoading == title {
-          ProgressView().controlSize(.small).tint(NookColors.espresso).frame(width: 22)
+          ProgressView().controlSize(.small).tint(.white).frame(width: 22)
         } else {
           Image(systemName: icon).font(.system(size: 17, weight: .semibold)).frame(width: 22)
         }
         Text("Continuar con \(title)").font(.system(size: 15, weight: .semibold, design: .rounded))
         Spacer()
-      }.foregroundStyle(NookColors.espresso).padding(.horizontal, 17).frame(height: 50)
-        .overlay(RoundedRectangle(cornerRadius: 17).stroke(NookColors.espresso.opacity(0.16)))
+      }.foregroundStyle(.white.opacity(0.9)).padding(.horizontal, 17).frame(height: 50)
+        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17).stroke(.white.opacity(0.2)))
     }.buttonStyle(.plain).disabled(busy)
+  }
+}
+
+private struct CinematicLoginField: View {
+  let label: String
+  let icon: String
+  @Binding var text: String
+  var secure = false
+  var keyboard: UIKeyboardType = .default
+  @FocusState private var focused: Bool
+  var body: some View {
+    HStack(spacing: 13) {
+      Image(systemName: icon).font(.system(size: 16, weight: .semibold))
+        .foregroundStyle(focused ? .white : .white.opacity(0.54)).frame(width: 22)
+      Group {
+        if secure { SecureField(label, text: $text) }
+        else { TextField(label, text: $text).keyboardType(keyboard) }
+      }
+      .font(.system(size: 17, weight: .semibold, design: .rounded))
+      .foregroundStyle(.white).tint(.white)
+      .textInputAutocapitalization(keyboard == .emailAddress ? .never : .sentences)
+      .focused($focused)
+    }
+    .padding(.horizontal, 17).frame(height: 56)
+    .background(.black.opacity(focused ? 0.3 : 0.2), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .stroke(.white.opacity(focused ? 0.48 : 0.2), lineWidth: focused ? 1.5 : 1)
+    }
+    .animation(NookMotion.fast, value: focused)
   }
 }
 
