@@ -468,7 +468,7 @@ struct ChatDetail: View {
             .onChange(of: focused) { _, value in if value { withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } } }
         }
       }.safeAreaInset(edge: .bottom, spacing: 0) { composer }.toolbar {
-        ToolbarItem(placement: .principal) {
+        ToolbarItem(placement: .topBarLeading) {
           HStack(spacing: 9) {
             ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name).frame(width: 34, height: 34).clipShape(Circle())
             VStack(alignment: .leading, spacing: 1) {
