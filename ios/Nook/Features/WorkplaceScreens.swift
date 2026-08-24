@@ -332,15 +332,7 @@ struct ConversationsView: View {
             VStack(spacing: 7) {
               ShopImage(url: shop.photoUrl, seed: shop.name)
                 .frame(width: 62, height: 62).clipShape(Circle())
-                .overlay {
-                  if isNookChoice(shop) {
-                    Circle().stroke(
-                      LinearGradient(
-                        colors: [NookColors.caramel, NookColors.nookGold, NookColors.mocha],
-                        startPoint: .topLeading, endPoint: .bottomTrailing),
-                      lineWidth: 4)
-                  }
-                }
+                .overlay { AnimatedCafeRailRing(premium: isNookChoice(shop)) }
               Text(shop.name)
                 .font(NookTypography.caption)
                 .foregroundStyle(NookColors.espresso).lineLimit(1)
@@ -635,6 +627,41 @@ struct ChatDetail: View {
     case "COFFEE_COMPLETED": "Este encuentro está en tu historial"
     case "COFFEE_CANCELLED": "La propuesta ha sido cancelada"
     default: nil
+    }
+  }
+}
+
+private struct AnimatedCafeRailRing: View {
+  let premium: Bool
+  @State private var rotating = false
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  var body: some View {
+    ZStack {
+      Circle().stroke(
+        (premium ? NookColors.nookGold : NookColors.primaryCoffee).opacity(0.18),
+        lineWidth: premium ? 4 : 3)
+      Circle()
+        .trim(from: 0.06, to: 0.72)
+        .stroke(
+          AngularGradient(
+            colors: premium
+              ? [NookColors.nookGold, NookColors.caramel, NookColors.mocha, NookColors.nookGold]
+              : [NookColors.primaryCoffee, NookColors.latte, NookColors.primaryCoffeeSoft,
+                 NookColors.primaryCoffee],
+            center: .center),
+          style: StrokeStyle(lineWidth: premium ? 4 : 3, lineCap: .round))
+        .rotationEffect(.degrees(rotating ? 360 : 0))
+        .shadow(
+          color: (premium ? NookColors.nookGold : NookColors.primaryCoffee).opacity(0.16),
+          radius: 4)
+    }
+    .padding(-3)
+    .onAppear {
+      guard !reduceMotion else { return }
+      withAnimation(.linear(duration: premium ? 5.2 : 6.4).repeatForever(autoreverses: false)) {
+        rotating = true
+      }
     }
   }
 }
