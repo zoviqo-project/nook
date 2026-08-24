@@ -870,16 +870,23 @@ private struct MyCafeUnifiedCard: View {
           ShopImage(url: cafePhotoURL(for: proposal), seed: proposal.coffeeShop.name)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
+          // Keep the café photograph vivid. The warm surface only protects the
+          // text area and fades away before reaching the photographic side.
           LinearGradient(
             colors: [
-              NookColors.surface.opacity(0.90), NookColors.background.opacity(0.82),
-              NookColors.surface.opacity(0.94)
+              NookColors.surface,
+              NookColors.surface.opacity(0.98),
+              NookColors.surface.opacity(0.72),
+              .clear
             ],
-            startPoint: .topLeading, endPoint: .bottomTrailing)
-        } else {
-          NookColors.offWhite.opacity(0.94)
+            startPoint: .leading, endPoint: .trailing)
           LinearGradient(
-            colors: [matchGold.opacity(0.2), .clear, matchGold.opacity(0.08)],
+            colors: [.clear, NookColors.surface.opacity(0.88)],
+            startPoint: .center, endPoint: .bottom)
+        } else {
+          NookColors.offWhite
+          LinearGradient(
+            colors: [matchGold.opacity(0.12), .clear, matchGold.opacity(0.05)],
             startPoint: .topLeading, endPoint: .bottomTrailing)
         }
       }
@@ -888,24 +895,9 @@ private struct MyCafeUnifiedCard: View {
     // Clip the complete card composition so remote images and their loading
     // transitions can never paint into the spacing between adjacent cards.
     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-    .overlay(
-      RoundedRectangle(cornerRadius: 24, style: .continuous)
-        .stroke(attentionColor.opacity(needsAttention ? (attention ? 0.82 : 0.24) : 0.18),
-          lineWidth: needsAttention ? (attention ? 2 : 1) : 1)
-    )
     .shadow(
-      color: needsAttention ? attentionColor.opacity(attention ? 0.14 : 0.035) : NookShadow.card,
-      radius: needsAttention ? (attention ? 10 : 5) : 7, y: 3)
-    .overlay(alignment: .top) {
-      if item.proposal == nil {
-        Capsule()
-          .fill(LinearGradient(
-            colors: [matchGold.opacity(0.35), matchGold, .white.opacity(0.72), matchGold],
-            startPoint: .leading, endPoint: .trailing))
-          .frame(height: 4).padding(.horizontal, 24).offset(y: -1)
-          .opacity(attention ? 1 : 0.58)
-      }
-    }
+      color: needsAttention ? attentionColor.opacity(attention ? 0.10 : 0.025) : NookShadow.card.opacity(0.65),
+      radius: needsAttention ? (attention ? 8 : 4) : 6, y: 3)
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     .onTapGesture {
