@@ -413,9 +413,9 @@ private struct QuickAccessView: View {
       NookAuthProviderButton(
         provider: .google, isLoading: busy && busyAction == 1, disabled: busy
       ) { Task { await signInWithGoogle() } }
-      NookAuthProviderButton(provider: .apple, disabled: busy) {
-        error = "Apple necesita activar Sign in with Apple en una cuenta Developer de pago."
-      }
+      NookAuthProviderButton(
+        provider: .apple, isLoading: busy && busyAction == 0, disabled: busy
+      ) { Task { await signInWithApple() } }
       NookAuthProviderButton(provider: .facebook, disabled: busy) {
         error = "Facebook necesita configurar su App ID y secreto para continuar."
       }
@@ -599,9 +599,9 @@ struct LoginView: View {
                 NookAuthProviderButton(
                   provider: .google, isLoading: providerLoading == "Google", disabled: busy
                 ) { Task { await signInWithGoogle() } }
-                NookAuthProviderButton(provider: .apple, disabled: busy) {
-                  state = .error("Apple necesita activar Sign in with Apple en una cuenta Developer de pago.")
-                }
+                NookAuthProviderButton(
+                  provider: .apple, isLoading: providerLoading == "Apple", disabled: busy
+                ) { Task { await signInWithApple() } }
                 NookAuthProviderButton(provider: .facebook, disabled: busy) {
                   state = .error("Facebook necesita configurar su App ID y secreto para continuar.")
                 }
@@ -958,6 +958,9 @@ struct EmailRegistrationView: View {
   @State private var confirmation = ""
   @State private var busy = false
   @State private var error: String?
+  @State private var providerLoading: String?
+  @StateObject private var apple = AppleSignInCoordinator()
+  @StateObject private var google = GoogleSignInCoordinator()
 
   private var valid: Bool {
     let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -988,7 +991,7 @@ struct EmailRegistrationView: View {
           Text("Crea tu cuenta")
             .font(NookTypography.display(40))
             .tracking(-0.4)
-          Text("Solo necesitas un email y una contraseña. Tu perfil viene después.")
+          Text("Elige cómo quieres crear tu cuenta. Tu perfil viene después.")
             .font(NookTypography.body)
             .foregroundStyle(.white.opacity(0.74))
           VStack(spacing: 12) {
@@ -1019,6 +1022,30 @@ struct EmailRegistrationView: View {
           }
           .disabled(!valid || busy)
           .opacity(valid && !busy ? 1 : 0.55)
+          HStack(spacing: 12) {
+            Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
+            Text("O REGÍSTRATE CON").font(.system(size: 9, weight: .bold)).tracking(1.3)
+              .foregroundStyle(.white.opacity(0.68)).fixedSize()
+            Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
+          }
+          VStack(spacing: 10) {
+            NookAuthProviderButton(
+              provider: .google, isLoading: providerLoading == "Google", disabled: busy
+            ) { Task { await socialRegister(provider: "google") } }
+            NookAuthProviderButton(
+              provider: .apple, isLoading: providerLoading == "Apple", disabled: busy
+            ) { Task { await socialRegister(provider: "apple") } }
+            Button {
+              app.stage = .welcome
+            } label: {
+              HStack(spacing: 13) {
+                Image(systemName: "phone.fill").frame(width: 24)
+                Text("Registrarse con teléfono").font(.system(size: 17, weight: .semibold))
+                Spacer(); Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+              }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 18).frame(height: 56)
+                .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18))
+            }.buttonStyle(.plain).disabled(busy)
+          }
           Button("Ya tengo cuenta · Entrar") { app.stage = .login }
             .font(NookTypography.secondary.weight(.semibold))
             .foregroundStyle(.white.opacity(0.9))
@@ -1045,6 +1072,30 @@ struct EmailRegistrationView: View {
     } catch let caughtError {
       error = NookErrorCopy.message(
         for: caughtError, fallback: "No hemos podido crear la cuenta. Inténtalo de nuevo.")
+    }
+  }
+  private func socialRegister(provider: String) async {
+    guard !busy else { return }
+    busy = true; providerLoading = provider.capitalized; error = nil
+    defer { busy = false; providerLoading = nil }
+    do {
+      if provider == "apple" {
+        let credential = try await apple.signIn()
+        try await app.federatedLogin(
+          provider: provider, identityToken: credential.identityToken,
+          displayName: credential.displayName)
+      } else {
+        let token = try await google.signIn()
+        try await app.federatedLogin(provider: provider, identityToken: token, displayName: nil)
+      }
+      Haptics.success()
+    } catch let value as ASAuthorizationError where value.code == .canceled {
+      return
+    } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
+      return
+    } catch let caughtError {
+      error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido crear la cuenta con \(provider.capitalized).")
     }
   }
 }
