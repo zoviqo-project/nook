@@ -82,26 +82,41 @@ struct NookIntroView: View {
   @State private var pulsing = false
   var body: some View {
     ZStack {
-      NookColors.background.ignoresSafeArea()
-      VStack(spacing: 18) {
+      Image("NookLaunchSocial")
+        .resizable()
+        .scaledToFill()
+        .ignoresSafeArea()
+      LinearGradient(
+        colors: [
+          NookColors.warmBlack.opacity(0.38),
+          NookColors.warmBlack.opacity(0.58),
+          NookColors.warmBlack.opacity(0.78)
+        ], startPoint: .top, endPoint: .bottom
+      ).ignoresSafeArea()
+      VStack(spacing: 16) {
         ZStack {
           Circle()
-            .stroke(NookColors.primaryCoffee.opacity(0.18), lineWidth: 1)
+            .stroke(.white.opacity(0.3), lineWidth: 1)
             .frame(width: 190, height: 190)
             .scaleEffect(haloExpanded ? 1.18 : 0.62)
             .opacity(haloExpanded ? 0 : 0.78)
           Circle()
             .trim(from: 0.08, to: 0.7)
-            .stroke(NookColors.primaryCoffee.opacity(0.58), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .stroke(.white.opacity(0.86), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
             .frame(width: 148, height: 148)
             .rotationEffect(.degrees(orbiting ? 360 : -35))
-          Circle().fill(.white).frame(width: 126, height: 126)
+          Circle().fill(.white.opacity(0.96)).frame(width: 126, height: 126)
           NookCoffeeLogo(size: 112, animated: false).clipShape(Circle())
         }
         .frame(width: 190, height: 190)
         .scaleEffect(pulsing ? 1.035 : 1)
-        .shadow(color: NookColors.primaryCoffee.opacity(0.12), radius: 34)
-        .shadow(color: NookColors.mocha.opacity(0.3), radius: 24, y: 12)
+        .shadow(color: .black.opacity(0.28), radius: 34)
+        .shadow(color: NookColors.mocha.opacity(0.34), radius: 24, y: 12)
+        Text("NOOK")
+          .font(.system(size: 25, weight: .bold, design: .default))
+          .tracking(-0.5)
+          .foregroundStyle(.white)
+          .shadow(color: .black.opacity(0.28), radius: 8, y: 3)
       }
       .scaleEffect(appeared ? 1 : 0.76)
       .opacity(appeared ? 1 : 0)
