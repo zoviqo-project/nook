@@ -277,7 +277,13 @@ private struct QuickAccessView: View {
   }
   var body: some View {
     ZStack(alignment: .bottom) {
-      LinearGradient(colors: [.clear, NookColors.background.opacity(0.9), NookColors.background], startPoint: .top, endPoint: .bottom)
+      LinearGradient(
+        stops: [
+          .init(color: NookColors.warmBlack.opacity(0.16), location: 0),
+          .init(color: NookColors.warmBlack.opacity(0.58), location: 0.42),
+          .init(color: NookColors.warmBlack.opacity(0.94), location: 1)
+        ], startPoint: .top, endPoint: .bottom
+      )
         .ignoresSafeArea().onTapGesture { isPresented = false }
       VStack(alignment: .leading, spacing: 18) {
         HStack {
@@ -289,17 +295,27 @@ private struct QuickAccessView: View {
           } label: {
             Image(systemName: emailLogin ? "chevron.left" : "xmark")
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
-              .background(NookColors.surfaceSecondary, in: Circle())
+              .foregroundStyle(.white)
+              .background(.white.opacity(0.14), in: Circle())
+              .overlay { Circle().stroke(.white.opacity(0.2), lineWidth: 0.75) }
           }
           Spacer()
-          NookCoffeeLogo(size: 34, animated: false).opacity(0.94)
+          HStack(spacing: 9) {
+            NookCoffeeLogo(size: 34, animated: false)
+              .clipShape(Circle())
+              .overlay { Circle().stroke(.white.opacity(0.72), lineWidth: 1.5) }
+            Text("NOOK")
+              .font(.system(size: 22, weight: .bold, design: .default))
+              .tracking(-0.65)
+          }
+          .foregroundStyle(.white)
         }
         if emailLogin {
           VStack(alignment: .leading, spacing: 7) {
             Text(createAccount ? "Tu primer café" : "Qué alegría verte")
               .font(NookTypography.display(38)).tracking(-0.25)
             Text(createAccount ? "Crea tu acceso. El perfil viene después." : "Entra y retomamos ese café.")
-              .font(.body).foregroundStyle(NookColors.textSecondary)
+              .font(.body).foregroundStyle(.white.opacity(0.74))
           }
           VStack(spacing: 12) {
             CinematicLoginField(
@@ -318,20 +334,20 @@ private struct QuickAccessView: View {
               .opacity(email.isEmpty || password.count < 8 ? 0.45 : 1)
           }
           HStack(spacing: 10) {
-            Rectangle().fill(NookColors.divider).frame(height: 1)
+            Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
             Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
-              .tracking(1.3).foregroundStyle(NookColors.textSecondary).fixedSize()
-            Rectangle().fill(NookColors.divider).frame(height: 1)
+              .tracking(1.3).foregroundStyle(.white.opacity(0.68)).fixedSize()
+            Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
           }
           Button(createAccount ? "Ya tengo cuenta" : "Soy nuevo · Crear cuenta con email") {
             withAnimation(NookMotion.fast) { createAccount.toggle(); error = nil }
           }.font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(NookColors.primaryCoffee).frame(maxWidth: .infinity)
+            .foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity)
           providerButtons
         } else {
           VStack(alignment: .leading, spacing: 7) {
             Text("Entra en Nook").font(NookTypography.display(38)).tracking(-0.25)
-            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(NookColors.textSecondary)
+            Text("Elige cómo quieres empezar.").font(.body).foregroundStyle(.white.opacity(0.74))
           }
           VStack(spacing: 11) {
             providerButtons
@@ -346,12 +362,12 @@ private struct QuickAccessView: View {
           Button("Crear una cuenta con email") {
             createAccount = true
             withAnimation(NookMotion.spring) { emailLogin = true }
-          }.font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.primaryCoffee)
+          }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
             .frame(maxWidth: .infinity).padding(.top, 2)
         }
         Text("Al continuar aceptas las condiciones y la política de privacidad de Nook.")
-          .font(.caption).foregroundStyle(NookColors.textSecondary.opacity(0.78)).multilineTextAlignment(.center)
-      }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 22).padding(.bottom, 18)
+          .font(.caption).foregroundStyle(.white.opacity(0.58)).multilineTextAlignment(.center)
+      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
       CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
     }.onAppear {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
