@@ -33,7 +33,7 @@ struct RootView: View {
     switch app.stage {
     case .loading: EmptyView()
     case .welcome: WelcomeView()
-    case .registration: RegistrationFlow()
+    case .registration: EmailRegistrationView()
     case .login: LoginView()
     case .onboarding: OnboardingView()
     case .app: MainTabView()
@@ -282,6 +282,7 @@ private struct QuickAccessView: View {
   @State private var createAccount = false
   @State private var email = ""
   @State private var password = ""
+  @State private var passwordConfirmation = ""
   @StateObject private var apple = AppleSignInCoordinator()
   @StateObject private var google = GoogleSignInCoordinator()
   @State private var revealed = false
@@ -336,6 +337,11 @@ private struct QuickAccessView: View {
             CinematicLoginField(
               label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
             CinematicLoginField(label: "Contraseña", icon: "lock.fill", text: $password, secure: true)
+            if createAccount {
+              CinematicLoginField(
+                label: "Repite la contraseña", icon: "lock.rotation", text: $passwordConfirmation,
+                secure: true)
+            }
             if let error {
               Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -345,8 +351,8 @@ private struct QuickAccessView: View {
               icon: "arrow.right", primary: true, index: 2
             ) {
               Task { await signInWithEmail() }
-            }.disabled(email.isEmpty || password.count < 8)
-              .opacity(email.isEmpty || password.count < 8 ? 0.45 : 1)
+            }.disabled(!credentialsAreValid)
+              .opacity(credentialsAreValid ? 1 : 0.45)
           }
           HStack(spacing: 10) {
             Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
@@ -366,7 +372,8 @@ private struct QuickAccessView: View {
           }
           VStack(spacing: 11) {
             providerButtons
-            accessButton("Entrar con email", icon: "envelope.fill", index: 2) {
+            accessButton("Crear cuenta con email", icon: "person.badge.plus", primary: true, index: 2) {
+              createAccount = true
               withAnimation(NookMotion.spring) { emailLogin = true }
             }
           }
@@ -374,8 +381,8 @@ private struct QuickAccessView: View {
             Text(error).font(.caption.weight(.semibold)).foregroundStyle(Color.nookCoral)
               .frame(maxWidth: .infinity, alignment: .leading)
           }
-          Button("Crear una cuenta con email") {
-            createAccount = true
+          Button("Ya tengo cuenta · Entrar con email") {
+            createAccount = false
             withAnimation(NookMotion.spring) { emailLogin = true }
           }.font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
             .frame(maxWidth: .infinity).padding(.top, 2)
@@ -388,6 +395,11 @@ private struct QuickAccessView: View {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
     }
+  }
+  private var credentialsAreValid: Bool {
+    let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+    return cleanEmail.contains("@") && cleanEmail.contains(".") && password.count >= 8
+      && (!createAccount || password == passwordConfirmation)
   }
   private var providerButtons: some View {
     VStack(spacing: 10) {
@@ -442,12 +454,13 @@ private struct QuickAccessView: View {
     } catch { self.error = authMessage(error) }
   }
   private func signInWithEmail() async {
-    guard !busy, !email.isEmpty, password.count >= 8 else { return }
+    guard !busy, credentialsAreValid else { return }
     busy = true; busyAction = 2; error = nil
     defer { busy = false; busyAction = nil }
     do {
-      if createAccount { try await app.register(email: email, password: password) }
-      else { try await app.login(email, password) }
+      let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+      if createAccount { try await app.register(email: cleanEmail, password: password) }
+      else { try await app.login(cleanEmail, password) }
       Haptics.success()
       isPresented = false
     } catch { self.error = authMessage(error) }
@@ -745,87 +758,101 @@ private struct CinematicLoginField: View {
   }
 }
 
-struct RegistrationFlow: View {
+struct EmailRegistrationView: View {
   @EnvironmentObject var app: AppSession
-  @State private var step = 0
-  @State private var direction = 1
-  @State private var name = ""
-  @State private var birth = Calendar.current.date(byAdding: .year, value: -25, to: Date())!
-  @State private var gender = Gender.woman
-  @State private var looking = LookingFor.casualCoffee
   @State private var email = ""
   @State private var password = ""
+  @State private var confirmation = ""
   @State private var busy = false
   @State private var error: String?
-  private let total = 16
+
+  private var valid: Bool {
+    let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+    return cleanEmail.contains("@") && cleanEmail.contains(".") && password.count >= 8
+      && password == confirmation
+  }
+
   var body: some View {
     ZStack {
-      NookBackground()
-      VStack(spacing: 0) {
-        HStack {
-          Button { back() } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }
-          NookProgressBar(step: step, total: total)
-        }.padding(.horizontal, 18).padding(.top, 8)
-        ZStack { currentStep.id(step).transition(stepTransition) }.animation(NookMotion.spring, value: step)
-        NookButton(title: busy ? "CREANDO CUENTA…" : "CONTINUAR", icon: "arrow.right", isLoading: busy) {
-          advance()
-        }.disabled(!canContinue || busy).opacity(canContinue ? 1 : 0.35).padding(.horizontal, 22).padding(.bottom, 14)
+      NookWelcomeGallery(active: true)
+      LinearGradient(
+        colors: [NookColors.warmBlack.opacity(0.3), NookColors.warmBlack.opacity(0.94)],
+        startPoint: .top, endPoint: .bottom
+      ).ignoresSafeArea()
+      ScrollView {
+        VStack(alignment: .leading, spacing: 18) {
+          Button {
+            app.stage = .welcome
+          } label: {
+            Image(systemName: "chevron.left")
+              .font(.system(size: 15, weight: .semibold))
+              .foregroundStyle(.white)
+              .frame(width: 40, height: 40)
+              .background(.white.opacity(0.14), in: Circle())
+              .overlay { Circle().stroke(.white.opacity(0.2), lineWidth: 0.75) }
+          }
+          Spacer(minLength: 112)
+          Text("Crea tu cuenta")
+            .font(NookTypography.display(40))
+            .tracking(-0.4)
+          Text("Solo necesitas un email y una contraseña. Tu perfil viene después.")
+            .font(NookTypography.body)
+            .foregroundStyle(.white.opacity(0.74))
+          VStack(spacing: 12) {
+            CinematicLoginField(
+              label: "Email", icon: "envelope.fill", text: $email, keyboard: .emailAddress)
+            CinematicLoginField(
+              label: "Contraseña · mínimo 8 caracteres", icon: "lock.fill", text: $password,
+              secure: true)
+            CinematicLoginField(
+              label: "Repite la contraseña", icon: "lock.rotation", text: $confirmation,
+              secure: true)
+          }
+          if !confirmation.isEmpty && password != confirmation {
+            Text("Las contraseñas no coinciden.")
+              .font(NookTypography.secondary.weight(.semibold))
+              .foregroundStyle(NookColors.error)
+          }
+          if let error {
+            Text(error)
+              .font(NookTypography.secondary.weight(.semibold))
+              .foregroundStyle(NookColors.error)
+          }
+          NookButton(
+            title: busy ? "CREANDO CUENTA…" : "CREAR CUENTA", icon: "arrow.right",
+            isLoading: busy
+          ) {
+            Task { await register() }
+          }
+          .disabled(!valid || busy)
+          .opacity(valid && !busy ? 1 : 0.55)
+          Button("Ya tengo cuenta · Entrar") { app.stage = .login }
+            .font(NookTypography.secondary.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.9))
+            .frame(maxWidth: .infinity)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
       }
+      .scrollDismissesKeyboard(.interactively)
     }
   }
-  private var stepTransition: AnyTransition {
-    .asymmetric(
-      insertion: .move(edge: direction > 0 ? .trailing : .leading).combined(with: .opacity),
-      removal: .move(edge: direction > 0 ? .leading : .trailing).combined(with: .opacity))
-  }
-  @ViewBuilder private var currentStep: some View {
-    switch step {
-    case 0: question("¿Cómo te llamas?", "Así te conocerán en Nook.") { MinimalOnboardingField(placeholder: "Tu nombre", text: $name) }
-    case 1: question("¿Cuándo naciste?", "Nook es solo para mayores de 18 años.") {
-      DatePicker("Fecha de nacimiento", selection: $birth, in: ...Calendar.current.date(byAdding: .year, value: -18, to: Date())!, displayedComponents: .date)
-        .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
-    }
-    case 2: question("¿Cómo te identificas?", "Elige la opción que mejor te represente.") { options(Gender.allCases.map { ($0.rawValue, $0.title) }, selected: gender.rawValue) { gender = Gender(rawValue: $0)! } }
-    case 3: question("¿Para qué te apetece quedar?", "Esto aparecerá en tu perfil. Elige lo que mejor encaje contigo ahora.") { options(LookingFor.registrationChoices.map { ($0.rawValue, $0.title) }, selected: looking.rawValue) { looking = LookingFor(rawValue: $0)! } }
-    case 4: question("¿Cuál es tu email?", "Solo lo usaremos para proteger tu cuenta.") { MinimalOnboardingField(placeholder: "nombre@email.com", text: $email, keyboard: .emailAddress) }
-    default: question("Crea una contraseña", "Mínimo 8 caracteres.") {
-      MinimalOnboardingField(placeholder: "Contraseña", text: $password, secure: true)
-      if let error { Text(error).foregroundStyle(.red).font(.callout.weight(.semibold)) }
-    }
-    }
-  }
-  private func question<C: View>(_ title: String, _ subtitle: String, @ViewBuilder content: () -> C) -> some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        Spacer(minLength: 82)
-        Text(title).font(NookTypography.display(43)).tracking(-0.7)
-        Text(subtitle).font(.system(size: 16, weight: .medium, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.58))
-        content()
-        Spacer(minLength: 40)
-      }.padding(.horizontal, 24)
-    }.scrollDismissesKeyboard(.interactively)
-  }
-  private func options(_ values: [(String, String)], selected: String, action: @escaping (String) -> Void) -> some View {
-    VStack(alignment: .leading, spacing: 0) {
-      ForEach(values, id: \.0) { item in
-        MinimalChoiceRow(title: item.1, selected: selected == item.0) { action(item.0) }
-      }
-    }
-  }
-  private var canContinue: Bool {
-    switch step { case 0: !name.trimmingCharacters(in: .whitespaces).isEmpty; case 4: email.contains("@"); case 5: password.count >= 8; default: true }
-  }
-  private func advance() {
-    guard canContinue else { return }
-    if step < 5 { direction = 1; withAnimation(NookMotion.spring) { step += 1 }; return }
+
+  private func register() async {
+    guard valid, !busy else { return }
     busy = true
-    Task {
-      do { try await app.register(email: email, password: password) }
-      catch { self.error = error.localizedDescription; busy = false }
+    error = nil
+    defer { busy = false }
+    do {
+      let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+      try await app.register(email: cleanEmail, password: password)
+    } catch let apiError as NookAPIError where apiError.statusCode == 409 {
+      error = "Ese email ya tiene una cuenta. Pulsa “Entrar” para continuar."
+    } catch let caughtError {
+      error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido crear la cuenta. Inténtalo de nuevo.")
     }
-  }
-  private func back() {
-    if step == 0 { app.stage = .welcome } else { direction = -1; withAnimation(NookMotion.spring) { step -= 1 } }
   }
 }
 
