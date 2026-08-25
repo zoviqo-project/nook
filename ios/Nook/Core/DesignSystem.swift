@@ -134,22 +134,10 @@ struct NookBackground: View {
 /// the warmth of authentication without repeating its hero photography.
 struct NookInteriorBackdrop: View {
   var body: some View {
-    GeometryReader { proxy in
-      ZStack(alignment: .top) {
-        NookColors.background
-        LinearGradient(
-          stops: [
-            .init(color: NookColors.espresso, location: 0),
-            .init(color: NookColors.primaryCoffee, location: 0.42),
-            .init(color: NookColors.background, location: 1)
-          ], startPoint: .topLeading, endPoint: .bottomTrailing)
-          .frame(width: proxy.size.width, height: 190)
-        RadialGradient(
-          colors: [NookColors.caramelSoft.opacity(0.22), .clear],
-          center: .topTrailing, startRadius: 8, endRadius: 240)
-          .frame(width: proxy.size.width, height: 230)
-      }
-    }.ignoresSafeArea()
+    LinearGradient(
+      colors: [Color.white, NookColors.surface, NookColors.background.opacity(0.72)],
+      startPoint: .top, endPoint: .bottom)
+      .ignoresSafeArea()
   }
 }
 
@@ -231,7 +219,7 @@ struct NookHeader: View {
   var secondaryActionActive = false
   var secondaryActionAnimated = false
   var secondaryActionRing = false
-  var cinematic = true
+  var cinematic = false
   @State private var ringRotation = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -239,8 +227,8 @@ struct NookHeader: View {
     HStack(alignment: .center, spacing: NookSpacing.sm) {
       if branded {
         HStack(spacing: NookSpacing.sm) {
-          NookCoffeeLogo(size: 44, animated: false)
-          Text(title).font(NookTypography.display(31)).tracking(-0.7)
+          NookCoffeeLogo(size: 36, animated: false)
+          Text(title).font(NookTypography.business(27, weight: .bold)).tracking(-0.5)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
@@ -254,7 +242,7 @@ struct NookHeader: View {
               .font(.system(size: 10, weight: .bold, design: .default))
               .tracking(1.8).foregroundStyle(cinematic ? .white.opacity(0.76) : NookColors.mocha)
           }
-          Text(title).font(NookTypography.display(34))
+          Text(title).font(NookTypography.business(28, weight: .bold))
             .tracking(-0.55).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
@@ -277,8 +265,8 @@ struct NookHeader: View {
       }
       .frame(minWidth: actionIcon == nil && secondaryActionIcon == nil ? 0 : 40, alignment: .trailing)
     }
-    .frame(height: 78, alignment: .center)
-    .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 10)
+    .frame(height: 62, alignment: .center)
+    .padding(.horizontal, 16).padding(.vertical, 6)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
         ringRotation = !reduceMotion
@@ -291,7 +279,7 @@ struct NookHeader: View {
     Button(action: action) {
       Image(systemName: icon).font(.system(size: 15, weight: .semibold))
         .symbolEffect(.pulse, options: .repeating.speed(0.42), value: animated)
-        .frame(width: 46, height: 46)
+        .frame(width: 40, height: 40)
         .foregroundStyle(active ? NookColors.inverseText : (cinematic ? .white : NookColors.espresso))
         .background(active ? NookColors.mocha : (cinematic ? .white.opacity(0.14) : .clear), in: Circle())
         .overlay {
@@ -348,7 +336,7 @@ struct NookScreenContainer<Content: View>: View {
           secondaryActionLabel: secondaryActionLabel,
           secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
           secondaryActionAnimated: secondaryActionAnimated,
-          secondaryActionRing: secondaryActionRing, cinematic: solidBackground == nil)
+          secondaryActionRing: secondaryActionRing, cinematic: false)
           .zIndex(1)
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
       }

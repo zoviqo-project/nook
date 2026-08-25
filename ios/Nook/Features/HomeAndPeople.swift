@@ -234,14 +234,14 @@ struct DiscoverView: View {
             }
           }
           ).allowsHitTesting(vm.actingOn == nil)
-        actions(person).padding(.bottom, 18).offset(drag)
+        actions(person).padding(.bottom, 12).offset(drag)
           .allowsHitTesting(vm.actingOn == nil)
       }
       .scaleEffect(entrance ? 1 : 0.96)
       .offset(y: entrance ? 0 : 28)
       .animation(NookMotion.spring, value: entrance)
       .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
-    }.padding(.horizontal, 16)
+    }.padding(.horizontal, 14)
   }
   @ViewBuilder private var swipeHint: some View {
     if showSwipeHint {
@@ -275,9 +275,9 @@ struct DiscoverView: View {
     withAnimation(NookMotion.fast) { showSwipeHint = false }
   }
   private func actions(_ person: DiscoverProfile) -> some View {
-    HStack(alignment: .center, spacing: 26) {
+    HStack(alignment: .center, spacing: 24) {
       ZStack {
-        CircleAction(icon: "xmark", size: 54) {
+        CircleAction(icon: "xmark", size: 50) {
           withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 10) }
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             drag = .zero
@@ -285,7 +285,7 @@ struct DiscoverView: View {
           }
         }
         if vm.actingOn == person.id && !liking {
-          Circle().fill(NookColors.offWhite).frame(width: 54, height: 54)
+          Circle().fill(NookColors.offWhite).frame(width: 50, height: 50)
           ProgressView().tint(NookColors.espresso)
         }
       }
@@ -298,20 +298,20 @@ struct DiscoverView: View {
         }
       } label: {
         ZStack {
-          Circle().stroke(.white.opacity(0.16), lineWidth: 3).frame(width: 76, height: 76)
+          Circle().stroke(.white.opacity(0.16), lineWidth: 2).frame(width: 68, height: 68)
           Circle()
             .trim(from: 0, to: matchProgress ? 0.96 : 0.08)
             .stroke(NookColors.mocha, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-            .frame(width: 76, height: 76)
+            .frame(width: 68, height: 68)
             .rotationEffect(.degrees(-90))
-          NookCoffeeLogo(size: 68, animated: false)
+          NookCoffeeLogo(size: 60, animated: false)
             .clipShape(Circle())
             .overlay {
               Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
           if vm.actingOn == person.id {
-            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 68, height: 68)
+            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 60, height: 60)
             ProgressView().tint(NookColors.inverseText)
           }
         }
@@ -321,8 +321,8 @@ struct DiscoverView: View {
       }
       .buttonStyle(.plain)
       .disabled(vm.actingOn != nil)
-      CircleAction(icon: "info", size: 54) { selectedProfile = person }
-    }.frame(maxWidth: .infinity).frame(height: 78)
+      CircleAction(icon: "info", size: 50) { selectedProfile = person }
+    }.frame(maxWidth: .infinity).frame(height: 70)
   }
   private var empty: some View {
     VStack(spacing: 18) {
@@ -377,9 +377,9 @@ struct NookProfileCard: View {
           .foregroundStyle(.white.opacity(0.82))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(.white).padding(.horizontal, 20).padding(.bottom, 108)
-      }.clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-    }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 330 : 460))
+        .foregroundStyle(.white).padding(.horizontal, 18).padding(.bottom, 94)
+      }.clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 320 : 438))
   }
 
   private var profileName: some View {
@@ -393,7 +393,7 @@ struct NookProfileCard: View {
           .foregroundStyle(.white.opacity(0.88))
       }
     }
-    .font(NookTypography.display(35))
+    .font(NookTypography.business(31, weight: .bold))
     .tracking(-0.45)
     .contentShape(Rectangle())
   }
@@ -663,7 +663,7 @@ struct PersonProfileView: View {
               ForEach(Array(person.photos.prefix(8).enumerated()), id: \.element.id) { index, photo in
                 ProfileImage(url: photo.url, name: person.name).tag(index)
               }
-            }.tabViewStyle(.page(indexDisplayMode: .never)).frame(height: 520)
+            }.tabViewStyle(.page(indexDisplayMode: .never)).frame(height: 470)
             LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.84)], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 7) {
               HStack(spacing: 5) {
@@ -671,14 +671,14 @@ struct PersonProfileView: View {
                   Capsule().fill(index == photoIndex ? .white : .white.opacity(0.38)).frame(height: 3)
                 }
               }
-              Text("\(person.name), \(person.age)").font(NookTypography.display(41))
+              Text("\(person.name), \(person.age)").font(NookTypography.business(36, weight: .bold))
               Text([person.city, "\(person.distanceKm.formatted()) km"].compactMap { $0 }.joined(separator: " · "))
                 .font(.subheadline.bold()).foregroundStyle(.white.opacity(0.82))
-            }.foregroundStyle(.white).padding(22)
+            }.foregroundStyle(.white).padding(18)
           }
-          VStack(alignment: .leading, spacing: 22) {
+          VStack(alignment: .leading, spacing: 16) {
             MeetingIntentCard(intent: person.lookingFor, personName: person.name)
-            profileSection("SOBRE MÍ") { Text(person.bio).font(.title3.weight(.medium)).lineSpacing(4) }
+            profileSection("SOBRE MÍ") { Text(person.bio).font(.body.weight(.medium)).lineSpacing(3) }
             profileSection("SU FORMA DE TOMAR CAFÉ") {
               VStack(alignment: .leading, spacing: 13) {
                 Label(person.coffeePersonality ?? "El café que surja", systemImage: "cup.and.saucer.fill")
@@ -692,7 +692,7 @@ struct PersonProfileView: View {
                   .foregroundStyle(.secondary)
               }
             }
-          }.padding(20).padding(.bottom, 30)
+          }.padding(16).padding(.bottom, 24)
         }
       }.ignoresSafeArea(edges: .top)
       Button { dismiss() } label: {
@@ -729,11 +729,11 @@ struct PersonProfileView: View {
     } catch { moderationError = error.localizedDescription }
   }
   private func profileSection<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 10) {
       Text(title).font(.caption.bold()).tracking(1.5).foregroundStyle(NookColors.mocha)
       content()
-    }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
-      .background(NookColors.offWhite.opacity(0.88), in: RoundedRectangle(cornerRadius: NookRadius.large))
+    }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+      .background(NookColors.offWhite.opacity(0.88), in: RoundedRectangle(cornerRadius: 20))
   }
   private func vibeCopy(_ value: String) -> String { value == "CALM" ? "Sitios tranquilos" : value == "LIVELY" ? "Sitios animados" : "Con ambiente" }
   private func momentCopy(_ value: String) -> String { value == "MORNING" ? "Por la mañana" : value == "AFTERWORK" ? "Después del trabajo" : "Por la tarde" }
@@ -743,7 +743,7 @@ private struct MeetingIntentCard: View {
   let intent: LookingFor
   let personName: String?
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
+    VStack(alignment: .leading, spacing: 11) {
       HStack {
         Text(personName.map { "LO QUE BUSCA \($0.uppercased())" } ?? "LO QUE BUSCO")
           .font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
@@ -751,10 +751,10 @@ private struct MeetingIntentCard: View {
         Image(systemName: intent.icon).font(.system(size: 15, weight: .semibold))
           .foregroundStyle(NookColors.mocha)
       }
-      Text(intent.profileTitle).font(NookTypography.display(29)).tracking(-0.25)
+      Text(intent.profileTitle).font(NookTypography.business(25, weight: .bold)).tracking(-0.2)
       Text(intent.detail).font(.system(size: 15, weight: .medium, design: .default))
         .foregroundStyle(NookColors.espresso.opacity(0.64)).lineSpacing(3)
-    }.frame(maxWidth: .infinity, alignment: .leading).padding(NookSpacing.lg)
+    }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
       .background(
         LinearGradient(colors: [NookColors.oat.opacity(0.38), NookColors.offWhite], startPoint: .topLeading, endPoint: .bottomTrailing),
         in: RoundedRectangle(cornerRadius: NookRadius.card))
@@ -780,11 +780,11 @@ struct DiscoveryFiltersView: View {
       ZStack {
         NookRegalCoffeeBackground()
         ScrollView {
-          VStack(alignment: .leading, spacing: 18) {
+          VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 7) {
               Text("TU PRÓXIMO CAFÉ").font(NookTypography.caption).tracking(1.8)
                 .foregroundStyle(NookColors.mocha)
-              Text("¿A quién te apetece conocer?").font(NookTypography.display(34))
+              Text("¿A quién te apetece conocer?").font(NookTypography.business(30, weight: .bold))
                 .tracking(-0.5).fixedSize(horizontal: false, vertical: true)
               Text("Afina lo justo. Lo interesante también ocurre por sorpresa.")
                 .font(.subheadline).foregroundStyle(NookColors.warmGray).lineSpacing(3)
@@ -850,14 +850,14 @@ struct DiscoveryFiltersView: View {
             } label: {
               HStack { Text(saving ? "Preparando…" : "Descubrir personas"); Spacer(); Image(systemName: "arrow.right") }
                 .font(.headline).foregroundStyle(NookColors.inverseText)
-                .padding(.horizontal, 20).frame(height: 56)
-                .background(NookColors.espresso, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(.horizontal, 18).frame(height: 50)
+                .background(NookColors.espresso, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }.buttonStyle(.plain).disabled(saving).opacity(saving ? 0.65 : 1)
 
             Button("Restablecer filtros") { reset() }
               .font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.warmGray)
               .frame(maxWidth: .infinity).padding(.vertical, 8)
-          }.padding(.horizontal, 18).padding(.top, 20).padding(.bottom, 34)
+          }.padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 28)
         }
       }.toolbarBackground(.hidden, for: .navigationBar)
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark").font(.caption.bold()).frame(width: 36, height: 36).background(NookColors.offWhite.opacity(0.9), in: Circle()) }.foregroundStyle(NookColors.espresso).accessibilityLabel("Cerrar filtros") } }
@@ -889,8 +889,8 @@ struct DiscoveryFiltersView: View {
         }
       }
       content()
-    }.padding(18).background(NookColors.offWhite.opacity(0.82), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-      .overlay(RoundedRectangle(cornerRadius: 24).stroke(NookColors.latte.opacity(0.16), lineWidth: 0.8))
+    }.padding(16).background(NookColors.offWhite.opacity(0.82), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+      .overlay(RoundedRectangle(cornerRadius: 20).stroke(NookColors.latte.opacity(0.16), lineWidth: 0.8))
   }
   private func rangeRow<C: View>(_ title: String, _ value: String, @ViewBuilder control: () -> C) -> some View {
     VStack(spacing: 5) {
@@ -954,18 +954,18 @@ struct ProfileView: View {
             ProfileImage(
               url: orderedPhotos.first?.url, name: app.me?.name ?? "N", faceAware: false
             ).frame(
-              height: 405)
+              height: 360)
             LinearGradient(
               colors: [.clear, NookColors.warmBlack.opacity(0.82)], startPoint: .center,
               endPoint: .bottom)
             VStack(alignment: .leading, spacing: 5) {
-              Text("\(app.me?.name ?? "Tu perfil"), \(app.me?.age ?? 18)").font(NookTypography.display(39))
+              Text("\(app.me?.name ?? "Tu perfil"), \(app.me?.age ?? 18)").font(NookTypography.business(34, weight: .bold))
               HStack(spacing: 6) {
                 Image(systemName: "mappin.and.ellipse")
                 Text(app.me?.city ?? "Añade tu ciudad")
               }
               .font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.82))
-            }.foregroundStyle(.white).padding(24)
+            }.foregroundStyle(.white).padding(18)
             if orderedPhotos.isEmpty {
               PhotosPicker(selection: $photoItems, maxSelectionCount: 1, matching: .images) {
                 Label(uploading ? "Subiendo…" : "Añadir foto principal", systemImage: "camera.fill")
@@ -974,7 +974,7 @@ struct ProfileView: View {
                   .background(.black.opacity(0.54), in: Capsule())
               }.disabled(uploading).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
-          }.clipShape(RoundedRectangle(cornerRadius: 30)).padding(.horizontal, 14)
+          }.clipShape(RoundedRectangle(cornerRadius: 24)).padding(.horizontal, 16)
 
           VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -1292,8 +1292,8 @@ struct EditProfileSheet: View {
       ZStack {
         NookBackground()
         ScrollView {
-          VStack(alignment: .leading, spacing: 24) {
-            Text("Edita tu historia").font(NookTypography.display(42))
+          VStack(alignment: .leading, spacing: 18) {
+            Text("Edita tu historia").font(NookTypography.business(34, weight: .bold))
             VStack(alignment: .leading, spacing: 12) {
               Text("TUS FOTOS · \(app.me?.photos.count ?? 0)/8").font(.caption.bold()).tracking(1.3).foregroundStyle(NookColors.mocha)
               ScrollView(.horizontal) {
@@ -1331,9 +1331,9 @@ struct EditProfileSheet: View {
                 }
               }.scrollIndicators(.hidden)
             }
-            TextEditor(text: $bio).font(.title3.weight(.medium)).scrollContentBackground(.hidden)
-              .padding(18).frame(height: 180).background(
-                NookColors.offWhite, in: RoundedRectangle(cornerRadius: NookRadius.large))
+            TextEditor(text: $bio).font(.body.weight(.medium)).scrollContentBackground(.hidden)
+              .padding(15).frame(height: 150).background(
+                NookColors.offWhite, in: RoundedRectangle(cornerRadius: 20))
             VStack(alignment: .leading, spacing: 8) {
               Text("¿PARA QUÉ TE APETECE QUEDAR?").font(.caption.bold()).tracking(1.3).foregroundStyle(NookColors.mocha)
               ForEach(LookingFor.registrationChoices) { intent in
@@ -1347,7 +1347,7 @@ struct EditProfileSheet: View {
                 }.buttonStyle(.plain)
                 if intent != LookingFor.registrationChoices.last { Divider().opacity(0.45) }
               }
-            }.padding(19).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: NookRadius.large))
+            }.padding(16).background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 20))
             NookCard {
               Toggle("Perfil visible", isOn: $visible).font(.headline).tint(NookColors.espresso)
             }
@@ -1356,7 +1356,7 @@ struct EditProfileSheet: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             }
             NookButton(title: "GUARDAR CAMBIOS", icon: "checkmark") { save() }
-          }.padding(24)
+          }.padding(18)
         }
       }.navigationTitle("Perfil").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cerrar") { dismiss() } } }
@@ -1414,7 +1414,7 @@ struct SettingsView: View {
       ZStack {
         NookBackground()
         ScrollView {
-          VStack(spacing: 16) {
+          VStack(spacing: 12) {
             NookCard {
               VStack(spacing: 0) {
                 Toggle(isOn: $sounds) { Label("Sonidos de café", systemImage: "speaker.wave.2.fill") }
@@ -1438,7 +1438,7 @@ struct SettingsView: View {
             if let errorMessage {
               Text(errorMessage).font(NookTypography.metadata).foregroundStyle(NookColors.error).multilineTextAlignment(.center)
             }
-          }.padding(20)
+          }.padding(16)
         }
       }.navigationTitle("Ajustes").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cerrar") { dismiss() } } }

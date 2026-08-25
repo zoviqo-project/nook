@@ -299,7 +299,7 @@ struct CoffeeShopsView: View {
   }
   private var listView: some View {
     ScrollView {
-      LazyVStack(spacing: 14) {
+      LazyVStack(spacing: 11) {
         HStack {
           VStack(alignment: .leading, spacing: 3) {
             Text(targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO")
@@ -358,7 +358,7 @@ struct CoffeeShopsView: View {
           }.opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 35).animation(
             NookMotion.spring.delay(Double(index) * 0.06), value: appeared)
         }
-      }.padding(.horizontal, 12).padding(.top, 4)
+      }.padding(.horizontal, 14).padding(.top, 2)
     }.scrollIndicators(.hidden)
   }
   private func celebrateAndContinue(with shop: CoffeeShop) {
@@ -1160,7 +1160,7 @@ struct NookCoffeeShopCard: View {
         TabView(selection: $selectedPhoto) {
           ForEach(Array(gallery.enumerated()), id: \.offset) { index, photo in
             ShopImage(url: photo.isEmpty ? nil : photo, seed: "\(shop.name)-\(index)")
-              .frame(width: proxy.size.width, height: 250)
+              .frame(width: proxy.size.width, height: 224)
               .tag(index)
           }
         }
@@ -1197,18 +1197,18 @@ struct NookCoffeeShopCard: View {
         }
         VStack(alignment: .leading, spacing: 7) {
           if recommended { Text("Pinta genial para los dos").font(.caption.bold()).tracking(0.4).foregroundStyle(.white.opacity(0.78)) }
-          Text(shop.name).font(NookTypography.display(29)).tracking(-0.2).lineLimit(1)
+          Text(shop.name).font(NookTypography.business(25, weight: .bold)).tracking(-0.2).lineLimit(1)
           HStack(spacing: 12) {
             if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
             Label(shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km", systemImage: "location")
             Text(shop.vibeLabel)
           }.font(.system(size: 13, weight: .semibold, design: .default))
-        }.foregroundStyle(.white).padding(18)
+        }.foregroundStyle(.white).padding(16)
       }
-    }.frame(height: 242).clipShape(
-      RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
+    }.frame(height: 218).clipShape(
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
     ).overlay {
-      RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
         .stroke(
           recommended
             ? NookColors.nookGold.opacity(choiceBorderGlow ? 1 : 0.46)
@@ -1267,17 +1267,17 @@ struct CoffeeShopDetail: View {
       ScrollView {
         VStack(spacing: 0) {
           ZStack(alignment: .topLeading) {
-            ShopImage(url: shop.photoUrl, seed: shop.name).frame(height: 340)
+            ShopImage(url: shop.photoUrl, seed: shop.name).frame(height: 300)
             LinearGradient(colors: [NookColors.warmBlack.opacity(0.38), .clear], startPoint: .top, endPoint: .center)
             Button { dismiss() } label: {
               Image(systemName: "chevron.left").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
                 .frame(width: 40, height: 40).background(.ultraThinMaterial, in: Circle())
             }.buttonStyle(.plain).padding(16)
-          }.clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+          }.clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .padding(.horizontal, 14).padding(.top, 8)
-          VStack(alignment: .center, spacing: 22) {
+          VStack(alignment: .center, spacing: 18) {
             VStack(spacing: 11) {
-              Text(shop.name).font(NookTypography.display(40)).tracking(-0.5)
+              Text(shop.name).font(NookTypography.business(34, weight: .bold)).tracking(-0.4)
                 .multilineTextAlignment(.center)
               HStack(spacing: 15) {
                 if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
@@ -1377,7 +1377,7 @@ struct ProposalSheet: View {
           proposalSent
             .transition(.scale(scale: 0.94).combined(with: .opacity))
         } else {
-          VStack(spacing: 20) {
+          VStack(spacing: 16) {
           HStack {
             ForEach(0..<totalSteps, id: \.self) { i in
               Capsule().fill(i <= step ? NookColors.espresso : NookColors.oat.opacity(0.5)).frame(
@@ -1498,7 +1498,7 @@ struct ProposalSheet: View {
                 }
               }
             }.disabled(!canContinue)
-          }.padding(24)
+          }.padding(18)
           }.navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
             .toolbar {
               ToolbarItem(placement: .topBarLeading) {
@@ -1721,9 +1721,9 @@ private struct WaitingConfirmationStatus: View {
         }
       }
     }
-    .padding(.horizontal, 13).frame(minHeight: 58)
-    .background(NookColors.amber.opacity(0.075), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    .overlay(RoundedRectangle(cornerRadius: 18).stroke(NookColors.amber.opacity(0.16), lineWidth: 0.8))
+    .padding(.horizontal, 12).frame(minHeight: 52)
+    .background(NookColors.amber.opacity(0.065), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(NookColors.amber.opacity(0.16), lineWidth: 0.8))
     .onAppear {
       withAnimation(.easeOut(duration: 1.25).repeatForever(autoreverses: false)) {
         breathing = true
