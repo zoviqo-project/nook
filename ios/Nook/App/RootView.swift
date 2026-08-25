@@ -306,11 +306,12 @@ private struct QuickAccessView: View {
         HStack {
           Button {
             withAnimation(NookMotion.spring) {
-              if emailLogin { emailLogin = false; createAccount = false; error = nil }
+              if phoneRegistration { phoneRegistration = false; error = nil }
+              else if emailLogin { emailLogin = false; createAccount = false; error = nil }
               else { isPresented = false }
             }
           } label: {
-            Image(systemName: emailLogin ? "chevron.left" : "xmark")
+            Image(systemName: emailLogin || phoneRegistration ? "chevron.left" : "xmark")
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
               .foregroundStyle(.white)
               .background(.white.opacity(0.14), in: Circle())
@@ -327,7 +328,12 @@ private struct QuickAccessView: View {
           }
           .foregroundStyle(.white)
         }
-        if emailLogin {
+        if phoneRegistration {
+          PhoneRegistrationView {
+            withAnimation(NookMotion.spring) { phoneRegistration = false }
+          }
+          .transition(.move(edge: .trailing).combined(with: .opacity))
+        } else if emailLogin {
           VStack(alignment: .leading, spacing: 7) {
             Text(createAccount ? "Tu primer café" : "Qué alegría verte")
               .font(NookTypography.display(38)).tracking(-0.25)
@@ -391,13 +397,6 @@ private struct QuickAccessView: View {
           .font(.caption).foregroundStyle(.white.opacity(0.58)).multilineTextAlignment(.center)
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
       CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
-      if phoneRegistration {
-        PhoneRegistrationView {
-          withAnimation(NookMotion.spring) { phoneRegistration = false }
-        }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .zIndex(10)
-      }
     }.onAppear {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
@@ -798,24 +797,39 @@ struct PhoneRegistrationView: View {
   private var validCode: Bool { code.count == 6 && code.allSatisfy(\.isNumber) }
 
   var body: some View {
-    ZStack {
-      if dismiss == nil {
-        NookWelcomeGallery(active: true)
-        LinearGradient(
-          colors: [NookColors.warmBlack.opacity(0.3), NookColors.warmBlack.opacity(0.94)],
-          startPoint: .top, endPoint: .bottom
-        ).ignoresSafeArea()
+    Group {
+      if dismiss != nil {
+        VStack(alignment: .leading, spacing: 16) {
+          if challenge == nil { phoneForm } else { codeForm }
+          Text("Tu número se utiliza únicamente para crear y proteger tu cuenta.")
+            .font(NookTypography.caption).foregroundStyle(.white.opacity(0.58))
+            .multilineTextAlignment(.center).frame(maxWidth: .infinity)
+        }
       } else {
-        Image("NookWelcomePeople")
-          .resizable()
-          .scaledToFill()
-          .ignoresSafeArea()
-          .clipped()
-        LinearGradient(
-          colors: [NookColors.warmBlack.opacity(0.48), NookColors.warmBlack.opacity(0.96)],
-          startPoint: .top, endPoint: .bottom
-        ).ignoresSafeArea()
+        fullScreenBody
       }
+    }
+    .onChange(of: number) { _, value in number = String(value.filter(\.isNumber).prefix(14)) }
+    .onChange(of: code) { _, value in
+      code = String(value.filter(\.isNumber).prefix(6))
+      if code.count == 6 { Task { await verify() } }
+    }
+    .task(id: challenge?.challengeId) {
+      guard challenge != nil else { return }
+      resendSeconds = 30
+      while resendSeconds > 0 && !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1)); resendSeconds -= 1
+      }
+    }
+  }
+
+  private var fullScreenBody: some View {
+    ZStack {
+      NookWelcomeGallery(active: true)
+      LinearGradient(
+        colors: [NookColors.warmBlack.opacity(0.3), NookColors.warmBlack.opacity(0.94)],
+        startPoint: .top, endPoint: .bottom
+      ).ignoresSafeArea()
       VStack(alignment: .leading, spacing: 16) {
         HStack {
           Button {
@@ -844,18 +858,6 @@ struct PhoneRegistrationView: View {
           .frame(maxWidth: .infinity)
       }
       .padding(.horizontal, 22).padding(.vertical, 14).foregroundStyle(.white)
-    }
-    .onChange(of: number) { _, value in number = String(value.filter(\.isNumber).prefix(14)) }
-    .onChange(of: code) { _, value in
-      code = String(value.filter(\.isNumber).prefix(6))
-      if code.count == 6 { Task { await verify() } }
-    }
-    .task(id: challenge?.challengeId) {
-      guard challenge != nil else { return }
-      resendSeconds = 30
-      while resendSeconds > 0 && !Task.isCancelled {
-        try? await Task.sleep(for: .seconds(1)); resendSeconds -= 1
-      }
     }
   }
 
