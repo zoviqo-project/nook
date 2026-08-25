@@ -130,28 +130,24 @@ struct NookBackground: View {
   }
 }
 
-/// Shared interior atmosphere: the warmth and photography of authentication,
-/// while keeping the working area calm and readable.
+/// Shared interior atmosphere: a continuous coffee-toned surface that keeps
+/// the warmth of authentication without repeating its hero photography.
 struct NookInteriorBackdrop: View {
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .top) {
         NookColors.background
-        Image("NookLaunchSocial")
-          .resizable().scaledToFill()
-          .frame(width: proxy.size.width, height: 176).clipped()
-          .overlay {
-            LinearGradient(
-              stops: [
-                .init(color: NookColors.warmBlack.opacity(0.22), location: 0),
-                .init(color: NookColors.warmBlack.opacity(0.68), location: 0.58),
-                .init(color: NookColors.background, location: 1)
-              ], startPoint: .top, endPoint: .bottom)
-          }
+        LinearGradient(
+          stops: [
+            .init(color: NookColors.espresso, location: 0),
+            .init(color: NookColors.primaryCoffee, location: 0.42),
+            .init(color: NookColors.background, location: 1)
+          ], startPoint: .topLeading, endPoint: .bottomTrailing)
+          .frame(width: proxy.size.width, height: 190)
         RadialGradient(
-          colors: [NookColors.caramelSoft.opacity(0.26), .clear],
-          center: .bottomTrailing, startRadius: 10, endRadius: 260)
-          .frame(height: min(proxy.size.height, 520)).offset(y: 120)
+          colors: [NookColors.caramelSoft.opacity(0.22), .clear],
+          center: .topTrailing, startRadius: 8, endRadius: 240)
+          .frame(width: proxy.size.width, height: 230)
       }
     }.ignoresSafeArea()
   }
