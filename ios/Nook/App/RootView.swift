@@ -1465,8 +1465,10 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, NookSpacing.screen).padding(.top, NookSpacing.md)
-    .frame(maxWidth: .infinity).frame(height: 58, alignment: .center)
+    .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 8)
+    .frame(maxWidth: .infinity).frame(height: 72, alignment: .center)
+    .background(.ultraThinMaterial)
+    .overlay(alignment: .top) { Rectangle().fill(NookColors.border.opacity(0.5)).frame(height: 0.75) }
     .animation(NookMotion.fast, value: selection)
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()

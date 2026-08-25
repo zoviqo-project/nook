@@ -135,7 +135,7 @@ struct DiscoverView: View {
   @State private var matchProgress = false
   var body: some View {
     NookScreenContainer(
-      eyebrow: "NOOK", title: "Un café con…", solidBackground: NookColors.background,
+      eyebrow: "NOOK", title: "Un café con…",
       brandedHeader: true,
       actionIcon: "slider.horizontal.3",
       actionLabel: "Filtros", action: { showFilters = true },

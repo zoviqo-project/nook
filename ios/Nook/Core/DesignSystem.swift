@@ -130,6 +130,33 @@ struct NookBackground: View {
   }
 }
 
+/// Shared interior atmosphere: the warmth and photography of authentication,
+/// while keeping the working area calm and readable.
+struct NookInteriorBackdrop: View {
+  var body: some View {
+    GeometryReader { proxy in
+      ZStack(alignment: .top) {
+        NookColors.background
+        Image("NookLaunchSocial")
+          .resizable().scaledToFill()
+          .frame(width: proxy.size.width, height: 176).clipped()
+          .overlay {
+            LinearGradient(
+              stops: [
+                .init(color: NookColors.warmBlack.opacity(0.22), location: 0),
+                .init(color: NookColors.warmBlack.opacity(0.68), location: 0.58),
+                .init(color: NookColors.background, location: 1)
+              ], startPoint: .top, endPoint: .bottom)
+          }
+        RadialGradient(
+          colors: [NookColors.caramelSoft.opacity(0.26), .clear],
+          center: .bottomTrailing, startRadius: 10, endRadius: 260)
+          .frame(height: min(proxy.size.height, 520)).offset(y: 120)
+      }
+    }.ignoresSafeArea()
+  }
+}
+
 /// A quieter, more ceremonial coffee surface for focused screens such as filters and settings.
 struct NookRegalCoffeeBackground: View {
   var body: some View {
@@ -208,6 +235,7 @@ struct NookHeader: View {
   var secondaryActionActive = false
   var secondaryActionAnimated = false
   var secondaryActionRing = false
+  var cinematic = true
   @State private var ringRotation = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -215,26 +243,27 @@ struct NookHeader: View {
     HStack(alignment: .center, spacing: NookSpacing.sm) {
       if branded {
         HStack(spacing: NookSpacing.sm) {
-          NookCoffeeLogo(size: 36, animated: false)
-          Text(title).font(NookTypography.business(27, weight: .bold)).tracking(-0.55)
+          NookCoffeeLogo(size: 44, animated: false)
+          Text(title).font(NookTypography.display(31)).tracking(-0.7)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
         .transaction { transaction in transaction.animation = nil }
-        .foregroundStyle(NookColors.espresso)
+        .foregroundStyle(cinematic ? .white : NookColors.espresso)
       } else {
         VStack(alignment: .leading, spacing: 3) {
           HStack(spacing: 6) {
-            Circle().fill(NookColors.mocha).frame(width: 5, height: 5)
+            Circle().fill(cinematic ? NookColors.caramelSoft : NookColors.mocha).frame(width: 6, height: 6)
             Text(eyebrow.uppercased())
               .font(.system(size: 10, weight: .bold, design: .default))
-              .tracking(1.7).foregroundStyle(NookColors.mocha)
+              .tracking(1.8).foregroundStyle(cinematic ? .white.opacity(0.76) : NookColors.mocha)
           }
-          Text(title).font(NookTypography.business(29, weight: .bold))
+          Text(title).font(NookTypography.display(34))
             .tracking(-0.55).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
         .transaction { transaction in transaction.animation = nil }
+        .foregroundStyle(cinematic ? .white : NookColors.espresso)
       }
       Spacer(minLength: 10)
       HStack(spacing: 8) {
@@ -252,8 +281,8 @@ struct NookHeader: View {
       }
       .frame(minWidth: actionIcon == nil && secondaryActionIcon == nil ? 0 : 40, alignment: .trailing)
     }
-    .frame(height: 56, alignment: .center)
-    .padding(.horizontal, NookSpacing.screen).padding(.top, 7).padding(.bottom, 7)
+    .frame(height: 78, alignment: .center)
+    .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 10)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
         ringRotation = !reduceMotion
@@ -266,9 +295,9 @@ struct NookHeader: View {
     Button(action: action) {
       Image(systemName: icon).font(.system(size: 15, weight: .semibold))
         .symbolEffect(.pulse, options: .repeating.speed(0.42), value: animated)
-        .frame(width: 40, height: 40)
-        .foregroundStyle(active ? NookColors.inverseText : NookColors.espresso)
-        .background(active ? NookColors.mocha : .clear, in: Circle())
+        .frame(width: 46, height: 46)
+        .foregroundStyle(active ? NookColors.inverseText : (cinematic ? .white : NookColors.espresso))
+        .background(active ? NookColors.mocha : (cinematic ? .white.opacity(0.14) : .clear), in: Circle())
         .overlay {
           if ring {
             Circle().stroke(
@@ -279,7 +308,7 @@ struct NookHeader: View {
               .animation(reduceMotion ? nil : .linear(duration: 6).repeatForever(autoreverses: false), value: ringRotation)
               .shadow(color: NookColors.mocha.opacity(0.28), radius: 6)
           } else {
-            Circle().stroke(NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1)
+            Circle().stroke(cinematic ? .white.opacity(0.28) : NookColors.espresso.opacity(active ? 0 : 0.18), lineWidth: 1)
           }
         }
     }.buttonStyle(.plain).accessibilityLabel(label)
@@ -312,7 +341,7 @@ struct NookScreenContainer<Content: View>: View {
       if let solidBackground {
         solidBackground.ignoresSafeArea()
       } else {
-        NookBackground()
+        NookInteriorBackdrop()
       }
       VStack(spacing: 0) {
         NookHeader(
@@ -323,7 +352,7 @@ struct NookScreenContainer<Content: View>: View {
           secondaryActionLabel: secondaryActionLabel,
           secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
           secondaryActionAnimated: secondaryActionAnimated,
-          secondaryActionRing: secondaryActionRing)
+          secondaryActionRing: secondaryActionRing, cinematic: solidBackground == nil)
           .zIndex(1)
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
       }

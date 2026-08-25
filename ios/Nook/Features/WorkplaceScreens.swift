@@ -356,7 +356,7 @@ struct ConversationsView: View {
     HStack(spacing: 14) {
       ZStack(alignment: .bottomTrailing) {
         ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-          .frame(width: 64, height: 64).clipShape(Circle())
+          .frame(width: 74, height: 74).clipShape(Circle())
         Circle().fill(NookColors.mocha).frame(width: 13, height: 13)
           .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
       }
@@ -379,7 +379,7 @@ struct ConversationsView: View {
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(NookColors.espresso.opacity(0.25))
     }
-    .padding(.vertical, 13)
+    .padding(.vertical, 17)
     .contentShape(Rectangle())
   }
 
@@ -429,7 +429,7 @@ struct ChatDetail: View {
   @FocusState private var focused: Bool
   var body: some View {
     ZStack {
-      NookBackground()
+      NookInteriorBackdrop()
       VStack(spacing: 0) {
         chatHeader
         if let date = visibleCoffeeDates.first {
@@ -517,15 +517,16 @@ struct ChatDetail: View {
           .frame(width: 34, height: 40)
       }
       .buttonStyle(.plain)
-      .foregroundStyle(NookColors.espresso)
+      .foregroundStyle(.white)
       .accessibilityLabel("Volver")
 
       ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-        .frame(width: 36, height: 36)
+        .frame(width: 46, height: 46)
         .clipShape(Circle())
       VStack(alignment: .leading, spacing: 1) {
         Text(conversation.person.name)
-          .font(NookTypography.business(16, weight: .bold))
+          .font(NookTypography.business(19, weight: .bold))
+          .foregroundStyle(.white)
           .lineLimit(1)
         Text(chatStatus.0)
           .font(NookTypography.business(11, weight: .semibold))
@@ -534,9 +535,9 @@ struct ChatDetail: View {
       }
       Spacer(minLength: 0)
     }
-    .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-    .padding(.horizontal, NookSpacing.sm)
-    .padding(.vertical, NookSpacing.xxs)
+    .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 8)
   }
   private var chatStatus: (String, Color) {
     let related = dates.filter { $0.matchId == conversation.matchId }
@@ -560,12 +561,12 @@ struct ChatDetail: View {
         Haptics.selection()
       } label: {
         Image(systemName: "cup.and.saucer.fill").font(.system(size: 18, weight: .semibold))
-          .foregroundStyle(NookColors.primaryCoffee).frame(width: 42, height: 42)
+          .foregroundStyle(NookColors.primaryCoffee).frame(width: 50, height: 50)
           .background(NookColors.oat.opacity(0.34), in: Circle())
       }.accessibilityLabel("Proponer café")
       TextField("Escribe un mensaje…", text: $text, axis: .vertical)
         .font(NookTypography.business(16)).lineLimit(1...5)
-        .focused($focused).padding(.horizontal, 14).padding(.vertical, 10).frame(minHeight: 44)
+        .focused($focused).padding(.horizontal, 16).padding(.vertical, 12).frame(minHeight: 50)
         .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
       Button {
         send()
@@ -574,12 +575,12 @@ struct ChatDetail: View {
           if sending { ProgressView().tint(NookColors.inverseText) }
           else { Image(systemName: "arrow.up").font(.headline.bold()) }
         }.foregroundStyle(NookColors.inverseText)
-          .frame(width: 44, height: 44).background(NookColors.primaryCoffee, in: Circle())
+          .frame(width: 50, height: 50).background(NookColors.primaryCoffee, in: Circle())
       }.scaleEffect(text.isEmpty ? 0.9 : 1).animation(NookMotion.spring, value: text.isEmpty)
       .disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       .opacity(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.55 : 1)
-    }.padding(.horizontal, NookSpacing.sm).padding(.vertical, 7)
-      .background(NookColors.background)
+    }.padding(.horizontal, 14).padding(.vertical, 10)
+      .background(.ultraThinMaterial)
       .shadow(color: NookShadow.subtle, radius: 8, y: -2)
       .animation(NookMotion.fast, value: focused)
   }
@@ -869,8 +870,9 @@ struct MyCafesUnifiedList: View {
                 icon: "cup.and.saucer", title: "Tu primer café te espera",
                 text: "Descubre personas y conecta\npara proponer un café.")
               Button("Descubrir personas") { app.selectedTab = 0 }
+                .font(NookTypography.button)
                 .buttonStyle(.borderedProminent).tint(NookColors.mocha)
-                .padding(.top, -42)
+                .controlSize(.large).padding(.top, 18)
             }
           }
           .containerRelativeFrame(.vertical, alignment: .center)
@@ -898,9 +900,9 @@ private struct MyCafeUnifiedCard: View {
   @State private var confirmingUnmatch = false
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      HStack(spacing: 10) {
+      HStack(spacing: 14) {
         ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
-          .frame(width: 58, height: 58).clipShape(Circle())
+          .frame(width: 70, height: 70).clipShape(Circle())
           .overlay(Circle().stroke(
             item.proposal == nil ? matchGold : NookColors.mocha.opacity(0.65),
             lineWidth: item.proposal == nil ? 2.5 : 1.5))
@@ -929,7 +931,7 @@ private struct MyCafeUnifiedCard: View {
       context
       actionRow
     }
-    .padding(16).frame(maxWidth: .infinity, minHeight: 205, alignment: .topLeading)
+    .padding(20).frame(maxWidth: .infinity, minHeight: 232, alignment: .topLeading)
     .background(
       NookColors.surfaceRaised,
       in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))

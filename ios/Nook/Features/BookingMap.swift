@@ -313,7 +313,7 @@ struct CoffeeShopsView: View {
         }.padding(.horizontal, 6).padding(.bottom, 2)
         if vm.loading {
           NookSkeletonScreen(layout: .coffeeCards(rows: 2))
-            .padding(.horizontal, -12)
+            .padding(.horizontal, 2)
         } else if let error = vm.error {
           NookErrorView(message: error) {
             Task {
