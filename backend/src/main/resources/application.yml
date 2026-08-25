@@ -41,8 +41,8 @@ nook:
   sms:
     twilio-account-sid: ${TWILIO_ACCOUNT_SID:}
     twilio-auth-token: ${TWILIO_AUTH_TOKEN:}
+    twilio-verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID:}
     twilio-from-number: ${TWILIO_FROM_NUMBER:}
-    twilio-messaging-service-sid: ${TWILIO_MESSAGING_SERVICE_SID:}
   apns:
     enabled: ${APNS_ENABLED:false}
     key-id: ${APNS_KEY_ID:}

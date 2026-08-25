@@ -83,21 +83,31 @@ class AuthServiceTest {
   }
 
   @Test void phoneOtpIsRandomSixDigitsAndOnlyExposedByDevelopmentAdapter(){
-    when(otp.exposesDevelopmentCode()).thenReturn(true);
-    when(encoder.encode(anyString())).thenReturn("otp-hash");
+    when(repository.otpCountSince(eq("+34600000000"),any())).thenReturn(0L);
+    when(otp.send("+34600000000")).thenReturn(new OtpProviderPort.OtpDelivery("VE123","483921"));
     PhoneOtpRequested result=service().requestPhoneOtp("+34600000000");
     assertThat(result.developmentCode()).matches("[0-9]{6}");
-    verify(otp).send(eq("+34600000000"),matches("[0-9]{6}"));
+    verify(otp).send("+34600000000");
+    verify(repository).save(argThat(value->value instanceof PhoneOtpChallenge challenge
+        && challenge.providerReference.equals("VE123")));
   }
 
   @Test void phoneOtpCannotBeResentBeforeCooldownExpires(){
+    when(repository.otpCountSince(eq("+34600000000"),any())).thenReturn(0L);
     PhoneOtpChallenge recent=new PhoneOtpChallenge();recent.createdAt=Instant.now();
     when(repository.latestOtp("+34600000000")).thenReturn(Optional.of(recent));
 
     assertThatThrownBy(()->service().requestPhoneOtp("+34600000000"))
         .isInstanceOf(com.nook.exception.ApiException.class)
         .hasMessageContaining("30 segundos");
-    verify(otp,never()).send(anyString(),anyString());
+    verify(otp,never()).send(anyString());
+  }
+
+  @Test void phoneOtpLimitsRequestsPerPhoneEvenAcrossDifferentIps(){
+    when(repository.otpCountSince(eq("+34600000000"),any())).thenReturn(5L);
+    assertThatThrownBy(()->service().requestPhoneOtp("+34600000000"))
+        .isInstanceOf(com.nook.exception.ApiException.class).hasMessageContaining("Demasiados códigos");
+    verify(otp,never()).send(anyString());
   }
 
   @Test void unverifiedFederatedEmailIsNeverLinkedToAnExistingAccount(){
@@ -123,7 +133,7 @@ class AuthServiceTest {
     when(repository.otp(challengeId)).thenReturn(Optional.of(challenge));
     when(repository.identity(AuthProvider.PHONE,phone)).thenReturn(Optional.of(identity));
     when(repository.user(userId)).thenReturn(user);
-    when(encoder.matches(code,"otp-hash")).thenReturn(true);
+    when(otp.verify(null,phone,code)).thenReturn(true);
     when(jwt.issue(userId)).thenReturn("access");when(jwt.expiresSeconds()).thenReturn(1800L);
 
     service().verifyPhoneOtp(new PhoneOtpVerify(challengeId,code));
@@ -131,7 +141,7 @@ class AuthServiceTest {
     assertThat(challenge.consumedAt).isNotNull();assertThat(challenge.attempts).isEqualTo((short)1);
     assertThat(user.phone).isEqualTo(phone);
     assertThatThrownBy(()->service().verifyPhoneOtp(new PhoneOtpVerify(challengeId,code)))
-        .hasMessageContaining("caducado");
+        .hasMessageContaining("ya no es válido");
   }
 
   @Test void refreshRevokesUsedTokenBeforeIssuingRotatedSession(){

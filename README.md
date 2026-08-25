@@ -29,7 +29,7 @@ Google Login usa OAuth 2.0 con PKCE en iOS y valida el `id_token` de nuevo en ba
 
 Las fotos se sirven mediante `MediaStoragePort`. Desarrollo usa disco local. Para producción en almacenamiento de objetos activa los perfiles `prod,object-storage` y configura `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY` y `OBJECT_STORAGE_PUBLIC_BASE_URL`; `OBJECT_STORAGE_ENDPOINT` solo es necesario para proveedores S3-compatible como R2. Sin el perfil `object-storage`, el adaptador PostgreSQL existente se mantiene únicamente como compatibilidad de despliegue.
 
-Variables relevantes: `APPLE_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `JWT_SECRET`, `JWT_ACCESS_MINUTES` y `JWT_REFRESH_DAYS`. Sign in with Apple también exige capability y provisioning profile válidos para el bundle iOS.
+Variables relevantes: `APPLE_CLIENT_ID`, `GOOGLE_CLIENT_ID`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `JWT_SECRET`, `JWT_ACCESS_MINUTES`, `JWT_REFRESH_DAYS`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y `TWILIO_VERIFY_SERVICE_SID`. Sign in with Apple también exige capability y provisioning profile válidos para el bundle iOS.
 
 ## Google Places y ubicación
 

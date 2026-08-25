@@ -1,6 +1,7 @@
 package com.nook.application.port.out;
 
 public interface OtpProviderPort {
-  void send(String phone, String code);
-  boolean exposesDevelopmentCode();
+  OtpDelivery send(String phone);
+  boolean verify(String providerReference, String phone, String code);
+  record OtpDelivery(String providerReference, String developmentCode) {}
 }

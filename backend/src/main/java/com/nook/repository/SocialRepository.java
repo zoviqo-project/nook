@@ -9,6 +9,7 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public void lockAuthIdentityKey(AuthProvider provider,String subject){em.createNativeQuery("select pg_advisory_xact_lock(hashtextextended(:identity,0))").setParameter("identity",provider.name()+":"+subject).getSingleResult();}
  public Optional<PhoneOtpChallenge> otp(UUID id){return Optional.ofNullable(em.find(PhoneOtpChallenge.class,id));}
  public Optional<PhoneOtpChallenge> latestOtp(String phone){return em.createQuery("select c from SocialEntities$PhoneOtpChallenge c where c.phone=:phone order by c.createdAt desc",PhoneOtpChallenge.class).setParameter("phone",phone).setMaxResults(1).getResultStream().findFirst();}
+ public long otpCountSince(String phone,Instant since){return em.createQuery("select count(c) from SocialEntities$PhoneOtpChallenge c where c.phone=:phone and c.createdAt>=:since",Long.class).setParameter("phone",phone).setParameter("since",since).getSingleResult();}
  public Profile profile(UUID id){return em.find(Profile.class,id);} public Preference preference(UUID id){return em.find(Preference.class,id);}
  public UserSetting settings(UUID id){return em.find(UserSetting.class,id);}
  public UserLocation location(UUID id){return em.find(UserLocation.class,id);}

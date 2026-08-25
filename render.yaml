@@ -37,9 +37,9 @@ services:
         sync: false
       - key: TWILIO_AUTH_TOKEN
         sync: false
-      - key: TWILIO_FROM_NUMBER
+      - key: TWILIO_VERIFY_SERVICE_SID
         sync: false
-      - key: TWILIO_MESSAGING_SERVICE_SID
+      - key: TWILIO_FROM_NUMBER
         sync: false
       - key: JWT_ACCESS_MINUTES
         value: 30

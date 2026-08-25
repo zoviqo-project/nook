@@ -33,7 +33,8 @@ struct RootView: View {
     switch app.stage {
     case .loading: EmptyView()
     case .welcome: WelcomeView()
-    case .registration, .login: PhoneRegistrationView()
+    case .registration: EmailRegistrationView()
+    case .login: LoginView()
     case .onboarding: OnboardingView()
     case .app: MainTabView()
     case .startupError(let message):
@@ -584,6 +585,17 @@ struct LoginView: View {
                 Rectangle().fill(NookColors.divider).frame(height: 1)
               }.padding(.vertical, 2)
               VStack(spacing: 10) {
+                Button {
+                  app.stage = .welcome
+                } label: {
+                  HStack(spacing: 13) {
+                    Image(systemName: "phone.fill").frame(width: 24)
+                    Text("Continuar con teléfono").font(.system(size: 17, weight: .semibold))
+                    Spacer(); Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
+                  }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 18).frame(height: 56)
+                    .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18))
+                    .overlay { RoundedRectangle(cornerRadius: 18).stroke(NookColors.border.opacity(0.9), lineWidth: 0.75) }
+                }.buttonStyle(.plain).disabled(busy)
                 NookAuthProviderButton(
                   provider: .google, isLoading: providerLoading == "Google", disabled: busy
                 ) { Task { await signInWithGoogle() } }
@@ -893,7 +905,7 @@ struct PhoneRegistrationView: View {
   private var codeForm: some View {
     VStack(alignment: .leading, spacing: 18) {
       Text("Revisa tus SMS").font(NookTypography.display(40)).tracking(-0.4)
-      Text("Código enviado a \(phone). Caduca en 5 minutos.")
+      Text("Código enviado a \(phone). Caduca en unos minutos.")
         .font(NookTypography.body).foregroundStyle(.white.opacity(0.74))
       TextField("000000", text: $code).keyboardType(.numberPad).textContentType(.oneTimeCode)
         .multilineTextAlignment(.center).font(.system(size: 34, weight: .bold, design: .monospaced))
@@ -928,7 +940,11 @@ struct PhoneRegistrationView: View {
     busy = true; error = nil; defer { busy = false }
     do { try await app.verifyPhoneOtp(challengeId: challenge.challengeId, code: code); Haptics.success() }
     catch let api as NookAPIError where api.code == "OTP_INVALID" {
-      error = "El código es incorrecto o ha caducado."; code = ""
+      error = "El código es incorrecto o ya no es válido."; code = ""
+    } catch let api as NookAPIError where api.code == "OTP_EXPIRED" {
+      error = "El código ha caducado. Solicita uno nuevo."; code = ""
+    } catch let api as NookAPIError where api.code == "OTP_TOO_MANY_ATTEMPTS" {
+      error = "Has superado el número de intentos. Solicita un código nuevo."; code = ""
     } catch let caught {
       error = NookErrorCopy.message(for: caught, fallback: "No hemos podido verificar el código.")
     }

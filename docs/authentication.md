@@ -20,8 +20,21 @@ Para activarlo:
 6. Volver a mostrar la acción Apple en `QuickAccessView` y ejecutar pruebas de usuario nuevo
    y existente con credenciales reales.
 
-## Teléfono
+## Teléfono (Twilio Verify)
 
-El backend contiene endpoints OTP y protección frente a reintentos, pero el adaptador de
-producción todavía no tiene un proveedor SMS configurado. El acceso por teléfono permanece
-oculto hasta conectar un proveedor real; no debe activarse usando códigos de desarrollo.
+El acceso por teléfono está disponible junto a Google, Apple, Facebook y email. iOS normaliza
+el número al formato E.164 mediante el selector de país (España `+34` por defecto), solicita el
+SMS, acepta el código de seis cifras y guarda la sesión resultante en Keychain.
+
+Producción usa Twilio Verify cuando está disponible. Las cuentas trial sin acceso a Verify pueden
+usar Programmable Messaging con `TWILIO_FROM_NUMBER`: la plantilla trial `sms_2fa` genera y entrega
+el código; Nook conserva solo su hash BCrypt y lo valida en backend. Configura como
+secrets `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y `TWILIO_VERIFY_SERVICE_SID`, o bien
+`TWILIO_FROM_NUMBER` para el modo trial. El teléfono de la persona nunca se configura ni almacena en el repo:
+se introduce en la pantalla. Si la cuenta Twilio es trial, ese teléfono debe estar verificado en
+Twilio; una cuenta de pago puede enviar a números permitidos por su Geo Permissions.
+
+Nook añade un cooldown de 30 segundos para reenvíos, máximo de cinco validaciones por reto,
+rate limiting por IP y retos de un solo uso. Twilio aplica además sus propios límites. Los perfiles
+`development`/`test` conservan un proveedor aislado que devuelve el código únicamente en la
+respuesta de desarrollo; el perfil `prod` nunca expone códigos.
