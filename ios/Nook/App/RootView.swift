@@ -293,6 +293,9 @@ private struct PhoneAuthView: View {
   @State private var busy = false
   @State private var error: String?
   @State private var resendSeconds = 0
+  @State private var providerLoading: String?
+  @StateObject private var apple = AppleSignInCoordinator()
+  @StateObject private var google = GoogleSignInCoordinator()
 
   private var e164: String { country.dial + number.filter(\.isNumber) }
   private var validPhone: Bool { (8...15).contains(e164.filter(\.isNumber).count) }
@@ -322,9 +325,15 @@ private struct PhoneAuthView: View {
             .background(.white.opacity(0.14), in: Circle())
             .overlay { Circle().stroke(.white.opacity(0.2), lineWidth: 0.75) }
         }
-        Spacer()
-        if challenge == nil { phoneStep } else { codeStep }
-        Spacer(minLength: 10)
+        ScrollView {
+          VStack(alignment: .leading, spacing: 0) {
+            Spacer(minLength: 54)
+            if challenge == nil { phoneStep } else { codeStep }
+            Spacer(minLength: 16)
+          }
+        }
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         Text("Tu número se utiliza únicamente para proteger y recuperar tu cuenta.")
           .font(NookTypography.caption)
           .foregroundStyle(.white.opacity(0.56))
@@ -387,6 +396,24 @@ private struct PhoneAuthView: View {
         isLoading: busy
       ) { Task { await sendCode() } }
       .disabled(!validPhone || busy).opacity(validPhone && !busy ? 1 : 0.55)
+      HStack(spacing: 10) {
+        Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
+        Text("O CONTINÚA CON")
+          .font(NookTypography.sectionLabel).tracking(1.3)
+          .foregroundStyle(.white.opacity(0.68)).fixedSize()
+        Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
+      }
+      VStack(spacing: 10) {
+        NookAuthProviderButton(
+          provider: .google, isLoading: providerLoading == "Google", disabled: busy
+        ) { Task { await signInWithGoogle() } }
+        NookAuthProviderButton(
+          provider: .apple, isLoading: providerLoading == "Apple", disabled: busy
+        ) { Task { await signInWithApple() } }
+        NookAuthProviderButton(provider: .facebook, disabled: busy) {
+          error = "Facebook necesita completar la configuración de su App ID para continuar."
+        }
+      }
     }
   }
 
@@ -455,6 +482,40 @@ private struct PhoneAuthView: View {
     } catch let caughtError {
       self.error = NookErrorCopy.message(
         for: caughtError, fallback: "No hemos podido verificar el código. Inténtalo de nuevo.")
+    }
+  }
+
+  private func signInWithApple() async {
+    guard !busy else { return }
+    busy = true; providerLoading = "Apple"; error = nil
+    defer { busy = false; providerLoading = nil }
+    do {
+      let credential = try await apple.signIn()
+      try await app.federatedLogin(
+        provider: "apple", identityToken: credential.identityToken,
+        displayName: credential.displayName)
+      Haptics.success()
+    } catch let value as ASAuthorizationError where value.code == .canceled {
+      return
+    } catch let caughtError {
+      error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido continuar con Apple.")
+    }
+  }
+
+  private func signInWithGoogle() async {
+    guard !busy else { return }
+    busy = true; providerLoading = "Google"; error = nil
+    defer { busy = false; providerLoading = nil }
+    do {
+      let token = try await google.signIn()
+      try await app.federatedLogin(provider: "google", identityToken: token, displayName: nil)
+      Haptics.success()
+    } catch let value as ASWebAuthenticationSessionError where value.code == .canceledLogin {
+      return
+    } catch let caughtError {
+      error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido continuar con Google.")
     }
   }
 }
