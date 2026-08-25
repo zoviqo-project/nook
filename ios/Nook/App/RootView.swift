@@ -291,7 +291,7 @@ private struct QuickAccessView: View {
   init(isPresented: Binding<Bool>, startWithLogin: Bool = false) {
     _isPresented = isPresented
     _emailLogin = State(initialValue: false)
-    _phoneRegistration = State(initialValue: true)
+    _phoneRegistration = State(initialValue: false)
   }
   var body: some View {
     ZStack(alignment: .bottom) {
