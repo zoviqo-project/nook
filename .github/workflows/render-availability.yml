@@ -1,0 +1,31 @@
+name: Keep Nook API available
+
+on:
+  schedule:
+    # Render's free instances sleep after a period without traffic. A regular
+    # readiness request prevents an iPhone user from paying that cold-start cost.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nook-api-availability
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake and verify public API
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --retry 4 \
+            --retry-all-errors \
+            --retry-delay 8 \
+            --connect-timeout 20 \
+            --max-time 120 \
+            https://nook-api-t5sy.onrender.com/actuator/health
