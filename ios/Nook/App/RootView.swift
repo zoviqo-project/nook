@@ -206,7 +206,13 @@ struct WelcomeView: View {
   var body: some View {
     ZStack(alignment: .bottom) {
       NookWelcomeGallery(active: phase >= 1)
-      LinearGradient(colors: [.clear, NookColors.background.opacity(0.82), NookColors.background], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+      LinearGradient(
+        stops: [
+          .init(color: .clear, location: 0.32),
+          .init(color: NookColors.warmBlack.opacity(0.28), location: 0.56),
+          .init(color: NookColors.warmBlack.opacity(0.88), location: 1)
+        ], startPoint: .top, endPoint: .bottom
+      ).ignoresSafeArea()
       VStack(alignment: .leading, spacing: 18) {
         HStack(spacing: 10) {
           NookCoffeeLogo(size: 46, animated: false)
@@ -216,7 +222,7 @@ struct WelcomeView: View {
           Text("Todo empieza\npor un café.").font(NookTypography.brand(50))
             .tracking(-0.45).lineSpacing(-1)
           Text("Conoce a alguien. Elige un sitio. Tomad un café.")
-            .font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
+          .font(NookTypography.body).foregroundStyle(.white.opacity(0.78))
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
         NookButton(title: "EMPEZAR", icon: "arrow.right") {
           quickAccessLogin = false
@@ -231,10 +237,10 @@ struct WelcomeView: View {
           quickAccess = true
         }
           .frame(maxWidth: .infinity)
-          .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(NookColors.primaryCoffee)
+          .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
           .opacity(phase >= 5 ? 1 : 0)
-        Text("Solo para mayores de 18 años").font(NookTypography.caption).foregroundStyle(NookColors.textSecondary.opacity(0.72))
-      }.foregroundStyle(NookColors.textPrimary).padding(.horizontal, 22).padding(.bottom, 16)
+        Text("Solo para mayores de 18 años").font(NookTypography.caption).foregroundStyle(.white.opacity(0.62))
+      }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
         .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
       if quickAccess {
         QuickAccessView(isPresented: $quickAccess, startWithLogin: quickAccessLogin)
@@ -454,13 +460,12 @@ private struct CoffeeAccessReveal: View {
 
 private struct NookWelcomeGallery: View {
   let active: Bool
-  private let heroURL = URL(string: "https://images.unsplash.com/photo-1511081692775-05d0f180a065?auto=format&fit=crop&w=1200&q=85")
   var body: some View {
     GeometryReader { proxy in
       ZStack {
         Image("NookIntroCoffee").resizable().scaledToFill()
           .frame(width: proxy.size.width, height: proxy.size.height).clipped()
-        NookRemoteImage(url: heroURL) { Color.clear }
+        Image("NookWelcomePeople").resizable().scaledToFill()
           .frame(width: proxy.size.width, height: proxy.size.height).clipped()
           .opacity(active ? 1 : 0)
           .scaleEffect(active ? 1.045 : 1.02)
