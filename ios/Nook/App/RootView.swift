@@ -33,8 +33,7 @@ struct RootView: View {
     switch app.stage {
     case .loading: EmptyView()
     case .welcome: WelcomeView()
-    case .registration: EmailRegistrationView()
-    case .login: LoginView()
+    case .registration, .login: PhoneAuthView()
     case .onboarding: OnboardingView()
     case .app: MainTabView()
     case .startupError(let message):
@@ -240,16 +239,14 @@ struct WelcomeView: View {
           .font(NookTypography.body).foregroundStyle(.white.opacity(0.78))
         }.offset(y: phase >= 4 ? 0 : 18).opacity(phase >= 4 ? 1 : 0)
         NookButton(title: "EMPEZAR", icon: "arrow.right") {
-          quickAccessLogin = false
-          quickAccess = true
+          app.stage = .login
         }
           .opacity(phase >= 5 ? 1 : 0)
           .offset(y: phase >= 5 ? 0 : 42)
           .scaleEffect(phase >= 5 ? 1 : 0.96)
           .blur(radius: phase >= 5 ? 0 : 5)
         Button("Ya tengo cuenta") {
-          quickAccessLogin = true
-          quickAccess = true
+          app.stage = .login
         }
           .frame(maxWidth: .infinity)
           .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
@@ -257,10 +254,6 @@ struct WelcomeView: View {
         Text("Solo para mayores de 18 años").font(NookTypography.caption).foregroundStyle(.white.opacity(0.62))
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 16)
         .opacity(quickAccess ? 0 : 1).offset(y: quickAccess ? 32 : 0)
-      if quickAccess {
-        QuickAccessView(isPresented: $quickAccess, startWithLogin: quickAccessLogin)
-          .transition(.move(edge: .bottom).combined(with: .opacity))
-      }
     }.animation(NookMotion.spring, value: quickAccess)
       .onAppear {
       phase = 0
@@ -268,6 +261,200 @@ struct WelcomeView: View {
       withAnimation(NookMotion.spring.delay(0.25)) { phase = 2 }
       withAnimation(.easeOut(duration: 0.45).delay(0.75)) { phase = 4 }
       withAnimation(.spring(response: 0.62, dampingFraction: 0.78).delay(1.12)) { phase = 5 }
+    }
+  }
+}
+
+private struct PhoneAuthView: View {
+  private struct Country: Identifiable, Hashable {
+    let id: String
+    let flag: String
+    let name: String
+    let dial: String
+  }
+  private static let countries = [
+    Country(id: "ES", flag: "🇪🇸", name: "España", dial: "+34"),
+    Country(id: "FR", flag: "🇫🇷", name: "Francia", dial: "+33"),
+    Country(id: "PT", flag: "🇵🇹", name: "Portugal", dial: "+351"),
+    Country(id: "IT", flag: "🇮🇹", name: "Italia", dial: "+39"),
+    Country(id: "DE", flag: "🇩🇪", name: "Alemania", dial: "+49"),
+    Country(id: "GB", flag: "🇬🇧", name: "Reino Unido", dial: "+44"),
+    Country(id: "US", flag: "🇺🇸", name: "Estados Unidos", dial: "+1"),
+    Country(id: "MX", flag: "🇲🇽", name: "México", dial: "+52"),
+    Country(id: "AR", flag: "🇦🇷", name: "Argentina", dial: "+54"),
+    Country(id: "CO", flag: "🇨🇴", name: "Colombia", dial: "+57")
+  ]
+
+  @EnvironmentObject var app: AppSession
+  @State private var country = countries[0]
+  @State private var number = ""
+  @State private var code = ""
+  @State private var challenge: PhoneOtpChallenge?
+  @State private var busy = false
+  @State private var error: String?
+  @State private var resendSeconds = 0
+
+  private var e164: String { country.dial + number.filter(\.isNumber) }
+  private var validPhone: Bool { (8...15).contains(e164.filter(\.isNumber).count) }
+  private var validCode: Bool { code.count == 6 && code.allSatisfy(\.isNumber) }
+
+  var body: some View {
+    ZStack {
+      NookWelcomeGallery(active: true)
+      LinearGradient(
+        colors: [NookColors.warmBlack.opacity(0.32), NookColors.warmBlack.opacity(0.94)],
+        startPoint: .top, endPoint: .bottom
+      ).ignoresSafeArea()
+      VStack(alignment: .leading, spacing: 18) {
+        Button {
+          if challenge != nil {
+            challenge = nil
+            code = ""
+            error = nil
+          } else {
+            app.stage = .welcome
+          }
+        } label: {
+          Image(systemName: "chevron.left")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 40, height: 40)
+            .background(.white.opacity(0.14), in: Circle())
+            .overlay { Circle().stroke(.white.opacity(0.2), lineWidth: 0.75) }
+        }
+        Spacer()
+        if challenge == nil { phoneStep } else { codeStep }
+        Spacer(minLength: 10)
+        Text("Tu número se utiliza únicamente para proteger y recuperar tu cuenta.")
+          .font(NookTypography.caption)
+          .foregroundStyle(.white.opacity(0.56))
+          .multilineTextAlignment(.center)
+          .frame(maxWidth: .infinity)
+      }
+      .padding(.horizontal, 22)
+      .padding(.vertical, 14)
+      .foregroundStyle(.white)
+    }
+    .onChange(of: number) { _, value in
+      number = String(value.filter(\.isNumber).prefix(14))
+    }
+    .onChange(of: code) { _, value in
+      code = String(value.filter(\.isNumber).prefix(6))
+      if code.count == 6 { Task { await verifyCode() } }
+    }
+    .task(id: challenge?.challengeId) {
+      guard challenge != nil else { return }
+      resendSeconds = 30
+      while resendSeconds > 0 && !Task.isCancelled {
+        try? await Task.sleep(for: .seconds(1))
+        resendSeconds -= 1
+      }
+    }
+  }
+
+  private var phoneStep: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      Text("Tu número móvil")
+        .font(NookTypography.display(40)).tracking(-0.4)
+      Text("Te enviaremos un SMS con un código de seguridad. Sin contraseñas.")
+        .font(NookTypography.body).foregroundStyle(.white.opacity(0.74))
+      HStack(spacing: 10) {
+        Menu {
+          ForEach(Self.countries) { value in
+            Button("\(value.flag) \(value.name)  \(value.dial)") { country = value }
+          }
+        } label: {
+          HStack(spacing: 6) {
+            Text(country.flag)
+            Text(country.dial).font(NookTypography.body.weight(.semibold))
+            Image(systemName: "chevron.down").font(.caption.bold())
+          }
+          .foregroundStyle(NookColors.textPrimary)
+          .padding(.horizontal, 13).frame(height: 58)
+          .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18))
+        }
+        TextField("600 000 000", text: $number)
+          .keyboardType(.phonePad)
+          .textContentType(.telephoneNumber)
+          .font(NookTypography.subtitle)
+          .foregroundStyle(NookColors.textPrimary)
+          .padding(.horizontal, 16).frame(height: 58)
+          .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18))
+      }
+      if let error { errorText(error) }
+      NookButton(
+        title: busy ? "ENVIANDO CÓDIGO…" : "ENVIAR CÓDIGO", icon: "message.fill",
+        isLoading: busy
+      ) { Task { await sendCode() } }
+      .disabled(!validPhone || busy).opacity(validPhone && !busy ? 1 : 0.55)
+    }
+  }
+
+  private var codeStep: some View {
+    VStack(alignment: .leading, spacing: 18) {
+      Text("Revisa tus SMS")
+        .font(NookTypography.display(40)).tracking(-0.4)
+      Text("Hemos enviado un código de 6 cifras a \(e164).")
+        .font(NookTypography.body).foregroundStyle(.white.opacity(0.74))
+      TextField("000000", text: $code)
+        .keyboardType(.numberPad)
+        .textContentType(.oneTimeCode)
+        .multilineTextAlignment(.center)
+        .font(.system(size: 34, weight: .bold, design: .monospaced))
+        .tracking(9)
+        .foregroundStyle(NookColors.textPrimary)
+        .frame(height: 64)
+        .background(NookColors.surface, in: RoundedRectangle(cornerRadius: 18))
+      if let error { errorText(error) }
+      NookButton(
+        title: busy ? "VERIFICANDO…" : "VERIFICAR", icon: "checkmark.shield.fill",
+        isLoading: busy
+      ) { Task { await verifyCode() } }
+      .disabled(!validCode || busy).opacity(validCode && !busy ? 1 : 0.55)
+      Button(resendSeconds > 0 ? "Reenviar código en \(resendSeconds)s" : "Reenviar código") {
+        Task { await sendCode() }
+      }
+      .disabled(resendSeconds > 0 || busy)
+      .font(NookTypography.secondary.weight(.semibold))
+      .foregroundStyle(.white.opacity(resendSeconds > 0 ? 0.5 : 0.92))
+      .frame(maxWidth: .infinity)
+    }
+  }
+
+  private func errorText(_ value: String) -> some View {
+    Text(value).font(NookTypography.secondary.weight(.semibold))
+      .foregroundStyle(NookColors.error)
+  }
+
+  private func sendCode() async {
+    guard validPhone, !busy else { return }
+    busy = true; error = nil
+    defer { busy = false }
+    do {
+      challenge = try await app.requestPhoneOtp(e164)
+      code = ""
+      Haptics.success()
+    } catch let api as NookAPIError where api.statusCode == 429 {
+      error = "Has solicitado varios códigos. Espera un momento antes de intentarlo otra vez."
+    } catch let caughtError {
+      self.error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido enviar el SMS. Inténtalo de nuevo.")
+    }
+  }
+
+  private func verifyCode() async {
+    guard let challenge, validCode, !busy else { return }
+    busy = true; error = nil
+    defer { busy = false }
+    do {
+      try await app.verifyPhoneOtp(challengeId: challenge.challengeId, code: code)
+      Haptics.success()
+    } catch let api as NookAPIError where api.code == "OTP_INVALID" {
+      error = "El código es incorrecto o ha caducado. Solicita uno nuevo si es necesario."
+      code = ""
+    } catch let caughtError {
+      self.error = NookErrorCopy.message(
+        for: caughtError, fallback: "No hemos podido verificar el código. Inténtalo de nuevo.")
     }
   }
 }
