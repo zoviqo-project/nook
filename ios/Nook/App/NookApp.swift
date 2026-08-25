@@ -53,10 +53,53 @@ extension Notification.Name { static let nookDeviceToken=Notification.Name("Nook
   }
 }
 enum AppConfiguration {
-  static let apiURL = URL(
-    string: ProcessInfo.processInfo.environment["NOOK_API_URL"]
-      ?? Bundle.main.object(forInfoDictionaryKey: "NookAPIURL") as? String
-      ?? "http://127.0.0.1:8080/api/v1/")!
+  enum APIEnvironment: String { case development, staging, production }
+
+  private static let productionAPIURL = "https://nook-api-t5sy.onrender.com/api/v1/"
+
+  static let apiEnvironment: APIEnvironment = {
+    let configured = ProcessInfo.processInfo.environment["NOOK_API_ENVIRONMENT"]
+      ?? Bundle.main.object(forInfoDictionaryKey: "NookAPIEnvironment") as? String
+    return APIEnvironment(rawValue: configured?.lowercased() ?? "")
+      ?? (AppEnvironment.current == .production ? .production : .development)
+  }()
+
+  static let apiURL: URL = {
+    let runtimeOverride = ProcessInfo.processInfo.environment["NOOK_API_URL"]
+    let bundled = Bundle.main.object(forInfoDictionaryKey: "NookAPIURL") as? String
+    let value = runtimeOverride ?? bundled ?? productionAPIURL
+    guard let url = URL(string: value), url.scheme?.lowercased() == "https",
+      url.host != nil, !isLocalHost(url.host)
+    else {
+      assertionFailure("NookAPIURL must be a public HTTPS URL")
+      return URL(string: productionAPIURL)!
+    }
+    return url.absoluteString.hasSuffix("/") ? url : URL(string: url.absoluteString + "/")!
+  }()
+
+  static func publicAssetURL(from value: String?) -> URL? {
+    guard let value, !value.isEmpty else { return nil }
+    guard let candidate = URL(string: value, relativeTo: apiURL)?.absoluteURL else { return nil }
+    if isLocalHost(candidate.host) {
+      var publicOrigin = URLComponents(url: apiURL, resolvingAgainstBaseURL: false)
+      publicOrigin?.path = candidate.path
+      publicOrigin?.query = candidate.query
+      return publicOrigin?.url
+    }
+    guard candidate.scheme?.lowercased() == "https" else { return nil }
+    return candidate
+  }
+
+  private static func isLocalHost(_ host: String?) -> Bool {
+    guard let host = host?.lowercased() else { return false }
+    if host == "localhost" || host == "0.0.0.0" || host == "127.0.0.1" || host == "::1" {
+      return true
+    }
+    let parts = host.split(separator: ".").compactMap { Int($0) }
+    guard parts.count == 4 else { return false }
+    return parts[0] == 10 || (parts[0] == 192 && parts[1] == 168)
+      || (parts[0] == 172 && (16...31).contains(parts[1]))
+  }
 }
 struct MyCafesSnapshot {
   let items: [MyCafeItem]
@@ -102,7 +145,7 @@ struct DiscoverSnapshot {
         let repository = self.repository
         group.addTask { try await repository.restore() }
         group.addTask {
-          try await Task.sleep(for: .seconds(18))
+          try await Task.sleep(for: .seconds(90))
           throw StartupTimeout()
         }
         guard let first = try await group.next() else { throw StartupTimeout() }

@@ -272,7 +272,8 @@ actor APIRepository: NookRepository {
     try await perform(path, method: method, body: body, auth: auth, mayRefresh: true)
   }
   private func perform<R: Decodable, B: Encodable>(
-    _ path: String, method: String, body: B?, auth: Bool, mayRefresh: Bool
+    _ path: String, method: String, body: B?, auth: Bool, mayRefresh: Bool,
+    retryCount: Int = 0
   ) async throws -> R {
     if auth, mayRefresh, let current = try tokens.load(),
       current.expiresAt.timeIntervalSinceNow < 30
@@ -287,11 +288,28 @@ actor APIRepository: NookRepository {
     if auth, let t = try tokens.load() {
       req.setValue("Bearer \(t.accessToken)", forHTTPHeaderField: "Authorization")
     }
-    let (data, response) = try await session.data(for: req)
+    let data: Data
+    let response: URLResponse
+    do {
+      (data, response) = try await session.data(for: req)
+    } catch let error as URLError
+      where method == "GET" && retryCount < 2 && Self.isTransient(error)
+    {
+      try await Task.sleep(for: .seconds(retryCount == 0 ? 2 : 5))
+      return try await perform(
+        path, method: method, body: body, auth: auth, mayRefresh: mayRefresh,
+        retryCount: retryCount + 1)
+    }
     guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
     if http.statusCode == 401, auth, mayRefresh, let current = try tokens.load() {
       try await refreshSession(using: current.refreshToken)
       return try await perform(path, method: method, body: body, auth: auth, mayRefresh: false)
+    }
+    if method == "GET", retryCount < 2, [502, 503, 504].contains(http.statusCode) {
+      try await Task.sleep(for: .seconds(retryCount == 0 ? 2 : 5))
+      return try await perform(
+        path, method: method, body: body, auth: auth, mayRefresh: mayRefresh,
+        retryCount: retryCount + 1)
     }
     guard (200..<300).contains(http.statusCode) else {
       throw apiError(from: data, statusCode: http.statusCode)
@@ -328,14 +346,15 @@ actor APIRepository: NookRepository {
       message: body?.message ?? "No hemos podido completar la operación")
   }
   private func normalizePhotoURLs(in shop: inout CoffeeShop) {
-    if let value = shop.photoUrl, value.hasPrefix("/") {
-      shop.photoUrl = URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString
+    shop.photoUrl = AppConfiguration.publicAssetURL(from: shop.photoUrl)?.absoluteString
+    shop.photoUrls = shop.photoUrls?.compactMap {
+      AppConfiguration.publicAssetURL(from: $0)?.absoluteString
     }
-    shop.photoUrls = shop.photoUrls?.map { value in
-      value.hasPrefix("/")
-        ? (URL(string: value, relativeTo: baseURL)?.absoluteURL.absoluteString ?? value)
-        : value
-    }
+  }
+  private static func isTransient(_ error: URLError) -> Bool {
+    [.timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+     .networkConnectionLost, .notConnectedToInternet, .resourceUnavailable]
+      .contains(error.code)
   }
   private func save(_ response: TokenResponse) throws {
     try tokens.save(

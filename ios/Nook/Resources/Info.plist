@@ -24,6 +24,8 @@
     <string>Nook usa tu ubicación para calcular distancias aproximadas y encontrar cafés cercanos. Nunca mostramos tus coordenadas.</string>
     <key>NookAPIURL</key>
     <string>$(NOOK_API_URL)</string>
+    <key>NookAPIEnvironment</key>
+    <string>$(NOOK_API_ENVIRONMENT)</string>
     <key>GoogleClientID</key>
     <string>$(GOOGLE_IOS_CLIENT_ID)</string>
     <key>GoogleReversedClientID</key>

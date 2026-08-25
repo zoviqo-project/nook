@@ -41,7 +41,7 @@ La clave de Places vive exclusivamente en backend (`GOOGLE_PLACES_API_KEY`). iOS
 
 ## iOS
 
-Abre `ios/Nook.xcodeproj`. Para dispositivo físico, configura `NOOK_API_URL` con una URL HTTPS pública o la IP LAN del Mac, por ejemplo `http://192.168.1.20:8080/api/v1/`. El refresh token se guarda en Keychain; la fuente de verdad de perfiles, matches, cafés, propuestas y mensajes es la API.
+Abre `ios/Nook.xcodeproj`. Las builds instaladas usan `NOOK_API_URL` desde Info.plist/Xcode y deben apuntar siempre a una URL HTTPS pública. El valor seguro por defecto es `https://nook-api-t5sy.onrender.com/api/v1/`; la app rechaza localhost, loopback e IPs privadas. Los overrides de entorno permiten seleccionar development, staging o production sin modificar llamadas de red. El refresh token se guarda en Keychain; la fuente de verdad de perfiles, matches, cafés, propuestas y mensajes es la API remota.
 
 ## Pruebas
 

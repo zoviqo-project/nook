@@ -27,6 +27,16 @@ services:
         value: 87732666990-c9joo52gb7qgu5bft6kfbkgmubuoumfi.apps.googleusercontent.com
       - key: APPLE_CLIENT_ID
         value: com.albertesteveferres.nook
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: JWT_ACCESS_MINUTES
+        value: 30
+      - key: JWT_REFRESH_DAYS
+        value: 30
 databases:
   - name: nook-postgres
     plan: free

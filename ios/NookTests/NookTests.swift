@@ -3,6 +3,16 @@ import XCTest
 @testable import Nook
 
 final class NookTests: XCTestCase {
+  func testInstalledBuildUsesPublicHTTPSAPIAndRewritesLegacyLocalAssets() throws {
+    XCTAssertEqual(AppConfiguration.apiURL.scheme, "https")
+    XCTAssertEqual(AppConfiguration.apiURL.host, "nook-api-t5sy.onrender.com")
+    let migrated = try XCTUnwrap(
+      AppConfiguration.publicAssetURL(from: "http://127.0.0.1:8080/api/v1/media/photos/test.jpg"))
+    XCTAssertEqual(migrated.scheme, "https")
+    XCTAssertEqual(migrated.host, "nook-api-t5sy.onrender.com")
+    XCTAssertEqual(migrated.path, "/api/v1/media/photos/test.jpg")
+  }
+
   func testNavigationBadgesUseOnlyUnreadBackendNotifications() {
     let userID = UUID()
     let values = [

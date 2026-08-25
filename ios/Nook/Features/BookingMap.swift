@@ -964,7 +964,7 @@ private struct InlineCoffeeShopDetail: View {
   }
   private func openMaps() {
     let query = shop.address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? shop.address
-    if let url = URL(string: "http://maps.apple.com/?q=\(query)") { openURL(url) }
+    if let url = URL(string: "https://maps.apple.com/?q=\(query)") { openURL(url) }
   }
 }
 
@@ -1323,7 +1323,7 @@ struct CoffeeShopDetail: View {
   private var distanceLabel: String { shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km" }
   private func openMaps() {
     let query = shop.address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? shop.address
-    if let url = URL(string: "http://maps.apple.com/?q=\(query)") { openURL(url) }
+    if let url = URL(string: "https://maps.apple.com/?q=\(query)") { openURL(url) }
   }
   private func info(_ icon: String, _ value: String) -> some View {
     HStack(spacing: 14) {

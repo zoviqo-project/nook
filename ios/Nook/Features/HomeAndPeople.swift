@@ -404,14 +404,7 @@ struct ProfileImage: View {
     }.clipped()
   }
   private var resolvedURL: URL? {
-    guard let url, !url.isEmpty else { return nil }
-    if url.hasPrefix("/") {
-      guard var components = URLComponents(url: AppConfiguration.apiURL, resolvingAgainstBaseURL: false) else { return nil }
-      components.path = url
-      components.query = nil
-      return components.url
-    }
-    return URL(string: url)
+    AppConfiguration.publicAssetURL(from: url)
   }
 }
 
