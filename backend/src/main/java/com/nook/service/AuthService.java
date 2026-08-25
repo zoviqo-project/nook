@@ -26,8 +26,9 @@ import com.nook.application.port.out.*; import com.nook.domain.SocialEntities.*;
   challenge.consumedAt=Instant.now();
   repo.lockAuthIdentityKey(AuthProvider.PHONE,challenge.phone);
   AuthIdentity identity=repo.identity(AuthProvider.PHONE,challenge.phone).orElse(null);User user;
-  if(identity==null){String email="phone-"+hash(challenge.phone).substring(0,20)+"@identity.nook.invalid";user=provisional(email,"Nuevo café");identity=new AuthIdentity();identity.userId=user.id;identity.provider=AuthProvider.PHONE;identity.providerSubject=challenge.phone;identity.phone=challenge.phone;repo.save(identity);}else user=repo.user(identity.userId);
+  if(identity==null){String email="phone-"+hash(challenge.phone).substring(0,20)+"@identity.nook.invalid";user=provisional(email,"Nuevo café");user.phone=challenge.phone;identity=new AuthIdentity();identity.userId=user.id;identity.provider=AuthProvider.PHONE;identity.providerSubject=challenge.phone;identity.phone=challenge.phone;repo.save(identity);}else user=repo.user(identity.userId);
   if(user==null||!user.active)throw new BadCredentialsException("bad");
+  if(user.phone==null)user.phone=challenge.phone;
   identity.lastLoginAt=Instant.now();audit.record(user.id,"LOGIN","USER",user.id);return token(user);
  }
  private User provisional(String email,String name){User u=new User();u.email=email;u.passwordHash=encoder.encode(UUID.randomUUID().toString());repo.save(u);Profile p=new Profile();p.user=u;p.name=name;repo.save(p);Preference pref=new Preference();pref.user=u;repo.save(pref);em.flush();audit.record(u.id,"USER_CREATED","USER",u.id);return u;}

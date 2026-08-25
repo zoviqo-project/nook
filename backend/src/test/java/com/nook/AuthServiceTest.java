@@ -129,6 +129,7 @@ class AuthServiceTest {
     service().verifyPhoneOtp(new PhoneOtpVerify(challengeId,code));
 
     assertThat(challenge.consumedAt).isNotNull();assertThat(challenge.attempts).isEqualTo((short)1);
+    assertThat(user.phone).isEqualTo(phone);
     assertThatThrownBy(()->service().verifyPhoneOtp(new PhoneOtpVerify(challengeId,code)))
         .hasMessageContaining("caducado");
   }

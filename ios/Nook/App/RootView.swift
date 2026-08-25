@@ -33,8 +33,7 @@ struct RootView: View {
     switch app.stage {
     case .loading: EmptyView()
     case .welcome: WelcomeView()
-    case .registration: PhoneRegistrationView()
-    case .login: LoginView()
+    case .registration, .login: PhoneRegistrationView()
     case .onboarding: OnboardingView()
     case .app: MainTabView()
     case .startupError(let message):
@@ -290,7 +289,8 @@ private struct QuickAccessView: View {
   @State private var phoneRegistration = false
   init(isPresented: Binding<Bool>, startWithLogin: Bool = false) {
     _isPresented = isPresented
-    _emailLogin = State(initialValue: startWithLogin)
+    _emailLogin = State(initialValue: false)
+    _phoneRegistration = State(initialValue: true)
   }
   var body: some View {
     ZStack(alignment: .bottom) {
@@ -306,12 +306,12 @@ private struct QuickAccessView: View {
         HStack {
           Button {
             withAnimation(NookMotion.spring) {
-              if phoneRegistration { phoneRegistration = false; error = nil }
+              if phoneRegistration { isPresented = false; error = nil }
               else if emailLogin { emailLogin = false; createAccount = false; error = nil }
               else { isPresented = false }
             }
           } label: {
-            Image(systemName: emailLogin || phoneRegistration ? "chevron.left" : "xmark")
+            Image(systemName: phoneRegistration ? "xmark" : (emailLogin ? "chevron.left" : "xmark"))
               .font(.system(size: 15, weight: .semibold)).frame(width: 40, height: 40)
               .foregroundStyle(.white)
               .background(.white.opacity(0.14), in: Circle())
@@ -801,7 +801,7 @@ struct PhoneRegistrationView: View {
       if dismiss != nil {
         VStack(alignment: .leading, spacing: 16) {
           if challenge == nil { phoneForm } else { codeForm }
-          Text("Tu número se utiliza únicamente para crear y proteger tu cuenta.")
+          Text("Tu número se utiliza únicamente para acceder y proteger tu cuenta.")
             .font(NookTypography.caption).foregroundStyle(.white.opacity(0.58))
             .multilineTextAlignment(.center).frame(maxWidth: .infinity)
         }
@@ -853,9 +853,9 @@ struct PhoneRegistrationView: View {
         Spacer()
         if challenge == nil { phoneForm } else { codeForm }
         Color.clear.frame(height: 8)
-        Button("Ya tengo cuenta · Entrar con email") { app.stage = .login }
-          .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
-          .frame(maxWidth: .infinity)
+        Text("Tu número se utiliza únicamente para acceder y proteger tu cuenta.")
+          .font(NookTypography.caption).foregroundStyle(.white.opacity(0.58))
+          .multilineTextAlignment(.center).frame(maxWidth: .infinity)
       }
       .padding(.horizontal, 22).padding(.vertical, 14).foregroundStyle(.white)
     }
@@ -863,8 +863,8 @@ struct PhoneRegistrationView: View {
 
   private var phoneForm: some View {
     VStack(alignment: .leading, spacing: 18) {
-      Text("Crea tu cuenta").font(NookTypography.display(40)).tracking(-0.4)
-      Text("Indica tu móvil y te enviaremos un código de seguridad por SMS.")
+      Text("Tu número móvil").font(NookTypography.display(40)).tracking(-0.4)
+      Text("Te enviaremos un código de seguridad por SMS para entrar o crear tu cuenta.")
         .font(NookTypography.body).foregroundStyle(.white.opacity(0.74))
       HStack(spacing: 10) {
         Menu {
