@@ -287,6 +287,7 @@ private struct QuickAccessView: View {
   @StateObject private var google = GoogleSignInCoordinator()
   @State private var revealed = false
   @State private var brewed = false
+  @State private var phoneRegistration = false
   init(isPresented: Binding<Bool>, startWithLogin: Bool = false) {
     _isPresented = isPresented
     _emailLogin = State(initialValue: startWithLogin)
@@ -361,8 +362,7 @@ private struct QuickAccessView: View {
             Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
           }
           Button("Soy nuevo · Crear cuenta con teléfono") {
-            isPresented = false
-            app.stage = .registration
+            withAnimation(NookMotion.spring) { phoneRegistration = true }
           }.font(.system(size: 13, weight: .semibold, design: .default))
             .foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity)
           providerButtons
@@ -374,8 +374,7 @@ private struct QuickAccessView: View {
           VStack(spacing: 11) {
             providerButtons
             accessButton("Crear cuenta con teléfono", icon: "phone.fill", primary: true, index: 2) {
-              isPresented = false
-              app.stage = .registration
+              withAnimation(NookMotion.spring) { phoneRegistration = true }
             }
           }
           if let error {
@@ -392,6 +391,13 @@ private struct QuickAccessView: View {
           .font(.caption).foregroundStyle(.white.opacity(0.58)).multilineTextAlignment(.center)
       }.foregroundStyle(.white).padding(.horizontal, 22).padding(.bottom, 18)
       CoffeeAccessReveal(active: brewed).allowsHitTesting(false)
+      if phoneRegistration {
+        PhoneRegistrationView {
+          withAnimation(NookMotion.spring) { phoneRegistration = false }
+        }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .zIndex(10)
+      }
     }.onAppear {
       withAnimation(.easeOut(duration: 0.42)) { brewed = true }
       withAnimation(NookMotion.spring.delay(0.18)) { revealed = true }
@@ -760,6 +766,7 @@ private struct CinematicLoginField: View {
 }
 
 struct PhoneRegistrationView: View {
+  var dismiss: (() -> Void)? = nil
   private struct Country: Identifiable, Hashable {
     let id: String
     let flag: String
@@ -792,14 +799,22 @@ struct PhoneRegistrationView: View {
 
   var body: some View {
     ZStack {
-      NookWelcomeGallery(active: true)
-      LinearGradient(
-        colors: [NookColors.warmBlack.opacity(0.3), NookColors.warmBlack.opacity(0.94)],
-        startPoint: .top, endPoint: .bottom
-      ).ignoresSafeArea()
+      if dismiss == nil {
+        NookWelcomeGallery(active: true)
+        LinearGradient(
+          colors: [NookColors.warmBlack.opacity(0.3), NookColors.warmBlack.opacity(0.94)],
+          startPoint: .top, endPoint: .bottom
+        ).ignoresSafeArea()
+      } else {
+        LinearGradient(
+          colors: [NookColors.warmBlack.opacity(0.36), NookColors.warmBlack.opacity(0.94)],
+          startPoint: .top, endPoint: .bottom
+        ).ignoresSafeArea()
+      }
       VStack(alignment: .leading, spacing: 16) {
         Button {
           if challenge != nil { challenge = nil; code = ""; error = nil }
+          else if let dismiss { dismiss() }
           else { app.stage = .welcome }
         } label: {
           Image(systemName: "chevron.left").font(.headline).foregroundStyle(.white)
@@ -807,7 +822,7 @@ struct PhoneRegistrationView: View {
         }
         Spacer()
         if challenge == nil { phoneForm } else { codeForm }
-        Spacer()
+        Color.clear.frame(height: 8)
         Button("Ya tengo cuenta · Entrar con email") { app.stage = .login }
           .font(NookTypography.secondary.weight(.semibold)).foregroundStyle(.white.opacity(0.9))
           .frame(maxWidth: .infinity)
