@@ -179,7 +179,16 @@ struct DiscoverView: View {
       Task { await vm.finishMatch(repo: app.repository) }
     }) { MatchCelebration(match: $0) }
       .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
-      .sheet(isPresented: $showProfile) { NavigationStack { ProfileView() } }
+      .sheet(isPresented: $showProfile) {
+        NavigationStack { ProfileView() }
+          // Keep the profile at the large detent. Without an explicit detent/content
+          // policy, a vertical drag at the top of its ScrollView can move the whole
+          // sheet, which looks like the complete body is jumping intermittently.
+          .presentationDetents([.large])
+          .presentationContentInteraction(.scrolls)
+          .presentationDragIndicator(.hidden)
+          .presentationBackground(NookColors.background)
+      }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
       .onChange(of: vm.people) { _, people in
         app.cacheDiscover(people)
@@ -1125,8 +1134,18 @@ struct ProfileView: View {
 
           Button("Cerrar sesión", role: .destructive) { Task { await app.logout() } }
             .font(.callout.weight(.semibold)).padding(.top, 5)
-        }.padding(.bottom, 18)
-      }.scrollIndicators(.hidden)
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .padding(.bottom, 18)
+      }
+      .scrollIndicators(.hidden)
+      .scrollBounceBehavior(.basedOnSize)
+      .defaultScrollAnchor(.top)
+      // Image loading and profile refreshes must not inherit the perpetual
+      // animations running in DiscoverView behind this sheet.
+      .transaction { transaction in
+        transaction.animation = nil
+      }
     }.alert("No hemos podido guardar", isPresented: Binding(
       get: { profileError != nil }, set: { if !$0 { profileError = nil } }
     )) { Button("Entendido") { profileError = nil } } message: { Text(profileError ?? "") }
