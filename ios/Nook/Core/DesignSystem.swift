@@ -83,16 +83,16 @@ enum NookShadow {
 
 enum NookTypography {
   static func brand(_ size: CGFloat) -> Font {
-    .custom("Fraunces", size: size, relativeTo: .title).weight(.semibold)
+    .system(size: size, weight: .bold, design: .default)
   }
   static func display(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .bold, design: .rounded)
+    .system(size: size, weight: .bold, design: .default)
   }
   static func displayItalic(_ size: CGFloat) -> Font {
-    .system(size: size, weight: .bold, design: .rounded).italic()
+    .system(size: size, weight: .bold, design: .default).italic()
   }
   static func business(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
-    .system(size: size, weight: weight, design: .rounded)
+    .system(size: size, weight: weight, design: .default)
   }
   static let hero = display(44)
   static let title = display(32)
@@ -227,7 +227,7 @@ struct NookHeader: View {
           HStack(spacing: 6) {
             Circle().fill(NookColors.mocha).frame(width: 5, height: 5)
             Text(eyebrow.uppercased())
-              .font(.system(size: 10, weight: .bold, design: .rounded))
+              .font(.system(size: 10, weight: .bold, design: .default))
               .tracking(1.7).foregroundStyle(NookColors.mocha)
           }
           Text(title).font(NookTypography.business(29, weight: .bold))
@@ -367,7 +367,7 @@ struct NookInlineLoading: View {
         Image(systemName: "cup.and.saucer.fill").font(.system(size: 9, weight: .bold))
           .foregroundStyle(foreground)
       }.frame(width: 27, height: 27)
-      Text(text).font(.system(size: 13, weight: .semibold, design: .rounded))
+      Text(text).font(.system(size: 13, weight: .semibold, design: .default))
         .foregroundStyle(foreground)
     }.onAppear {
       guard !reduceMotion else { return }
@@ -597,7 +597,7 @@ struct NookTextField: View {
   @FocusState private var focused: Bool
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text(label.uppercased()).font(.system(size: 12, weight: .bold, design: .rounded)).tracking(
+      Text(label.uppercased()).font(.system(size: 12, weight: .bold, design: .default)).tracking(
         1.2
       ).foregroundStyle(focused ? NookColors.mocha : .secondary)
       HStack(spacing: 14) {
@@ -609,7 +609,7 @@ struct NookTextField: View {
           } else {
             TextField(label, text: $text).keyboardType(keyboard)
           }
-        }.font(.system(size: 19, weight: .semibold, design: .rounded)).textInputAutocapitalization(
+        }.font(.system(size: 19, weight: .semibold, design: .default)).textInputAutocapitalization(
           keyboard == .emailAddress ? .never : .sentences
         ).focused($focused)
       }.padding(.horizontal, NookSpacing.md).frame(minHeight: 58).background(
@@ -633,7 +633,7 @@ struct NookChip: View {
       Haptics.selection()
       withAnimation(NookMotion.playful) { action() }
     } label: {
-      Text(title).font(.system(size: 16, weight: .bold, design: .rounded)).padding(.horizontal, 18)
+      Text(title).font(.system(size: 16, weight: .bold, design: .default)).padding(.horizontal, 18)
         .frame(minHeight: 50).foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso)
         .background(
           selected ? NookColors.espresso : NookColors.offWhite.opacity(0.9), in: Capsule()
@@ -765,7 +765,7 @@ struct NookVibeBadge: View {
   }
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
-      Text(copy.0).font(.system(size: 15, weight: .bold, design: .rounded))
+      Text(copy.0).font(.system(size: 15, weight: .bold, design: .default))
       Text(copy.1).font(.caption)
     }.foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 10).background(
       .ultraThinMaterial.opacity(0.82), in: Capsule())
@@ -928,7 +928,7 @@ struct NookStatusBadge: View {
   let text: String
   var color: Color = NookColors.mocha
   var body: some View {
-    Label(text, systemImage: icon).font(.system(size: 12, weight: .bold, design: .rounded))
+    Label(text, systemImage: icon).font(.system(size: 12, weight: .bold, design: .default))
       .foregroundStyle(color).padding(.horizontal, 11).padding(.vertical, 7)
       .background(color.opacity(0.11), in: Capsule())
   }

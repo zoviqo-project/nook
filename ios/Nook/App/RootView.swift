@@ -185,7 +185,7 @@ struct NookLoadingView: View {
         NookCoffeeLogo(size: 54).offset(y: floating ? -2 : 2)
       }
       VStack(spacing: 5) {
-        Text(title).font(.system(size: 16, weight: .bold, design: .rounded))
+        Text(title).font(.system(size: 16, weight: .bold, design: .default))
           .foregroundStyle(NookColors.espresso)
         Text(subtitle).font(.caption.weight(.medium))
           .foregroundStyle(NookColors.warmGray)
@@ -335,13 +335,13 @@ private struct QuickAccessView: View {
           }
           HStack(spacing: 10) {
             Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
-            Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
+            Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .default))
               .tracking(1.3).foregroundStyle(.white.opacity(0.68)).fixedSize()
             Rectangle().fill(.white.opacity(0.24)).frame(height: 1)
           }
           Button(createAccount ? "Ya tengo cuenta" : "Soy nuevo · Crear cuenta con email") {
             withAnimation(NookMotion.fast) { createAccount.toggle(); error = nil }
-          }.font(.system(size: 13, weight: .semibold, design: .rounded))
+          }.font(.system(size: 13, weight: .semibold, design: .default))
             .foregroundStyle(.white.opacity(0.9)).frame(maxWidth: .infinity)
           providerButtons
         } else {
@@ -391,7 +391,7 @@ private struct QuickAccessView: View {
     Button(action: action) {
       HStack(spacing: 13) {
         Image(systemName: icon).font(.system(size: 18, weight: .medium)).frame(width: 24)
-        Text(title).font(.system(size: 17, weight: .semibold, design: .rounded))
+        Text(title).font(.system(size: 17, weight: .semibold, design: .default))
         Spacer()
         if busy && busyAction == index {
           ProgressView().controlSize(.small).tint(primary ? NookColors.inverseText : NookColors.espresso)
@@ -521,13 +521,13 @@ struct LoginView: View {
             Spacer(minLength: 126)
             HStack(spacing: 10) {
               NookCoffeeLogo(size: 42, animated: false)
-              Text("NOOK").font(.system(size: 21, weight: .black, design: .rounded)).tracking(2)
+              Text("NOOK").font(.system(size: 21, weight: .black, design: .default)).tracking(2)
             }.foregroundStyle(NookColors.textPrimary)
             VStack(alignment: .leading, spacing: 6) {
               Text("Qué alegría\nverte.").font(NookTypography.display(49)).tracking(-0.4)
                 .lineSpacing(-1)
               Text("Entra y retomamos ese café.")
-                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .font(.system(size: 16, weight: .medium, design: .default))
                 .foregroundStyle(NookColors.textSecondary)
             }.foregroundStyle(NookColors.textPrimary)
             VStack(alignment: .leading, spacing: 14) {
@@ -545,7 +545,7 @@ struct LoginView: View {
                 .opacity(busy ? 0.65 : 1)
               HStack(spacing: 12) {
                 Rectangle().fill(NookColors.divider).frame(height: 1)
-                Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .rounded))
+                Text("O CONTINÚA CON").font(.system(size: 9, weight: .bold, design: .default))
                   .tracking(1.4).foregroundStyle(NookColors.textSecondary).fixedSize()
                 Rectangle().fill(NookColors.divider).frame(height: 1)
               }.padding(.vertical, 2)
@@ -561,7 +561,7 @@ struct LoginView: View {
                 }
               }
               Button("¿Aún no tienes cuenta? Crear una") { app.stage = .registration }
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .font(.system(size: 14, weight: .semibold, design: .default))
                 .foregroundStyle(NookColors.primaryCoffee).frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
             }
@@ -663,7 +663,7 @@ private struct NookAuthProviderButton: View {
           providerIcon.frame(width: 24)
         }
         Text("Continuar con \(provider.title)")
-          .font(.system(size: 17, weight: .semibold, design: .rounded))
+          .font(.system(size: 17, weight: .semibold, design: .default))
         Spacer()
         Image(systemName: "arrow.right").font(.system(size: 14, weight: .semibold))
       }
@@ -683,11 +683,11 @@ private struct NookAuthProviderButton: View {
   @ViewBuilder private var providerIcon: some View {
     switch provider {
     case .google:
-      Text("G").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(NookColors.googleBlue)
+      Text("G").font(.system(size: 20, weight: .bold, design: .default)).foregroundStyle(NookColors.googleBlue)
     case .apple:
       Image(systemName: "apple.logo").font(.system(size: 20, weight: .medium))
     case .facebook:
-      Text("f").font(.system(size: 24, weight: .bold, design: .rounded)).offset(y: 2)
+      Text("f").font(.system(size: 24, weight: .bold, design: .default)).offset(y: 2)
     }
   }
 
@@ -715,7 +715,7 @@ private struct CinematicLoginField: View {
         if secure { SecureField(label, text: $text) }
         else { TextField(label, text: $text).keyboardType(keyboard) }
       }
-      .font(.system(size: 17, weight: .semibold, design: .rounded))
+      .font(.system(size: 17, weight: .semibold, design: .default))
       .foregroundStyle(NookColors.textPrimary).tint(NookColors.primaryCoffee)
       .textInputAutocapitalization(keyboard == .emailAddress ? .never : .sentences)
       .focused($focused)
@@ -784,7 +784,7 @@ struct RegistrationFlow: View {
       VStack(alignment: .leading, spacing: 20) {
         Spacer(minLength: 82)
         Text(title).font(NookTypography.display(43)).tracking(-0.7)
-        Text(subtitle).font(.system(size: 16, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.58))
+        Text(subtitle).font(.system(size: 16, weight: .medium, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.58))
         content()
         Spacer(minLength: 40)
       }.padding(.horizontal, 24)
@@ -825,7 +825,7 @@ private struct MinimalOnboardingField: View {
       if secure { SecureField(placeholder, text: $text) }
       else { TextField(placeholder, text: $text).keyboardType(keyboard) }
     }
-    .font(.system(size: 24, weight: .medium, design: .rounded))
+    .font(.system(size: 24, weight: .medium, design: .default))
     .textInputAutocapitalization(keyboard == .emailAddress ? .never : .words)
     .autocorrectionDisabled(keyboard == .emailAddress)
     .focused($focused).padding(.vertical, 14)
@@ -846,7 +846,7 @@ private struct MinimalChoiceRow: View {
       withAnimation(NookMotion.fast) { action() }
     } label: {
       HStack(spacing: 14) {
-        Text(title).font(.system(size: 18, weight: selected ? .semibold : .medium, design: .rounded))
+        Text(title).font(.system(size: 18, weight: selected ? .semibold : .medium, design: .default))
         Spacer()
         Image(systemName: selected ? "checkmark" : "circle")
           .font(.system(size: 15, weight: .semibold)).opacity(selected ? 1 : 0.22)
@@ -990,11 +990,11 @@ struct OnboardingView: View {
         HStack(spacing: 13) {
           Image(systemName: "location.fill").font(.system(size: 18, weight: .semibold)).foregroundStyle(NookColors.mocha)
           TextField("Ciudad o pueblo", text: $city)
-            .font(.system(size: 22, weight: .semibold, design: .rounded)).textContentType(.addressCity)
+            .font(.system(size: 22, weight: .semibold, design: .default)).textContentType(.addressCity)
             .textInputAutocapitalization(.words).submitLabel(.continue)
         }.padding(.vertical, 15).overlay(alignment: .bottom) { Rectangle().fill(NookColors.espresso.opacity(0.2)).frame(height: 1) }
         Label("Solo utilizaremos una zona aproximada para encontrar personas y calcular puntos medios.", systemImage: "lock.fill")
-          .font(.system(size: 12, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.5)).lineSpacing(3)
+          .font(.system(size: 12, weight: .medium, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.5)).lineSpacing(3)
       }
     }
     case 7: question("¿Cómo te gusta el café?", "Elige tu taza habitual.") { optionList(coffeeOptions, selected: coffee) { coffee = $0 } }
@@ -1014,7 +1014,7 @@ struct OnboardingView: View {
       VStack(alignment: .leading, spacing: 20) {
         Spacer(minLength: 66)
         Text(title).font(NookTypography.display(43)).tracking(-0.7)
-        Text(subtitle).font(.system(size: 16, weight: .medium, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.58))
+        Text(subtitle).font(.system(size: 16, weight: .medium, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.58))
         content()
         Spacer(minLength: 40)
       }.padding(NookSpacing.lg)
@@ -1153,7 +1153,7 @@ struct FloatingTabBar: View {
                 .symbolEffect(.bounce, value: selection == i && !reduceMotion)
             if i == 1 && coffeeNotifications > 0 {
               Text(coffeeNotifications > 9 ? "9+" : "\(coffeeNotifications)")
-                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .font(.system(size: 9, weight: .heavy, design: .default))
                 .foregroundStyle(NookColors.inverseText)
                 .frame(minWidth: 18, minHeight: 18).background(NookColors.mocha, in: Circle())
                 .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
@@ -1162,7 +1162,7 @@ struct FloatingTabBar: View {
             }
             if i == 2 && chatNotifications > 0 {
               Text(chatNotifications > 99 ? "99+" : "\(chatNotifications)")
-                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .font(.system(size: 9, weight: .heavy, design: .default))
                 .foregroundStyle(.white).padding(.horizontal, chatNotifications > 9 ? 5 : 0)
                 .frame(minWidth: 18, minHeight: 18).background(NookColors.mocha, in: Capsule())
                 .overlay(Capsule().stroke(NookColors.cream, lineWidth: 2))

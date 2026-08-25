@@ -541,7 +541,7 @@ struct MatchCelebration: View {
     Button(action: action) {
       HStack(spacing: 10) {
         Image(systemName: icon).font(.system(size: 17, weight: .medium))
-        Text(title).font(.system(size: 17, weight: .semibold, design: .rounded))
+        Text(title).font(.system(size: 17, weight: .semibold, design: .default))
       }.foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
         .frame(maxWidth: .infinity).frame(height: 52)
         .background(primary ? NookColors.espresso : .clear, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
@@ -752,7 +752,7 @@ private struct MeetingIntentCard: View {
           .foregroundStyle(NookColors.mocha)
       }
       Text(intent.profileTitle).font(NookTypography.display(29)).tracking(-0.25)
-      Text(intent.detail).font(.system(size: 15, weight: .medium, design: .rounded))
+      Text(intent.detail).font(.system(size: 15, weight: .medium, design: .default))
         .foregroundStyle(NookColors.espresso.opacity(0.64)).lineSpacing(3)
     }.frame(maxWidth: .infinity, alignment: .leading).padding(NookSpacing.lg)
       .background(
@@ -969,7 +969,7 @@ struct ProfileView: View {
             if orderedPhotos.isEmpty {
               PhotosPicker(selection: $photoItems, maxSelectionCount: 1, matching: .images) {
                 Label(uploading ? "Subiendo…" : "Añadir foto principal", systemImage: "camera.fill")
-                  .font(.system(size: 14, weight: .bold, design: .rounded))
+                  .font(.system(size: 14, weight: .bold, design: .default))
                   .foregroundStyle(.white).padding(.horizontal, 15).frame(height: 42)
                   .background(.black.opacity(0.54), in: Capsule())
               }.disabled(uploading).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -1043,7 +1043,7 @@ struct ProfileView: View {
             HStack(spacing: 12) {
               Image(systemName: "mappin.and.ellipse").frame(width: 22).foregroundStyle(NookColors.mocha)
               TextField("Ciudad o pueblo", text: $city)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.system(size: 16, weight: .semibold, design: .default))
             }.padding(.vertical, 9)
             Divider().overlay(NookColors.oat.opacity(0.25))
             Text("Solo mostramos una ubicación aproximada.").font(.caption).foregroundStyle(NookColors.warmGray)
@@ -1051,7 +1051,7 @@ struct ProfileView: View {
 
           VStack(alignment: .leading, spacing: 11) {
             Text("SOBRE TI").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-            TextEditor(text: $bio).font(.system(size: 18, weight: .medium, design: .rounded))
+            TextEditor(text: $bio).font(.system(size: 18, weight: .medium, design: .default))
               .scrollContentBackground(.hidden).frame(minHeight: 92)
             Text("\(bio.count) / 500").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
               .frame(maxWidth: .infinity, alignment: .trailing)
@@ -1118,7 +1118,7 @@ struct ProfileView: View {
               Text("Tu ubicación exacta nunca aparece en tu perfil.").font(.callout).foregroundStyle(.secondary)
               Spacer()
             }.padding(.vertical, 15)
-          }.font(.system(size: 15, weight: .semibold, design: .rounded)).tint(NookColors.mocha).profileSurface()
+          }.font(.system(size: 15, weight: .semibold, design: .default)).tint(NookColors.mocha).profileSurface()
 
           Button { saveProfile() } label: {
             HStack(spacing: 8) {
@@ -1128,7 +1128,7 @@ struct ProfileView: View {
               }
               Image(systemName: saved ? "checkmark" : "arrow.down")
               Text(saved ? "Guardado" : "Guardar cambios")
-            }.font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(.white)
+            }.font(.system(size: 15, weight: .bold, design: .default)).foregroundStyle(.white)
               .padding(.horizontal, 22).frame(height: 48).background(NookColors.espresso, in: Capsule())
           }.disabled(saving)
 
@@ -1255,7 +1255,7 @@ struct ProfileView: View {
     } label: {
       HStack(spacing: 12) {
         Image(systemName: icon).frame(width: 22).foregroundStyle(NookColors.mocha)
-        Text(text).font(.system(size: 15, weight: .semibold, design: .rounded))
+        Text(text).font(.system(size: 15, weight: .semibold, design: .default))
         Spacer()
         Image(systemName: "chevron.down").font(.caption.bold()).foregroundStyle(NookColors.warmGray)
       }.foregroundStyle(NookColors.espresso).contentShape(Rectangle())
@@ -1340,7 +1340,7 @@ struct EditProfileSheet: View {
                 Button { withAnimation(NookMotion.spring) { looking = intent } } label: {
                   HStack(spacing: 13) {
                     Image(systemName: intent.icon).frame(width: 22)
-                    Text(intent.title).font(.system(size: 15, weight: .semibold, design: .rounded))
+                    Text(intent.title).font(.system(size: 15, weight: .semibold, design: .default))
                     Spacer()
                     Image(systemName: looking == intent ? "checkmark.circle.fill" : "circle")
                   }.foregroundStyle(NookColors.espresso).padding(.vertical, 12)

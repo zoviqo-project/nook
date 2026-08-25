@@ -305,7 +305,7 @@ struct CoffeeShopsView: View {
             Text(targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO")
               .font(.caption2.bold()).tracking(1.4).foregroundStyle(NookColors.mocha)
             Text(selectedArea)
-              .font(.system(size: 19, weight: .bold, design: .rounded))
+              .font(.system(size: 19, weight: .bold, design: .default))
               .foregroundStyle(NookColors.espresso)
           }
           Spacer()
@@ -397,7 +397,7 @@ struct CoffeeShopsView: View {
     Button(action: action) {
       HStack(spacing: 7) {
         Image(systemName: icon).font(.system(size: 13, weight: .semibold))
-        Text(title).font(.system(size: 13, weight: .bold, design: .rounded))
+        Text(title).font(.system(size: 13, weight: .bold, design: .default))
       }
       .foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso.opacity(0.64))
       .frame(maxWidth: .infinity).frame(height: 42)
@@ -655,12 +655,12 @@ private struct CoffeeMapExplorer: View {
             Image(systemName: "location.fill").font(.system(size: 12, weight: .bold))
               .foregroundStyle(NookColors.mocha)
             VStack(alignment: .leading, spacing: 1) {
-              Text("BUSCANDO EN").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.1)
+              Text("BUSCANDO EN").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.1)
                 .foregroundStyle(NookColors.warmGray)
-              Text(areaName).font(.system(size: 14, weight: .bold, design: .rounded)).lineLimit(1)
+              Text(areaName).font(.system(size: 14, weight: .bold, design: .default)).lineLimit(1)
             }
             Spacer()
-            Text("Cambiar").font(.system(size: 11, weight: .bold, design: .rounded))
+            Text("Cambiar").font(.system(size: 11, weight: .bold, design: .default))
               .foregroundStyle(NookColors.mocha)
             Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold))
           }
@@ -686,8 +686,8 @@ private struct CoffeeMapExplorer: View {
           HStack(spacing: 10) {
             NookCoffeeLogo(size: 28, animated: true)
             VStack(alignment: .leading, spacing: 1) {
-              Text("NOOK ESTÁ BUSCANDO").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.1)
-              Text("Nuevos cafés por aquí…").font(.system(size: 13, weight: .bold, design: .rounded))
+              Text("NOOK ESTÁ BUSCANDO").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.1)
+              Text("Nuevos cafés por aquí…").font(.system(size: 13, weight: .bold, design: .default))
             }
           }
           .foregroundStyle(NookColors.espresso).padding(.horizontal, 14).padding(.vertical, 10)
@@ -703,7 +703,7 @@ private struct CoffeeMapExplorer: View {
             }
           } label: {
             Label("Buscar en esta zona", systemImage: "magnifyingglass")
-              .font(.system(size: 13, weight: .bold, design: .rounded))
+              .font(.system(size: 13, weight: .bold, design: .default))
               .padding(.horizontal, 16).frame(height: 42)
               .background(NookColors.espresso, in: Capsule()).foregroundStyle(NookColors.inverseText)
           }.buttonStyle(.plain)
@@ -715,7 +715,7 @@ private struct CoffeeMapExplorer: View {
               ShopImage(url: shop.photoUrl, seed: shop.name)
                 .frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
               VStack(alignment: .leading, spacing: 3) {
-                Text(shop.name).font(.system(size: 17, weight: .bold, design: .rounded)).lineLimit(1)
+                Text(shop.name).font(.system(size: 17, weight: .bold, design: .default)).lineLimit(1)
                 Text("\(shop.vibeLabel)  ·  \(String(format: "%.1f", shop.distanceKm)) km")
                   .font(.caption.weight(.medium)).foregroundStyle(NookColors.warmGray).lineLimit(1)
               }
@@ -728,15 +728,15 @@ private struct CoffeeMapExplorer: View {
           }.buttonStyle(.plain).foregroundStyle(NookColors.espresso)
         } else {
           Label("Toca una taza", systemImage: "cup.and.saucer.fill")
-            .font(.system(size: 12, weight: .semibold, design: .rounded)).foregroundStyle(NookColors.espresso.opacity(0.72))
+            .font(.system(size: 12, weight: .semibold, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.72))
             .padding(.horizontal, 15).padding(.vertical, 10).background(.ultraThinMaterial, in: Capsule())
         }
 
         VStack(spacing: 7) {
           HStack {
-            Text("RADIO").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.2)
+            Text("RADIO").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.2)
             Spacer()
-            Text("\(Int(radiusKm)) km").font(.system(size: 13, weight: .bold, design: .rounded))
+            Text("\(Int(radiusKm)) km").font(.system(size: 13, weight: .bold, design: .default))
               .foregroundStyle(NookColors.mocha)
           }
           Slider(value: $radiusKm, in: 1...30, step: 1) { editing in
@@ -783,12 +783,12 @@ private struct LocationPermissionState: View {
       VStack(spacing: 8) {
         Text("Cafés cerca de ti").font(NookTypography.display(32))
         Text("Necesitamos tu ubicación aproximada para encontrar cafeterías reales a tu alrededor. Nunca mostramos dónde estás.")
-          .font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(NookColors.warmGray)
+          .font(.system(size: 14, weight: .medium, design: .default)).foregroundStyle(NookColors.warmGray)
           .multilineTextAlignment(.center).lineSpacing(3)
       }
       Button(action: openSettings) {
         Label("Abrir Ajustes", systemImage: "gearshape.fill")
-          .font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(NookColors.inverseText)
+          .font(.system(size: 15, weight: .bold, design: .default)).foregroundStyle(NookColors.inverseText)
           .frame(maxWidth: .infinity).frame(height: 54).background(NookColors.espresso, in: Capsule())
       }.buttonStyle(.plain)
       Spacer()
@@ -840,7 +840,7 @@ private struct NookChoiceCelebration: View {
             color: Color.yellow.opacity(premiumGlow ? 0.42 : 0.16),
             radius: premiumGlow ? 15 : 6)
           .scaleEffect(premiumGlow ? 1.025 : 1)
-          Text(shopName).font(.system(size: 15, weight: .medium, design: .rounded))
+          Text(shopName).font(.system(size: 15, weight: .medium, design: .default))
             .foregroundStyle(NookColors.espresso.opacity(0.58))
         }
       }.foregroundStyle(NookColors.espresso).multilineTextAlignment(.center)
@@ -893,7 +893,7 @@ private struct InlineCoffeeShopDetail: View {
       HStack(alignment: .center) {
         VStack(alignment: .leading, spacing: 3) {
           Text(recommended ? "POR QUÉ ES ELECCIÓN NOOK" : "POR QUÉ PUEDE ENCAJAR")
-            .font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1.4)
+            .font(.system(size: 10, weight: .bold, design: .default)).tracking(1.4)
             .foregroundStyle(NookColors.mocha)
           Text(recommended ? "Buena elección: \(shop.meetingHeadline.lowercased())" : shop.meetingHeadline)
             .font(NookTypography.display(22)).tracking(-0.2)
@@ -906,7 +906,7 @@ private struct InlineCoffeeShopDetail: View {
       }.padding(.bottom, 13)
 
       Text(shop.description ?? shop.nookEditorialFallback)
-        .font(.system(size: 15, weight: .medium, design: .rounded))
+        .font(.system(size: 15, weight: .medium, design: .default))
         .foregroundStyle(NookColors.espresso.opacity(0.72)).lineSpacing(4).lineLimit(3)
         .padding(.bottom, 17)
 
@@ -922,7 +922,7 @@ private struct InlineCoffeeShopDetail: View {
           Text(shop.address).lineLimit(1)
           Spacer(minLength: 6)
           Image(systemName: "arrow.up.right").font(.caption.bold())
-        }.font(.system(size: 12, weight: .medium, design: .rounded))
+        }.font(.system(size: 12, weight: .medium, design: .default))
           .foregroundStyle(NookColors.espresso.opacity(0.62)).padding(.vertical, 14)
       }.buttonStyle(.plain)
 
@@ -931,8 +931,8 @@ private struct InlineCoffeeShopDetail: View {
           Image(systemName: "cup.and.saucer.fill").font(.system(size: 17, weight: .medium))
             .frame(width: 38, height: 38).background(NookColors.inverseText.opacity(0.08), in: Circle())
           VStack(alignment: .leading, spacing: 1) {
-            Text("Elegir").font(.system(size: 16, weight: .bold, design: .rounded))
-            Text("Continuar con el día y la hora").font(.system(size: 11, weight: .medium, design: .rounded)).opacity(0.62)
+            Text("Elegir").font(.system(size: 16, weight: .bold, design: .default))
+            Text("Continuar con el día y la hora").font(.system(size: 11, weight: .medium, design: .default)).opacity(0.62)
           }
           Spacer()
           Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
@@ -953,7 +953,7 @@ private struct InlineCoffeeShopDetail: View {
     HStack(spacing: 6) {
       Image(systemName: icon).font(.system(size: 11, weight: .semibold)).foregroundStyle(NookColors.mocha)
       Text(text).lineLimit(1).minimumScaleFactor(0.72)
-    }.font(.system(size: 10, weight: .semibold, design: .rounded))
+    }.font(.system(size: 10, weight: .semibold, design: .default))
       .padding(.horizontal, 10).frame(height: 32)
       .background(NookColors.espresso.opacity(0.055), in: Capsule())
   }
@@ -1050,7 +1050,7 @@ private struct SmartCoffeeSearch: View {
               .foregroundStyle(.white)
             if !minimal {
               Text(meetingArea ?? midpointLabel)
-                .font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.72))
+                .font(.system(size: 16, weight: .semibold, design: .default)).foregroundStyle(.white.opacity(0.72))
               NookInlineLoading(
                 text: "Comparando cafeterías",
                 foreground: .white.opacity(0.7),
@@ -1127,8 +1127,8 @@ private struct NookAILogo: View {
     HStack(spacing: 8) {
       NookCoffeeLogo(size: 34, animated: true)
       VStack(alignment: .leading, spacing: 0) {
-        Text("NOOK").font(.system(size: 11, weight: .heavy, design: .rounded)).tracking(1.4)
-        Text("IA").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(2.4)
+        Text("NOOK").font(.system(size: 11, weight: .heavy, design: .default)).tracking(1.4)
+        Text("IA").font(.system(size: 10, weight: .heavy, design: .default)).tracking(2.4)
           .foregroundStyle(NookColors.mocha)
       }
       Image(systemName: "sparkles").font(.system(size: 10, weight: .bold))
@@ -1202,7 +1202,7 @@ struct NookCoffeeShopCard: View {
             if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
             Label(shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km", systemImage: "location")
             Text(shop.vibeLabel)
-          }.font(.system(size: 13, weight: .semibold, design: .rounded))
+          }.font(.system(size: 13, weight: .semibold, design: .default))
         }.foregroundStyle(.white).padding(18)
       }
     }.frame(height: 242).clipShape(
@@ -1286,12 +1286,12 @@ struct CoffeeShopDetail: View {
               }.font(.caption.weight(.semibold)).foregroundStyle(NookColors.espresso.opacity(0.6))
             }
             Button { propose = true } label: {
-              Text("Elegir").font(.system(size: 16, weight: .semibold, design: .rounded))
+              Text("Elegir").font(.system(size: 16, weight: .semibold, design: .default))
                 .foregroundStyle(NookColors.inverseText).frame(width: 148, height: 46)
                 .background(NookColors.espresso, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }.buttonStyle(.plain)
             Rectangle().fill(NookColors.espresso.opacity(0.09)).frame(height: 1)
-            Text(editorialDescription).font(.system(size: 17, weight: .regular, design: .rounded))
+            Text(editorialDescription).font(.system(size: 17, weight: .regular, design: .default))
               .foregroundStyle(NookColors.espresso.opacity(0.76)).lineSpacing(5).multilineTextAlignment(.center)
             HStack(spacing: 20) {
               if let hours = shop.openingHours { fact("clock", hours) }
@@ -1328,7 +1328,7 @@ struct CoffeeShopDetail: View {
   private func info(_ icon: String, _ value: String) -> some View {
     HStack(spacing: 14) {
       Image(systemName: icon).font(.system(size: 16, weight: .medium)).foregroundStyle(NookColors.mocha).frame(width: 22)
-      Text(value).font(.system(size: 16, weight: .medium, design: .rounded))
+      Text(value).font(.system(size: 16, weight: .medium, design: .default))
       Spacer()
     }.padding(.vertical, 14).overlay(alignment: .bottom) { Rectangle().fill(NookColors.espresso.opacity(0.08)).frame(height: 1) }
   }
@@ -1436,7 +1436,7 @@ struct ProposalSheet: View {
                           date = slot
                         } label: {
                           Text(slot.formatted(date: .omitted, time: .shortened))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .default))
                             .frame(maxWidth: .infinity).frame(height: 42)
                             .foregroundStyle(selectedSlot == slot ? NookColors.inverseText : NookColors.espresso)
                             .background(selectedSlot == slot ? NookColors.mocha : NookColors.offWhite, in: Capsule())
@@ -1584,7 +1584,7 @@ struct ProposalSheet: View {
               .foregroundStyle(NookColors.inverseText).background(NookColors.mocha, in: Capsule())
           }
           PreparingCoffeeLabel()
-          Text(shop.name).font(.system(size: 23, weight: .bold, design: .rounded)).lineLimit(1)
+          Text(shop.name).font(.system(size: 23, weight: .bold, design: .default)).lineLimit(1)
           Label(shop.address, systemImage: "location").font(.caption.weight(.medium)).lineLimit(1)
         }.foregroundStyle(.white).padding(16)
       }
@@ -1668,18 +1668,18 @@ private struct ProposalRecipientCard: View {
 
       VStack(alignment: .leading, spacing: 0) {
         HStack {
-          Text("DESTINATARIO").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.4)
+          Text("DESTINATARIO").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.4)
             .foregroundStyle(.white.opacity(0.76))
           Spacer()
           Label("ENVIADA", systemImage: "checkmark")
-            .font(.system(size: 9, weight: .bold, design: .rounded)).tracking(0.8)
+            .font(.system(size: 9, weight: .bold, design: .default)).tracking(0.8)
             .foregroundStyle(NookColors.inverseText).padding(.horizontal, 9).frame(height: 27)
             .background(NookColors.mocha, in: Capsule())
         }
         Spacer()
         Text(person.name).font(NookTypography.display(32)).tracking(-0.45).lineLimit(1)
         Label("Ahora espera su respuesta", systemImage: "cup.and.saucer")
-          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .font(.system(size: 12, weight: .semibold, design: .default))
           .foregroundStyle(.white.opacity(0.78)).padding(.top, 3)
       }.foregroundStyle(.white).padding(15)
     }
@@ -1738,7 +1738,7 @@ private struct PreparingCoffeeLabel: View {
   var body: some View {
     HStack(spacing: 7) {
       Image(systemName: "cup.and.saucer.fill").font(.system(size: 11, weight: .semibold))
-      Text("PREPARANDO CAFÉ").font(.system(size: 10, weight: .bold, design: .rounded)).tracking(1.2)
+      Text("PREPARANDO CAFÉ").font(.system(size: 10, weight: .bold, design: .default)).tracking(1.2)
       HStack(spacing: 3) {
         ForEach(0..<3) { index in
           Circle().fill(.white).frame(width: 3, height: 3)
