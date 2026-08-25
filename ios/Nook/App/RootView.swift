@@ -806,19 +806,35 @@ struct PhoneRegistrationView: View {
           startPoint: .top, endPoint: .bottom
         ).ignoresSafeArea()
       } else {
+        Image("NookWelcomePeople")
+          .resizable()
+          .scaledToFill()
+          .ignoresSafeArea()
+          .clipped()
         LinearGradient(
-          colors: [NookColors.warmBlack.opacity(0.36), NookColors.warmBlack.opacity(0.94)],
+          colors: [NookColors.warmBlack.opacity(0.48), NookColors.warmBlack.opacity(0.96)],
           startPoint: .top, endPoint: .bottom
         ).ignoresSafeArea()
       }
       VStack(alignment: .leading, spacing: 16) {
-        Button {
-          if challenge != nil { challenge = nil; code = ""; error = nil }
-          else if let dismiss { dismiss() }
-          else { app.stage = .welcome }
-        } label: {
-          Image(systemName: "chevron.left").font(.headline).foregroundStyle(.white)
-            .frame(width: 40, height: 40).background(.white.opacity(0.14), in: Circle())
+        HStack {
+          Button {
+            if challenge != nil { challenge = nil; code = ""; error = nil }
+            else if let dismiss { dismiss() }
+            else { app.stage = .welcome }
+          } label: {
+            Image(systemName: challenge != nil || dismiss == nil ? "chevron.left" : "xmark")
+              .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+              .frame(width: 40, height: 40).background(.white.opacity(0.14), in: Circle())
+              .overlay { Circle().stroke(.white.opacity(0.2), lineWidth: 0.75) }
+          }
+          Spacer()
+          HStack(spacing: 9) {
+            NookCoffeeLogo(size: 34, animated: false)
+              .clipShape(Circle())
+              .overlay { Circle().stroke(.white.opacity(0.72), lineWidth: 1.5) }
+            Text("NOOK").font(.system(size: 22, weight: .bold, design: .default)).tracking(-0.65)
+          }.foregroundStyle(.white)
         }
         Spacer()
         if challenge == nil { phoneForm } else { codeForm }
