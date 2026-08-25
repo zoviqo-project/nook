@@ -227,8 +227,8 @@ struct NookHeader: View {
     HStack(alignment: .center, spacing: NookSpacing.sm) {
       if branded {
         HStack(spacing: NookSpacing.sm) {
-          NookCoffeeLogo(size: 36, animated: false)
-          Text(title).font(NookTypography.business(27, weight: .bold)).tracking(-0.5)
+          NookCoffeeLogo(size: 32, animated: false)
+          Text(title).font(NookTypography.business(24, weight: .bold)).tracking(-0.4)
             .lineLimit(1).minimumScaleFactor(0.8)
         }
         .frame(height: 44, alignment: .leading)
@@ -242,7 +242,7 @@ struct NookHeader: View {
               .font(.system(size: 10, weight: .bold, design: .default))
               .tracking(1.8).foregroundStyle(cinematic ? .white.opacity(0.76) : NookColors.mocha)
           }
-          Text(title).font(NookTypography.business(28, weight: .bold))
+          Text(title).font(NookTypography.business(25, weight: .bold))
             .tracking(-0.55).lineLimit(1).minimumScaleFactor(0.76)
         }
         .frame(height: 44, alignment: .leading)
@@ -265,8 +265,8 @@ struct NookHeader: View {
       }
       .frame(minWidth: actionIcon == nil && secondaryActionIcon == nil ? 0 : 40, alignment: .trailing)
     }
-    .frame(height: 62, alignment: .center)
-    .padding(.horizontal, 16).padding(.vertical, 6)
+    .frame(height: 54, alignment: .center)
+    .padding(.horizontal, 14).padding(.vertical, 4)
     .transaction { transaction in transaction.animation = nil }
       .onAppear {
         ringRotation = !reduceMotion
@@ -279,7 +279,7 @@ struct NookHeader: View {
     Button(action: action) {
       Image(systemName: icon).font(.system(size: 15, weight: .semibold))
         .symbolEffect(.pulse, options: .repeating.speed(0.42), value: animated)
-        .frame(width: 40, height: 40)
+        .frame(width: 36, height: 36)
         .foregroundStyle(active ? NookColors.inverseText : (cinematic ? .white : NookColors.espresso))
         .background(active ? NookColors.mocha : (cinematic ? .white.opacity(0.14) : .clear), in: Circle())
         .overlay {

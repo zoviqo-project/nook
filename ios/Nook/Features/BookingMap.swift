@@ -1160,7 +1160,7 @@ struct NookCoffeeShopCard: View {
         TabView(selection: $selectedPhoto) {
           ForEach(Array(gallery.enumerated()), id: \.offset) { index, photo in
             ShopImage(url: photo.isEmpty ? nil : photo, seed: "\(shop.name)-\(index)")
-              .frame(width: proxy.size.width, height: 224)
+              .frame(width: proxy.size.width, height: 204)
               .tag(index)
           }
         }
@@ -1197,7 +1197,7 @@ struct NookCoffeeShopCard: View {
         }
         VStack(alignment: .leading, spacing: 7) {
           if recommended { Text("Pinta genial para los dos").font(.caption.bold()).tracking(0.4).foregroundStyle(.white.opacity(0.78)) }
-          Text(shop.name).font(NookTypography.business(25, weight: .bold)).tracking(-0.2).lineLimit(1)
+          Text(shop.name).font(NookTypography.business(23, weight: .bold)).tracking(-0.2).lineLimit(1)
           HStack(spacing: 12) {
             if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
             Label(shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km", systemImage: "location")
@@ -1205,7 +1205,7 @@ struct NookCoffeeShopCard: View {
           }.font(.system(size: 13, weight: .semibold, design: .default))
         }.foregroundStyle(.white).padding(16)
       }
-    }.frame(height: 218).clipShape(
+    }.frame(height: 198).clipShape(
       RoundedRectangle(cornerRadius: 20, style: .continuous)
     ).overlay {
       RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -1267,7 +1267,7 @@ struct CoffeeShopDetail: View {
       ScrollView {
         VStack(spacing: 0) {
           ZStack(alignment: .topLeading) {
-            ShopImage(url: shop.photoUrl, seed: shop.name).frame(height: 300)
+            ShopImage(url: shop.photoUrl, seed: shop.name).frame(height: 270)
             LinearGradient(colors: [NookColors.warmBlack.opacity(0.38), .clear], startPoint: .top, endPoint: .center)
             Button { dismiss() } label: {
               Image(systemName: "chevron.left").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
@@ -1277,7 +1277,7 @@ struct CoffeeShopDetail: View {
             .padding(.horizontal, 14).padding(.top, 8)
           VStack(alignment: .center, spacing: 18) {
             VStack(spacing: 11) {
-              Text(shop.name).font(NookTypography.business(34, weight: .bold)).tracking(-0.4)
+              Text(shop.name).font(NookTypography.business(30, weight: .bold)).tracking(-0.3)
                 .multilineTextAlignment(.center)
               HStack(spacing: 15) {
                 if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
@@ -1377,7 +1377,7 @@ struct ProposalSheet: View {
           proposalSent
             .transition(.scale(scale: 0.94).combined(with: .opacity))
         } else {
-          VStack(spacing: 16) {
+          VStack(spacing: 13) {
           HStack {
             ForEach(0..<totalSteps, id: \.self) { i in
               Capsule().fill(i <= step ? NookColors.espresso : NookColors.oat.opacity(0.5)).frame(
@@ -1498,7 +1498,7 @@ struct ProposalSheet: View {
                 }
               }
             }.disabled(!canContinue)
-          }.padding(18)
+          }.padding(14)
           }.navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
             .toolbar {
               ToolbarItem(placement: .topBarLeading) {

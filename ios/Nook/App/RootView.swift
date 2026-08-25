@@ -1432,7 +1432,7 @@ struct FloatingTabBar: View {
           VStack(spacing: 5) {
             ZStack {
               Image(systemName: items[i].0)
-                .font(.system(size: 20, weight: selection == i ? .semibold : .regular))
+                .font(.system(size: 18, weight: selection == i ? .semibold : .regular))
                 .symbolRenderingMode(.monochrome)
                 .foregroundStyle(selection == i ? NookColors.primaryCoffee : NookColors.textSecondary.opacity(0.62))
                 .scaleEffect(selection == i && !reduceMotion ? 1.08 : 1)
@@ -1465,8 +1465,8 @@ struct FloatingTabBar: View {
           .accessibilityAddTraits(selection == i ? .isSelected : [])
       }
     }
-    .padding(.horizontal, 18).padding(.vertical, 7)
-    .frame(maxWidth: .infinity).frame(height: 58, alignment: .center)
+    .padding(.horizontal, 16).padding(.vertical, 5)
+    .frame(maxWidth: .infinity).frame(height: 52, alignment: .center)
     .background(NookColors.surface.opacity(0.97))
     .overlay(alignment: .top) { Rectangle().fill(NookColors.divider.opacity(0.55)).frame(height: 0.5) }
     .animation(NookMotion.fast, value: selection)

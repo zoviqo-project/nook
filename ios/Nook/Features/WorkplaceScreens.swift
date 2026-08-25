@@ -331,7 +331,7 @@ struct ConversationsView: View {
           ForEach(selectedCafes) { shop in
             VStack(spacing: 7) {
               ShopImage(url: shop.photoUrl, seed: shop.name)
-                .frame(width: 62, height: 62).clipShape(Circle())
+                .frame(width: 56, height: 56).clipShape(Circle())
                 .overlay { AnimatedCafeRailRing(premium: isNookChoice(shop)) }
                 .frame(width: 70, height: 70)
               Text(shop.name)
@@ -341,7 +341,7 @@ struct ConversationsView: View {
             }
           }
         }
-      }.scrollIndicators(.hidden).frame(height: 86)
+      }.scrollIndicators(.hidden).frame(height: 78)
     }
     .padding(.horizontal, NookSpacing.screen).padding(.top, 0).padding(.bottom, 10)
   }
@@ -356,7 +356,7 @@ struct ConversationsView: View {
     HStack(spacing: 14) {
       ZStack(alignment: .bottomTrailing) {
         ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-          .frame(width: 62, height: 62).clipShape(Circle())
+          .frame(width: 56, height: 56).clipShape(Circle())
         Circle().fill(NookColors.mocha).frame(width: 11, height: 11)
           .overlay(Circle().stroke(NookColors.cream, lineWidth: 2))
       }
@@ -379,7 +379,7 @@ struct ConversationsView: View {
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(NookColors.espresso.opacity(0.25))
     }
-    .padding(.vertical, 12)
+    .padding(.vertical, 9)
     .contentShape(Rectangle())
   }
 
@@ -521,7 +521,7 @@ struct ChatDetail: View {
       .accessibilityLabel("Volver")
 
       ProfileImage(url: conversation.person.photos.first?.url, name: conversation.person.name)
-        .frame(width: 40, height: 40)
+        .frame(width: 36, height: 36)
         .clipShape(Circle())
       VStack(alignment: .leading, spacing: 1) {
         Text(conversation.person.name)
@@ -535,7 +535,7 @@ struct ChatDetail: View {
       }
       Spacer(minLength: 0)
     }
-    .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
     .padding(.horizontal, 12)
     .padding(.vertical, 5)
     .background(NookColors.surface.opacity(0.96))
@@ -904,12 +904,12 @@ private struct MyCafeUnifiedCard: View {
     VStack(alignment: .leading, spacing: 11) {
       HStack(spacing: 12) {
         ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
-          .frame(width: 60, height: 60).clipShape(Circle())
+          .frame(width: 54, height: 54).clipShape(Circle())
           .overlay(Circle().stroke(
             item.proposal == nil ? matchGold : NookColors.mocha.opacity(0.65),
             lineWidth: item.proposal == nil ? 2.5 : 1.5))
         VStack(alignment: .leading, spacing: 4) {
-          Text(item.person.name).font(NookTypography.business(24, weight: .bold)).foregroundStyle(NookColors.espresso)
+          Text(item.person.name).font(NookTypography.business(22, weight: .bold)).foregroundStyle(NookColors.espresso)
             .lineLimit(1).minimumScaleFactor(0.75)
           Text(personSummary)
             .font(.system(size: 12, weight: .medium, design: .default))
@@ -933,7 +933,7 @@ private struct MyCafeUnifiedCard: View {
       context
       actionRow
     }
-    .padding(14).frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+    .padding(12).frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
     .background(
       NookColors.surfaceRaised,
       in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
@@ -1234,7 +1234,7 @@ struct CoffeeDatesList: View {
 /// Gives every My Cafes row the exact width proposed by the vertical scroll view.
 /// Intrinsic text/button sizes can no longer expand an individual card beyond the screen.
 private struct MyCafesCardFrame<Content: View>: View {
-  private let height: CGFloat = 224
+  private let height: CGFloat = 208
   @ViewBuilder let content: () -> Content
   var body: some View {
     GeometryReader { proxy in
@@ -1370,7 +1370,7 @@ struct CoffeeTicket: View {
           isUpdating: isUpdating, action: action)
       }
   }
-  private var cardHeight: CGFloat { 224 }
+  private var cardHeight: CGFloat { 208 }
   private var statusLabel: some View {
     HStack(spacing: 5) {
       Image(systemName: statusIcon)

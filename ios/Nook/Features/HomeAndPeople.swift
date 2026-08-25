@@ -240,8 +240,8 @@ struct DiscoverView: View {
       .scaleEffect(entrance ? 1 : 0.96)
       .offset(y: entrance ? 0 : 28)
       .animation(NookMotion.spring, value: entrance)
-      .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
-    }.padding(.horizontal, 14)
+      .frame(width: proxy.size.width, height: max(320, proxy.size.height - 14), alignment: .center)
+    }.padding(.horizontal, 12).padding(.vertical, 7)
   }
   @ViewBuilder private var swipeHint: some View {
     if showSwipeHint {
@@ -277,7 +277,7 @@ struct DiscoverView: View {
   private func actions(_ person: DiscoverProfile) -> some View {
     HStack(alignment: .center, spacing: 24) {
       ZStack {
-        CircleAction(icon: "xmark", size: 50) {
+        CircleAction(icon: "xmark", size: 46) {
           withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 10) }
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             drag = .zero
@@ -285,7 +285,7 @@ struct DiscoverView: View {
           }
         }
         if vm.actingOn == person.id && !liking {
-          Circle().fill(NookColors.offWhite).frame(width: 50, height: 50)
+          Circle().fill(NookColors.offWhite).frame(width: 46, height: 46)
           ProgressView().tint(NookColors.espresso)
         }
       }
@@ -298,20 +298,20 @@ struct DiscoverView: View {
         }
       } label: {
         ZStack {
-          Circle().stroke(.white.opacity(0.16), lineWidth: 2).frame(width: 68, height: 68)
+          Circle().stroke(.white.opacity(0.16), lineWidth: 2).frame(width: 62, height: 62)
           Circle()
             .trim(from: 0, to: matchProgress ? 0.96 : 0.08)
             .stroke(NookColors.mocha, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-            .frame(width: 68, height: 68)
+            .frame(width: 62, height: 62)
             .rotationEffect(.degrees(-90))
-          NookCoffeeLogo(size: 60, animated: false)
+          NookCoffeeLogo(size: 54, animated: false)
             .clipShape(Circle())
             .overlay {
               Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
             }
             .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
           if vm.actingOn == person.id {
-            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 60, height: 60)
+            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 54, height: 54)
             ProgressView().tint(NookColors.inverseText)
           }
         }
@@ -321,8 +321,8 @@ struct DiscoverView: View {
       }
       .buttonStyle(.plain)
       .disabled(vm.actingOn != nil)
-      CircleAction(icon: "info", size: 50) { selectedProfile = person }
-    }.frame(maxWidth: .infinity).frame(height: 70)
+      CircleAction(icon: "info", size: 46) { selectedProfile = person }
+    }.frame(maxWidth: .infinity).frame(height: 62)
   }
   private var empty: some View {
     VStack(spacing: 18) {
@@ -377,8 +377,8 @@ struct NookProfileCard: View {
           .foregroundStyle(.white.opacity(0.82))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(.white).padding(.horizontal, 18).padding(.bottom, 94)
-      }.clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .foregroundStyle(.white).padding(.horizontal, 16).padding(.bottom, 82)
+      }.clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 320 : 438))
   }
 
@@ -393,7 +393,7 @@ struct NookProfileCard: View {
           .foregroundStyle(.white.opacity(0.88))
       }
     }
-    .font(NookTypography.business(31, weight: .bold))
+    .font(NookTypography.business(28, weight: .bold))
     .tracking(-0.45)
     .contentShape(Rectangle())
   }
@@ -663,7 +663,7 @@ struct PersonProfileView: View {
               ForEach(Array(person.photos.prefix(8).enumerated()), id: \.element.id) { index, photo in
                 ProfileImage(url: photo.url, name: person.name).tag(index)
               }
-            }.tabViewStyle(.page(indexDisplayMode: .never)).frame(height: 470)
+            }.tabViewStyle(.page(indexDisplayMode: .never)).frame(height: 420)
             LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.84)], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 7) {
               HStack(spacing: 5) {
@@ -671,7 +671,7 @@ struct PersonProfileView: View {
                   Capsule().fill(index == photoIndex ? .white : .white.opacity(0.38)).frame(height: 3)
                 }
               }
-              Text("\(person.name), \(person.age)").font(NookTypography.business(36, weight: .bold))
+              Text("\(person.name), \(person.age)").font(NookTypography.business(32, weight: .bold))
               Text([person.city, "\(person.distanceKm.formatted()) km"].compactMap { $0 }.joined(separator: " · "))
                 .font(.subheadline.bold()).foregroundStyle(.white.opacity(0.82))
             }.foregroundStyle(.white).padding(18)
@@ -954,12 +954,12 @@ struct ProfileView: View {
             ProfileImage(
               url: orderedPhotos.first?.url, name: app.me?.name ?? "N", faceAware: false
             ).frame(
-              height: 360)
+              height: 320)
             LinearGradient(
               colors: [.clear, NookColors.warmBlack.opacity(0.82)], startPoint: .center,
               endPoint: .bottom)
             VStack(alignment: .leading, spacing: 5) {
-              Text("\(app.me?.name ?? "Tu perfil"), \(app.me?.age ?? 18)").font(NookTypography.business(34, weight: .bold))
+              Text("\(app.me?.name ?? "Tu perfil"), \(app.me?.age ?? 18)").font(NookTypography.business(30, weight: .bold))
               HStack(spacing: 6) {
                 Image(systemName: "mappin.and.ellipse")
                 Text(app.me?.city ?? "Añade tu ciudad")
