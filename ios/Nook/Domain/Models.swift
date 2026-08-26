@@ -107,6 +107,24 @@ struct Photo: Codable, Identifiable, Hashable {
   let position: Int
   var isPrimary: Bool? = nil
 }
+struct IntentSubcategory: Codable, Identifiable, Hashable {
+  let id: UUID
+  let code, name: String
+  let displayOrder: Int
+}
+struct IntentCategory: Codable, Identifiable, Hashable {
+  let id: UUID
+  let code, name, icon: String
+  let displayOrder: Int
+  let subcategories: [IntentSubcategory]
+}
+struct UserIntent: Codable, Hashable {
+  let categoryId: UUID
+  let categoryCode, categoryName, categoryIcon: String
+  let subcategoryId: UUID
+  let subcategoryCode, subcategoryName: String
+}
+struct UserIntentState: Codable { let intent: UserIntent? }
 struct Me: Codable {
   let id: UUID
   let email, name: String
@@ -147,6 +165,7 @@ struct DiscoverProfile: Codable, Identifiable, Hashable {
   let lookingFor: LookingFor
   let coffeePreferences: [String]
   let photos: [Photo]
+  var intent: UserIntent? = nil
 }
 struct Match: Codable, Identifiable {
   let id: UUID
@@ -410,6 +429,9 @@ protocol UserRepository: Sendable {
   func settings() async throws -> UserSettings
   func updateSettings(_ payload: UserSettingsUpdate) async throws -> UserSettings
   func updateLocation(latitude: Double, longitude: Double, accuracy: Double, capturedAt: Date) async throws
+  func intentCategories() async throws -> [IntentCategory]
+  func currentIntent() async throws -> UserIntent?
+  func updateIntent(categoryID: UUID, subcategoryID: UUID) async throws -> UserIntent
 }
 protocol DiscoveryRepository: Sendable {
   func discover() async throws -> [DiscoverProfile]

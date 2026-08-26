@@ -47,7 +47,17 @@ public class SocialMapper {
         distance(me.latitude, me.longitude, profile.latitude, profile.longitude),
         profile.coffeePersonality, profile.preferredPlan, profile.preferredVibe,
         profile.coffeesPerDay, profile.favoriteCoffeeMoment, profile.lookingFor,
-        repo.coffees(profile.userId), repo.photos(profile.userId).stream().map(this::photo).toList());
+        repo.coffees(profile.userId), repo.photos(profile.userId).stream().map(this::photo).toList(),
+        intent(profile.userId));
+  }
+  public UserIntentDto intent(UUID userId) {
+    UserIntent value = repo.userIntent(userId);
+    if (value == null) return null;
+    IntentCategory category = repo.intentCategory(value.categoryId);
+    IntentSubcategory subcategory = repo.intentSubcategory(value.subcategoryId);
+    if (category == null || subcategory == null) return null;
+    return new UserIntentDto(category.id, category.code, category.name, category.icon,
+        subcategory.id, subcategory.code, subcategory.name);
   }
   public ShopDto shop(CoffeeShop shop, double latitude, double longitude) {
     return shop(shop,latitude,longitude,repo.vibes(shop.id));

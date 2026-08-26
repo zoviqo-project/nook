@@ -106,10 +106,10 @@ struct ChatsView: View {
       eyebrow: "TODO EMPIEZA AQUÍ", title: "Mis cafés",
       actionIcon: "heart.fill", actionLabel: "Filtrar matches",
       action: { toggleFilter(.matches) }, actionActive: quickFilter == .matches,
-      actionAnimated: true, actionRing: hasPendingMatch,
+      actionAnimated: false, actionRing: hasPendingMatch,
       secondaryActionIcon: "hourglass", secondaryActionLabel: "Filtrar propuestas en espera",
       secondaryAction: { toggleFilter(.pending) }, secondaryActionActive: quickFilter == .pending,
-      secondaryActionAnimated: true
+      secondaryActionAnimated: false
     ) {
       Group {
         if vm.loading {
@@ -329,18 +329,14 @@ struct ConversationsView: View {
       ScrollView(.horizontal) {
         LazyHStack(spacing: 15) {
           ForEach(selectedCafes) { shop in
-            VStack(spacing: 7) {
-              ShopImage(url: shop.photoUrl, seed: shop.name)
-                .frame(width: 56, height: 56).clipShape(Circle())
-                .overlay { AnimatedCafeRailRing(premium: isNookChoice(shop)) }
-                .frame(width: 70, height: 70)
-              Text(shop.name)
-                .font(NookTypography.caption)
-                .foregroundStyle(NookColors.espresso).lineLimit(1)
-                .frame(width: 72)
-            }
+            ShopImage(url: shop.photoUrl, seed: shop.name)
+              .frame(width: 54, height: 54).clipShape(Circle())
+              .overlay { AnimatedCafeRailRing(premium: isNookChoice(shop)) }
+              .frame(width: 72, height: 72)
+              .accessibilityLabel(shop.name)
           }
         }
+        .padding(.vertical, 3)
       }.scrollIndicators(.hidden).frame(height: 78)
     }
     .padding(.horizontal, NookSpacing.screen).padding(.top, 0).padding(.bottom, 10)
@@ -428,43 +424,55 @@ struct ChatDetail: View {
   @State private var updatingDates: Set<UUID> = []
   @FocusState private var focused: Bool
   var body: some View {
-    ZStack {
-      NookInteriorBackdrop()
-      VStack(spacing: 0) {
-        chatHeader
-        if let date = visibleCoffeeDates.first {
-          NookChatCoffeeBanner(
-            date: date, canAccept: date.receiverId == app.me?.id,
-            updating: updatingDates.contains(date.id), accept: { accept(date) },
-            change: { proposalToChange = date; proposing = true })
-          .padding(.horizontal, NookSpacing.screen)
-          .padding(.vertical, NookSpacing.xs)
+    VStack(spacing: 0) {
+      chatHeader
+      if let date = visibleCoffeeDates.first {
+        NookChatCoffeeBanner(
+          date: date, canAccept: date.receiverId == app.me?.id,
+          updating: updatingDates.contains(date.id), accept: { accept(date) },
+          change: { proposalToChange = date; proposing = true })
+        .padding(.horizontal, NookSpacing.screen)
+        .padding(.vertical, NookSpacing.xs)
+      }
+      ScrollViewReader { proxy in
+        ScrollView {
+          LazyVStack(spacing: 10) {
+            if initialLoading {
+              NookSkeletonScreen(layout: .messages(rows: 6))
+            } else if messages.isEmpty {
+              Text("Rompe el hielo con un café ☕").font(NookTypography.secondary.weight(.semibold))
+                .foregroundStyle(NookColors.warmGray).padding(.top, 30)
+            }
+            ForEach(messages) { message in
+              Group {
+                if message.senderId == nil || message.type != "TEXT" {
+                  NookSystemMessageBubble(title: message.body, detail: systemDetail(for: message.type))
+                } else {
+                  NookChatBubble(text: message.body, outgoing: message.senderId == app.me?.id)
+                }
+              }.id(message.id).transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            Color.clear.frame(height: 1).id("chat-bottom")
+          }.padding(.horizontal, 12).padding(.vertical, 14)
         }
-        ScrollViewReader { proxy in
-          ScrollView {
-            LazyVStack(spacing: 10) {
-              if initialLoading {
-                NookSkeletonScreen(layout: .messages(rows: 6))
-              } else if messages.isEmpty {
-                Text("Rompe el hielo con un café ☕").font(NookTypography.secondary.weight(.semibold))
-                  .foregroundStyle(NookColors.warmGray).padding(.top, 30)
-              }
-              ForEach(messages) { message in
-                Group {
-                  if message.senderId == nil || message.type != "TEXT" {
-                    NookSystemMessageBubble(title: message.body, detail: systemDetail(for: message.type))
-                  } else {
-                    NookChatBubble(text: message.body, outgoing: message.senderId == app.me?.id)
-                  }
-                }.id(message.id).transition(.move(edge: .bottom).combined(with: .opacity))
-              }
-              Color.clear.frame(height: 1).id("chat-bottom")
-            }.padding(.horizontal, 12).padding(.vertical, 14)
-          }.scrollDismissesKeyboard(.interactively).defaultScrollAnchor(.bottom)
-            .onChange(of: messages.count) { _, _ in withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } }
-            .onChange(of: focused) { _, value in if value { withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) } } }
+        .scrollDismissesKeyboard(.interactively)
+        .defaultScrollAnchor(.bottom)
+        .onChange(of: messages.count) { _, _ in
+          withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) }
         }
-      }.safeAreaInset(edge: .bottom, spacing: 0) { composer }
+        .onChange(of: focused) { _, value in
+          if value {
+            Task { @MainActor in
+              await Task.yield()
+              withAnimation(NookMotion.spring) { proxy.scrollTo("chat-bottom", anchor: .bottom) }
+            }
+          }
+        }
+      }
+    }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .background { NookInteriorBackdrop().ignoresSafeArea() }
+      .safeAreaInset(edge: .bottom, spacing: 0) { composer }
       .toolbar(.hidden, for: .navigationBar)
       .task {
         await refreshConversation()
@@ -479,9 +487,8 @@ struct ChatDetail: View {
         .alert("No hemos podido continuar", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
           Button("Entendido") { error = nil }
         } message: { Text(error ?? "") }
-        .onAppear { withAnimation(NookMotion.spring) { app.tabBarHidden = true } }
-        .onDisappear { withAnimation(NookMotion.spring) { app.tabBarHidden = false } }
-    }
+        .onAppear { app.tabBarHidden = true }
+        .onDisappear { app.tabBarHidden = false }
   }
   @MainActor private func refreshConversation(silent: Bool = false) async {
     do {
@@ -658,7 +665,7 @@ private struct AnimatedCafeRailRing: View {
           color: NookColors.mocha.opacity(0.16),
           radius: 4)
     }
-    .frame(width: 68, height: 68)
+    .frame(width: 64, height: 64)
     .onAppear {
       guard !reduceMotion else { return }
       withAnimation(.linear(duration: premium ? 5.2 : 6.4).repeatForever(autoreverses: false)) {
@@ -801,7 +808,7 @@ struct ChatCoffeePicker: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 14) {
             Text("Elige vuestro café").font(NookTypography.title).padding(.bottom, 8)
@@ -898,10 +905,12 @@ private struct MyCafeUnifiedCard: View {
   let removeMatch: (UUID) -> Void
   @State private var showingDetail = false
   @State private var attention = false
-  @State private var matchActionsExpanded = false
   @State private var confirmingUnmatch = false
   var body: some View {
     VStack(alignment: .leading, spacing: 11) {
+      if let intent = item.person.intent {
+        NookIntentBadge(intent: intent, prominent: true)
+      }
       HStack(spacing: 12) {
         ProfileImage(url: item.person.photos.first?.url, name: item.person.name)
           .frame(width: 54, height: 54).clipShape(Circle())
@@ -917,33 +926,45 @@ private struct MyCafeUnifiedCard: View {
         }
         Spacer(minLength: 6)
         if item.availableActions.contains("CHAT") { chatButton }
-        if item.proposal != nil {
-          Button { showingDetail = true } label: {
+        Menu {
+          if item.proposal != nil {
+            Button { showingDetail = true } label: {
+              Label("Ver detalle", systemImage: "doc.text.magnifyingglass")
+            }
+          }
+          Button(role: .destructive) { confirmingUnmatch = true } label: {
+            Label("Deshacer match", systemImage: "person.crop.circle.badge.xmark")
+          }
+        } label: {
             Image(systemName: "ellipsis").frame(width: 34, height: 34)
               .background(NookColors.cream.opacity(0.7), in: Circle())
-          }
-          .buttonStyle(.plain).foregroundStyle(NookColors.espresso).accessibilityLabel("Ver detalle")
         }
+        .buttonStyle(.plain).foregroundStyle(NookColors.espresso).accessibilityLabel("Más opciones")
       }
       HStack(spacing: 8) {
         statusBadge
         if item.proposal?.nookChoice == true { nookChoiceBadge }
         Spacer(minLength: 8)
+        Text(lastInteraction)
+          .font(.system(size: 10, weight: .semibold, design: .default))
+          .foregroundStyle(NookColors.warmGray)
+          .lineLimit(1)
       }
       context
       actionRow
     }
-    .padding(12).frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
+    .padding(16)
+    .frame(maxWidth: .infinity, alignment: .topLeading)
     .background(
       NookColors.surfaceRaised,
       in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
+        .stroke(NookColors.mocha.opacity(0.14), lineWidth: 1)
+    }
+    .shadow(color: NookColors.espresso.opacity(0.09), radius: 14, y: 6)
     .overlay { if isUpdating { ProgressView().tint(NookColors.espresso).padding(12).background(NookColors.cream.opacity(0.82), in: Circle()) } }
     .contentShape(RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
-    .onTapGesture {
-      guard item.proposal == nil else { return }
-      Haptics.selection()
-      withAnimation(NookMotion.spring) { matchActionsExpanded.toggle() }
-    }
     .sheet(isPresented: $showingDetail) {
       if let proposal = item.proposal {
         CoffeeDateDetail(date: proposal, person: item.person, conversation: conversation, isUpdating: isUpdating, action: action)
@@ -995,7 +1016,7 @@ private struct MyCafeUnifiedCard: View {
       }.lineLimit(1).truncationMode(.tail).frame(maxWidth: .infinity, alignment: .leading)
         .foregroundStyle(NookColors.espresso)
     } else {
-      Label("Elegid un lugar para vuestro primer café", systemImage: "mappin.and.ellipse")
+      Label("Todavía no habéis propuesto café", systemImage: "cup.and.saucer")
         .font(.system(size: 13, weight: .semibold, design: .default))
         .foregroundStyle(NookColors.warmGray).lineLimit(1)
     }
@@ -1007,22 +1028,7 @@ private struct MyCafeUnifiedCard: View {
         actionButton("Rechazar", icon: "xmark", primary: false) { action(proposal.id, .declined) }
       }
     } else if item.availableActions.contains("PROPOSE") {
-      if item.proposal == nil && matchActionsExpanded {
-        HStack(spacing: 8) {
-          actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
-          actionButton("Deshacer match", icon: "heart.slash", primary: false) {
-            confirmingUnmatch = true
-          }
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
-      } else if item.proposal == nil {
-        Label("Toca la tarjeta para ver opciones", systemImage: "chevron.down")
-          .font(NookTypography.business(12, weight: .semibold))
-          .foregroundStyle(NookColors.warmGray)
-          .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
-      } else {
-        actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
-      }
+      actionButton("Proponer café", icon: "cup.and.saucer.fill", primary: true) { propose() }
     } else if item.proposal?.status == .accepted {
       actionButton("Ver cita confirmada", icon: "checkmark.circle.fill", primary: true) { showingDetail = true }
     } else {
@@ -1050,6 +1056,13 @@ private struct MyCafeUnifiedCard: View {
   private var personSummary: String {
     let bio = item.person.bio.trimmingCharacters(in: .whitespacesAndNewlines)
     return bio.isEmpty ? "\(item.person.age) años" : "\(item.person.age) años · \(bio)"
+  }
+  private var lastInteraction: String {
+    let raw = item.proposal?.createdAt ?? item.matchedAt
+    guard let date = ISO8601DateFormatter.nook.date(from: raw) else { return "" }
+    if Calendar.current.isDateInToday(date) { return "Hoy" }
+    if Calendar.current.isDateInYesterday(date) { return "Ayer" }
+    return date.formatted(.dateTime.day().month(.abbreviated))
   }
   private func propose() { app.selectedCoffeeMatch = item.matchId; app.placesReloadID = UUID(); app.selectedTab = 1 }
   private var statusText: String {
@@ -1500,7 +1513,7 @@ private struct CoffeeDateDetail: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
             ShopImage(url: date.coffeeShop.photoUrl, seed: date.coffeeShop.name)

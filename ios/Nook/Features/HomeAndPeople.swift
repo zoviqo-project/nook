@@ -6,10 +6,10 @@ private enum NookDemoProfiles {
   static let people: [DiscoverProfile] = [
     person("D0000000-0000-0000-0000-000000000001", "Laura", 29,
       "Arquitecta, conciertos y cafeterías pequeñas.", 1.4, "Café con leche",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1000&q=85"),
+      "asset://NookDemoProfile"),
     person("D0000000-0000-0000-0000-000000000002", "Clara", 28,
       "Diseño, vinilos y sobremesas largas.", 1.8, "Cortado",
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=85"),
+      "asset://NookDemoProfile3"),
     person("D0000000-0000-0000-0000-000000000003", "Elena", 32,
       "Cine, cocina y rincones tranquilos.", 2.4, "Solo",
       "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1000&q=85"),
@@ -18,7 +18,13 @@ private enum NookDemoProfiles {
       "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1000&q=85"),
     person("D0000000-0000-0000-0000-000000000005", "Julia", 30,
       "Editorial, teatro y escapadas de domingo.", 3.7, "Latte",
-      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85")
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85"),
+    person("D0000000-0000-0000-0000-000000000006", "Marc", 30,
+      "Diseño de producto, rutas urbanas y café de filtro.", 4.1, "V60",
+      "asset://NookDemoProfile2"),
+    person("D0000000-0000-0000-0000-000000000007", "Kenji", 32,
+      "Fotografía, jazz y descubrir barras de café tranquilas.", 4.8, "Flat white",
+      "asset://NookDemoProfile4")
   ]
 
   static func contains(_ id: UUID) -> Bool { people.contains { $0.id == id } }
@@ -32,7 +38,33 @@ private enum NookDemoProfiles {
       distanceKm: distance, coffeePersonality: coffee, preferredPlan: "LONG_TALKS",
       preferredVibe: "CALM", coffeesPerDay: 2, favoriteCoffeeMoment: "AFTERWORK",
       lookingFor: .seeWhatHappens, coffeePreferences: [coffee.uppercased()],
-      photos: [Photo(id: UUID(), url: photo, position: 0)])
+      photos: demoPhotos(for: photo))
+  }
+
+  private static func demoPhotos(for photo: String) -> [Photo] {
+    let additionalPhotos: [String]
+    switch photo {
+    case "asset://NookDemoProfile":
+      additionalPhotos = ["asset://NookDemoProfileGallery2", "asset://NookDemoProfileGallery3"]
+    case "asset://NookDemoProfile2":
+      additionalPhotos = ["asset://NookDemoMarcGallery2"]
+    case "asset://NookDemoProfile3":
+      additionalPhotos = ["asset://NookDemoClaraGallery2"]
+    case "asset://NookDemoProfile4":
+      additionalPhotos = ["asset://NookDemoKenjiGallery2"]
+    case let url where url.contains("1531123897727"):
+      additionalPhotos = ["asset://NookDemoElenaGallery2"]
+    case let url where url.contains("1517841905240"):
+      additionalPhotos = ["asset://NookDemoNoraGallery2"]
+    case let url where url.contains("1529139574466"):
+      additionalPhotos = ["asset://NookDemoJuliaGallery2"]
+    default:
+      additionalPhotos = []
+    }
+    let urls = [photo] + additionalPhotos
+    return urls.enumerated().map { index, url in
+      Photo(id: UUID(), url: url, position: index, isPrimary: index == 0)
+    }
   }
 }
 
@@ -55,7 +87,14 @@ private enum NookDemoProfiles {
     defer { loading = false }
     do {
       let remotePeople = try await repo.discover()
-      people = remotePeople.isEmpty ? NookDemoProfiles.people : remotePeople
+      #if DEBUG
+        // Development builds always keep the local gallery available so the
+        // complete matching flow can be reviewed even with a sparse backend.
+        let remoteIDs = Set(remotePeople.map(\.id))
+        people = NookDemoProfiles.people.filter { !remoteIDs.contains($0.id) } + remotePeople
+      #else
+        people = remotePeople.isEmpty ? NookDemoProfiles.people : remotePeople
+      #endif
     } catch {
       self.error = NookErrorCopy.message(
         for: error, fallback: "No hemos podido cargar nuevos perfiles. Inténtalo de nuevo.")
@@ -68,18 +107,18 @@ private enum NookDemoProfiles {
     guard actingOn == nil, let index = people.firstIndex(where: { $0.id == person.id }) else { return }
     actingOn = person.id
     defer { actingOn = nil }
-    people.remove(at: index)
     if NookDemoProfiles.contains(person.id) {
+      people.remove(at: index)
       Haptics.selection()
       if people.isEmpty { people = NookDemoProfiles.people }
       return
     }
     do {
       try await repo.pass(person.id)
+      people.removeAll { $0.id == person.id }
       Haptics.selection()
       if people.isEmpty { await load(repo) }
     } catch {
-      people.insert(person, at: min(index, people.count))
       self.error = NookErrorCopy.message(
         for: error, fallback: "No hemos podido guardar esta acción. Inténtalo de nuevo.")
     }
@@ -124,35 +163,76 @@ struct DiscoverView: View {
   @EnvironmentObject var app: AppSession
   @StateObject private var vm = DiscoverVM()
   @State private var drag: CGSize = .zero
+  @State private var photoIndex = 0
+  @State private var photoSwipeOffset: CGFloat = 0
   @State private var liking = false
   @State private var entrance = false
   @State private var showFilters = false
   @State private var showProfile = false
   @State private var selectedProfile: DiscoverProfile?
-  @AppStorage("didSeeDiscoverySwipeHint") private var didSeeSwipeHint = false
+  @AppStorage("didSeeDiscoveryPhotoSwipeHint") private var didSeeSwipeHint = false
   @State private var showSwipeHint = false
   @State private var swipeHintPulse = false
   @State private var matchProgress = false
   var body: some View {
-    NookScreenContainer(
-      eyebrow: "NOOK", title: "Un café con…",
-      brandedHeader: true,
-      actionIcon: "slider.horizontal.3",
-      actionLabel: "Filtros", action: { showFilters = true },
-      secondaryActionIcon: "person.crop.circle",
-      secondaryActionLabel: "Mi perfil", secondaryAction: { showProfile = true }
-    ) {
-      Group {
+    GeometryReader { screen in
+      let safeArea = activeWindowSafeAreaInsets
+      ZStack {
+        NookInteriorBackdrop().ignoresSafeArea()
+        Group {
           if vm.loading && vm.people.isEmpty {
             NookSkeletonScreen(layout: .profileCard)
+              .ignoresSafeArea()
           } else if let person = vm.people.first {
-            cardStack(person)
+            if vm.match != nil {
+              celebrationPhoto(for: person)
+                .ignoresSafeArea()
+            } else {
+              cardStack(
+                person, topInset: safeArea.top,
+                bottomInset: safeArea.bottom)
+                .ignoresSafeArea()
+
+              matchingChrome(
+                person, topInset: safeArea.top,
+                bottomInset: safeArea.bottom,
+                leadingInset: safeArea.left, trailingInset: safeArea.right)
+            }
           } else if let error = vm.error {
             NookErrorView(message: error) { Task { await vm.load(app.repository) } }
+              .padding(.top, safeArea.top)
+              .padding(.bottom, safeArea.bottom)
           } else {
             empty
+              .padding(.top, safeArea.top)
+              .padding(.bottom, safeArea.bottom)
           }
-      }.frame(maxHeight: .infinity).padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        if let match = vm.match {
+          MatchCelebration(match: match) {
+            vm.match = nil
+            Task { await vm.finishMatch(repo: app.repository) }
+          }
+          .transition(.opacity.combined(with: .scale(scale: 0.97)))
+          .zIndex(50)
+        }
+      }
+      .frame(width: screen.size.width, height: screen.size.height)
+      .ignoresSafeArea()
+    }
+    .ignoresSafeArea(.container, edges: .all)
+    .preferredColorScheme(.dark)
+    .environment(\.colorScheme, .dark)
+    .background(NookLightStatusBarBridge())
+    .onAppear {
+      app.tabBarHidden = true
+      setLightStatusBar(true)
+    }
+    .onDisappear {
+      app.tabBarHidden = false
+      setLightStatusBar(false)
     }
     .task {
       if let cache = app.discoverCache { vm.seed(cache) }
@@ -175,10 +255,7 @@ struct DiscoverView: View {
         app.cacheDiscover(vm.people)
         NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       }
-    }.sheet(item: $vm.match, onDismiss: {
-      Task { await vm.finishMatch(repo: app.repository) }
-    }) { MatchCelebration(match: $0) }
-      .sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
+    }.sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
       .sheet(isPresented: $showProfile) {
         NavigationStack { ProfileView() }
           // Keep the profile at the large detent. Without an explicit detent/content
@@ -191,127 +268,281 @@ struct DiscoverView: View {
       }
       .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
       .onChange(of: vm.people) { _, people in
+        photoIndex = 0
         app.cacheDiscover(people)
         NookImagePrefetch.schedule(people.prefix(3).flatMap { $0.photos.map(\.url) })
       }
   }
-  private func cardStack(_ person: DiscoverProfile) -> some View {
+  private func cardStack(
+    _ person: DiscoverProfile, topInset: CGFloat, bottomInset: CGFloat
+  ) -> some View {
     GeometryReader { proxy in
+      let cardHeight = max(1, proxy.size.height)
       ZStack(alignment: .bottom) {
         if vm.people.count > 1 {
-          NookProfileCard(person: vm.people[1], viewer: app.me, height: proxy.size.height)
+          NookProfileCard(
+            person: vm.people[1], viewer: app.me, height: cardHeight,
+            photoURL: vm.people[1].photos.first?.url, immersive: true,
+            contentTopInset: topInset, contentBottomInset: bottomInset)
             .allowsHitTesting(false)
         }
-        NookProfileCard(
-          person: person, viewer: app.me, height: proxy.size.height,
-          onNameTap: { selectedProfile = person }
+          NookProfileCard(
+            person: person, viewer: app.me, height: cardHeight,
+            photoURL: selectedPhotoURL(for: person),
+            nextPhotoURL: adjacentPhotoURL(for: person), photoOffset: photoSwipeOffset,
+            onNameTap: { selectedProfile = person }, immersive: true,
+          contentTopInset: topInset, contentBottomInset: bottomInset
         )
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
-          .overlay { swipeHint }.gesture(
-          DragGesture().onChanged {
-            dismissSwipeHint()
-            drag = $0.translation
-          }.onEnded { value in
-            if value.translation.width < -110 {
-              withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 30) }
-              DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                drag = .zero
-                Task { await vm.pass(person, repo: app.repository) }
+          .overlay { photoSwipeHint(for: person) }
+          .gesture(
+            DragGesture(minimumDistance: 12)
+              .onChanged { value in
+                guard abs(value.translation.height) > abs(value.translation.width),
+                      person.photos.count > 1 else { return }
+                photoSwipeOffset = value.translation.height
               }
-            } else if value.translation.width > 110 {
-              withAnimation(NookMotion.spring) { drag = CGSize(width: 600, height: -20) }
-              liking = true
-              DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                drag = .zero
-                Task {
-                  await vm.coffee(person, repo: app.repository)
-                  if vm.match != nil { app.matchesChanged() }
-                  liking = false
+              .onEnded { value in
+                guard abs(value.translation.height) > 52,
+                      abs(value.translation.height) > abs(value.translation.width),
+                      person.photos.count > 1 else {
+                  withAnimation(NookMotion.spring) { photoSwipeOffset = 0 }
+                  return
                 }
+                completePhotoSwipe(
+                  in: person, direction: value.translation.height < 0 ? 1 : -1,
+                  cardHeight: cardHeight)
               }
-            } else {
-              withAnimation(NookMotion.spring) { drag = .zero }
-            }
-          }
           ).allowsHitTesting(vm.actingOn == nil)
-        actions(person).padding(.bottom, 12).offset(drag)
-          .allowsHitTesting(vm.actingOn == nil)
       }
       .scaleEffect(entrance ? 1 : 0.96)
       .offset(y: entrance ? 0 : 28)
       .animation(NookMotion.spring, value: entrance)
-      .frame(width: proxy.size.width, height: max(320, proxy.size.height - 14), alignment: .center)
-    }.padding(.horizontal, 12).padding(.vertical, 7)
+      .frame(width: proxy.size.width, height: cardHeight, alignment: .center)
+      .frame(width: proxy.size.width, height: proxy.size.height)
+    }
   }
-  @ViewBuilder private var swipeHint: some View {
-    if showSwipeHint {
-      HStack {
-        hintChevrons(direction: "left")
-        Spacer()
-        hintChevrons(direction: "right")
+
+  private func celebrationPhoto(for person: DiscoverProfile) -> some View {
+    GeometryReader { proxy in
+      ZStack {
+        ProfileImage(url: selectedPhotoURL(for: person), name: person.name)
+          .frame(width: proxy.size.width, height: proxy.size.height)
+        LinearGradient(
+          colors: [.black.opacity(0.30), .clear, .black.opacity(0.48)],
+          startPoint: .top, endPoint: .bottom)
       }
-      .padding(.horizontal, 18)
+      .frame(width: proxy.size.width, height: proxy.size.height)
+      .clipped()
+    }
+  }
+
+  private func matchingChrome(
+    _ person: DiscoverProfile, topInset: CGFloat, bottomInset: CGFloat,
+    leadingInset: CGFloat, trailingInset: CGFloat
+  ) -> some View {
+    VStack(spacing: 8) {
+      NookHeader(
+        eyebrow: "NOOK", title: "Un café con…", branded: true,
+        actionIcon: "slider.horizontal.3", actionLabel: "Filtros",
+        action: { showFilters = true },
+        secondaryActionIcon: "person.crop.circle",
+        secondaryActionLabel: "Mi perfil", secondaryAction: { showProfile = true },
+        cinematic: true)
+        .frame(height: 56)
+
+      HStack {
+        purposeBadge(for: person)
+        Spacer()
+        immersiveNavigation
+      }
+
+      Spacer(minLength: 0)
+
+      actions(person)
+        .offset(drag)
+        .allowsHitTesting(vm.actingOn == nil)
+    }
+    .padding(.top, topInset)
+    .padding(.leading, leadingInset + 12)
+    .padding(.trailing, trailingInset + 12)
+    .padding(.bottom, bottomInset + 10)
+    .overlay(alignment: .trailing) {
+      nextPhotoThumbnail(for: person)
+        .padding(.trailing, trailingInset + 12)
+    }
+  }
+
+  private var activeWindowSafeAreaInsets: UIEdgeInsets {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let window = scenes.flatMap(\.windows).first { $0.isKeyWindow }
+      ?? scenes.flatMap(\.windows).first
+    return window?.safeAreaInsets ?? .zero
+  }
+
+  private func setLightStatusBar(_ light: Bool) {
+    UIApplication.shared.setStatusBarStyle(light ? .lightContent : .darkContent, animated: true)
+  }
+  @ViewBuilder private func photoSwipeHint(for person: DiscoverProfile) -> some View {
+    if showSwipeHint && person.photos.count > 1 {
+      VStack(spacing: 5) {
+        Image(systemName: "arrow.up.and.down")
+        Text("MÁS FOTOS")
+          .font(.system(size: 9, weight: .bold))
+          .tracking(1)
+      }
+      .font(.system(size: 17, weight: .semibold))
+      .foregroundStyle(.white)
+      .padding(.horizontal, 13).frame(height: 48)
+      .background(.black.opacity(0.30), in: Capsule())
       .opacity(swipeHintPulse ? 1 : 0.35)
       .transition(.opacity)
       .allowsHitTesting(false)
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Desliza la tarjeta a izquierda o derecha")
+      .accessibilityLabel("Desliza arriba o abajo para recorrer las fotos")
     }
-  }
-  private func hintChevrons(direction: String) -> some View {
-    HStack(spacing: -2) {
-      ForEach(0..<2, id: \.self) { _ in
-        Image(systemName: "chevron.\(direction)")
-      }
-    }
-    .font(.system(size: 22, weight: .semibold))
-    .foregroundStyle(.white)
-    .padding(.horizontal, 12).frame(height: 44)
-    .background(.black.opacity(0.28), in: Capsule())
   }
   private func dismissSwipeHint() {
     guard showSwipeHint else { return }
     didSeeSwipeHint = true
     withAnimation(NookMotion.fast) { showSwipeHint = false }
   }
-  private func actions(_ person: DiscoverProfile) -> some View {
-    HStack(alignment: .center, spacing: 24) {
-      ZStack {
-        CircleAction(icon: "xmark", size: 46) {
-          withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 10) }
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-            drag = .zero
-            Task { await vm.pass(person, repo: app.repository) }
-          }
-        }
-        if vm.actingOn == person.id && !liking {
-          Circle().fill(NookColors.offWhite).frame(width: 46, height: 46)
-          ProgressView().tint(NookColors.espresso)
+
+  private func selectedPhotoURL(for person: DiscoverProfile) -> String? {
+    guard !person.photos.isEmpty else { return nil }
+    return person.photos[min(photoIndex, person.photos.count - 1)].url
+  }
+
+  private func adjacentPhotoURL(for person: DiscoverProfile) -> String? {
+    guard person.photos.count > 1 else { return nil }
+    let direction = photoSwipeOffset > 0 ? -1 : 1
+    let index = (photoIndex + direction + person.photos.count) % person.photos.count
+    return person.photos[index].url
+  }
+
+  @ViewBuilder private func photoProgress(for person: DiscoverProfile) -> some View {
+    if person.photos.count > 1 {
+      HStack(spacing: 4) {
+        ForEach(person.photos.indices, id: \.self) { index in
+          Capsule()
+            .fill(index == photoIndex ? Color.white : Color.white.opacity(0.36))
+            .frame(width: index == photoIndex ? 18 : 7, height: 3)
         }
       }
-      Button {
-        liking = true
-        Task {
-          await vm.coffee(person, repo: app.repository)
-          if vm.match != nil { app.matchesChanged() }
-          liking = false
+      .animation(.easeInOut(duration: 0.2), value: photoIndex)
+      .accessibilityLabel("Foto \(photoIndex + 1) de \(person.photos.count)")
+    }
+  }
+
+  @ViewBuilder private func nextPhotoThumbnail(for person: DiscoverProfile) -> some View {
+    if person.photos.count > 1 {
+      let nextIndex = (photoIndex + 1) % person.photos.count
+      VStack(spacing: 7) {
+        VStack(spacing: -10) {
+          ProfileImage(url: person.photos[photoIndex].url, name: person.name)
+            .frame(width: 44, height: 58)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .opacity(0.72)
+            .scaleEffect(0.92)
+          ProfileImage(url: person.photos[nextIndex].url, name: person.name)
+            .frame(width: 56, height: 74)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: darkThumbnailShadow, radius: 10, y: 5)
         }
+      }
+      .padding(.vertical, 5)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        completePhotoSwipe(in: person, direction: 1, cardHeight: UIScreen.main.bounds.height)
+      }
+      .accessibilityLabel("Ver la siguiente foto de \(person.name)")
+      .accessibilityAddTraits(.isButton)
+      .gesture(
+        DragGesture(minimumDistance: 16).onEnded { value in
+          guard value.translation.height < -34,
+                abs(value.translation.height) > abs(value.translation.width) else { return }
+          completePhotoSwipe(in: person, direction: 1, cardHeight: UIScreen.main.bounds.height)
+        }
+      )
+    }
+  }
+
+  private var darkThumbnailShadow: Color {
+    Color(red: 0.12, green: 0.055, blue: 0.025).opacity(0.55)
+  }
+
+  private func completePhotoSwipe(
+    in person: DiscoverProfile, direction: Int, cardHeight: CGFloat
+  ) {
+    guard person.photos.count > 1 else { return }
+    dismissSwipeHint()
+    Haptics.selection()
+    withAnimation(.easeOut(duration: 0.24)) {
+      photoSwipeOffset = CGFloat(-direction) * max(cardHeight, 500)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+      photoIndex = (photoIndex + direction + person.photos.count) % person.photos.count
+      var transaction = Transaction()
+      transaction.disablesAnimations = true
+      withTransaction(transaction) { photoSwipeOffset = 0 }
+    }
+  }
+
+  private func actions(_ person: DiscoverProfile) -> some View {
+    HStack(alignment: .center, spacing: 40) {
+      ZStack {
+        matchSideAction(icon: "xmark", label: "Descartar") {
+          discard(person)
+        }
+        if vm.actingOn == person.id && !liking {
+          Circle().fill(.black.opacity(0.56)).frame(width: 48, height: 48)
+          ProgressView().tint(.white)
+        }
+      }
+      .frame(width: 48, height: 48)
+      Button {
+        accept(person)
       } label: {
         ZStack {
-          Circle().stroke(.white.opacity(0.16), lineWidth: 2).frame(width: 62, height: 62)
+          Circle()
+            .stroke(
+              AngularGradient(
+                colors: [
+                  NookColors.mocha, NookColors.nookGold, NookColors.caramelSoft,
+                  NookColors.primaryCoffeePressed, NookColors.nookGold, NookColors.mocha,
+                ], center: .center),
+              lineWidth: 5)
+            .frame(width: 76, height: 76)
+            .blur(radius: 6)
+            .opacity(0.72)
+            .rotationEffect(.degrees(matchProgress ? 360 : 0))
+            .animation(
+              .linear(duration: 4.8).repeatForever(autoreverses: false),
+              value: matchProgress)
+          Circle()
+            .stroke(
+              AngularGradient(
+                colors: [NookColors.mocha, NookColors.nookGold, NookColors.caramelSoft, NookColors.mocha],
+                center: .center),
+              lineWidth: 2.5)
+            .frame(width: 70, height: 70)
+            .rotationEffect(.degrees(matchProgress ? 360 : 0))
+            .animation(
+              .linear(duration: 4.8).repeatForever(autoreverses: false),
+              value: matchProgress)
           Circle()
             .trim(from: 0, to: matchProgress ? 0.96 : 0.08)
-            .stroke(NookColors.mocha, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-            .frame(width: 62, height: 62)
+            .stroke(NookColors.nookGold, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+            .frame(width: 70, height: 70)
             .rotationEffect(.degrees(-90))
-          NookCoffeeLogo(size: 54, animated: false)
+          NookCoffeeLogo(size: 62, animated: false)
             .clipShape(Circle())
             .overlay {
-              Circle().stroke(NookColors.mocha.opacity(0.55), lineWidth: 1)
+              Circle().stroke(NookColors.caramelSoft.opacity(0.72), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.2), radius: 10, y: 6)
+            .shadow(color: NookColors.nookGold.opacity(0.32), radius: 12)
           if vm.actingOn == person.id {
-            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 54, height: 54)
+            Circle().fill(NookColors.espresso.opacity(0.78)).frame(width: 62, height: 62)
             ProgressView().tint(NookColors.inverseText)
           }
         }
@@ -321,8 +552,115 @@ struct DiscoverView: View {
       }
       .buttonStyle(.plain)
       .disabled(vm.actingOn != nil)
-      CircleAction(icon: "info", size: 46) { selectedProfile = person }
-    }.frame(maxWidth: .infinity).frame(height: 62)
+    }
+    .frame(maxWidth: 190)
+    .frame(height: 78)
+  }
+
+  private func discard(_ person: DiscoverProfile) {
+    dismissSwipeHint()
+    withAnimation(NookMotion.spring) { drag = CGSize(width: -600, height: 24) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+      Task {
+        await vm.pass(person, repo: app.repository)
+        resetInteractionPosition()
+      }
+    }
+  }
+
+  private func accept(_ person: DiscoverProfile) {
+    dismissSwipeHint()
+    liking = true
+    withAnimation(NookMotion.spring) { drag = CGSize(width: 600, height: -18) }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+      Task {
+        await vm.coffee(person, repo: app.repository)
+        if vm.match != nil { app.matchesChanged() }
+        resetInteractionPosition()
+        liking = false
+      }
+    }
+  }
+
+  private func resetInteractionPosition() {
+    var transaction = Transaction()
+    transaction.disablesAnimations = true
+    withTransaction(transaction) { drag = .zero }
+  }
+
+  private func matchSideAction(
+    icon: String, label: String, action: @escaping () -> Void
+  ) -> some View {
+    Button {
+      Haptics.selection()
+      action()
+    } label: {
+      Image(systemName: icon)
+        .font(.system(size: 18, weight: .semibold))
+        .foregroundStyle(.white)
+        .frame(width: 48, height: 48)
+        .background(.black.opacity(0.30), in: Circle())
+        .overlay(Circle().stroke(.white.opacity(0.30), lineWidth: 1))
+        .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(label)
+  }
+
+  private var immersiveNavigation: some View {
+    HStack(spacing: 8) {
+      immersiveNavigationButton(
+        icon: "cup.and.saucer.fill", label: "Mis cafés", destination: 1)
+      immersiveNavigationButton(
+        icon: "bubble.left.and.bubble.right.fill", label: "Chats", destination: 2)
+    }
+    .padding(5)
+    .background(.black.opacity(0.18), in: Capsule())
+    .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 1))
+  }
+
+  private func purposeBadge(for person: DiscoverProfile) -> some View {
+    HStack(spacing: 10) {
+      Capsule()
+        .fill(NookColors.nookGold)
+        .frame(width: 2, height: 26)
+
+      VStack(alignment: .leading, spacing: 1) {
+        Text("PROPÓSITO")
+          .font(.system(size: 8, weight: .bold))
+          .tracking(1.35)
+          .foregroundStyle(NookColors.caramelSoft.opacity(0.9))
+        Text(person.intent?.subcategoryName ?? person.lookingFor.profileTitle)
+          .font(NookTypography.business(12.5, weight: .semibold))
+          .foregroundStyle(.white)
+          .lineLimit(1)
+          .minimumScaleFactor(0.76)
+      }
+    }
+    .padding(.horizontal, 12)
+    .frame(height: 48)
+    .frame(maxWidth: 238, alignment: .leading)
+    .background(NookColors.espresso.opacity(0.52), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .accessibilityElement(children: .combine)
+  }
+
+  private func immersiveNavigationButton(
+    icon: String, label: String, destination: Int
+  ) -> some View {
+    Button {
+      Haptics.selection()
+      if destination == 1 { app.selectedCoffeeMatch = nil }
+      app.selectedTab = destination
+    } label: {
+      Image(systemName: icon)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(.white)
+        .frame(width: 38, height: 38)
+        .background(.black.opacity(0.34), in: Circle())
+        .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1))
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(label)
   }
   private var empty: some View {
     VStack(spacing: 18) {
@@ -341,22 +679,62 @@ struct DiscoverView: View {
   }
 }
 
+private struct NookLightStatusBarBridge: UIViewRepresentable {
+  func makeUIView(context: Context) -> UIView {
+    let view = UIView(frame: .zero)
+    view.isUserInteractionEnabled = false
+    DispatchQueue.main.async { view.window?.overrideUserInterfaceStyle = .dark }
+    return view
+  }
+
+  func updateUIView(_ uiView: UIView, context: Context) {
+    DispatchQueue.main.async { uiView.window?.overrideUserInterfaceStyle = .dark }
+  }
+
+  static func dismantleUIView(_ uiView: UIView, coordinator: ()) {
+    uiView.window?.overrideUserInterfaceStyle = .light
+  }
+}
+
 struct NookProfileCard: View {
   let person: DiscoverProfile
   var viewer: Me? = nil
   var height: CGFloat? = nil
+  var photoURL: String? = nil
+  var nextPhotoURL: String? = nil
+  var photoOffset: CGFloat = 0
   var onNameTap: (() -> Void)? = nil
+  var immersive = false
+  var contentTopInset: CGFloat = 0
+  var contentBottomInset: CGFloat = 0
   @Environment(\.verticalSizeClass) private var verticalSizeClass
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .bottomLeading) {
-        ProfileImage(url: person.photos.first?.url, name: person.name).frame(
-          width: proxy.size.width, height: proxy.size.height)
+        if let nextPhotoURL {
+          ProfileImage(url: nextPhotoURL, name: person.name)
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        ProfileImage(url: photoURL ?? person.photos.first?.url, name: person.name)
+          .frame(width: proxy.size.width, height: proxy.size.height)
+          .offset(y: photoOffset)
         LinearGradient(
-          colors: [.clear, NookColors.warmBlack.opacity(0.18), NookColors.warmBlack.opacity(0.92)],
-          startPoint: .top, endPoint: .bottom
-        )
-        VStack(alignment: .leading, spacing: 7) {
+          gradient: Gradient(stops: [
+            .init(color: .clear, location: 0.38),
+            .init(color: darkCoffee.opacity(0.20), location: 0.52),
+            .init(color: darkCoffee.opacity(0.68), location: 0.76),
+            .init(color: darkCoffee.opacity(0.98), location: 1),
+          ]),
+          startPoint: .top, endPoint: .bottom)
+        LinearGradient(
+          gradient: Gradient(stops: [
+            .init(color: darkCoffee.opacity(0.82), location: 0),
+            .init(color: darkCoffee.opacity(0.48), location: 0.13),
+            .init(color: darkCoffee.opacity(0.14), location: 0.27),
+            .init(color: .clear, location: 0.39),
+          ]),
+          startPoint: .top, endPoint: .bottom)
+        VStack(alignment: .leading, spacing: 8) {
           if let onNameTap {
             Button(action: onNameTap) {
               profileName
@@ -366,8 +744,17 @@ struct NookProfileCard: View {
           } else {
             profileName
           }
+          if !immersive {
+            Text(person.intent?.subcategoryName ?? person.lookingFor.profileTitle)
+              .font(NookTypography.business(13, weight: .bold))
+              .textCase(.uppercase)
+              .tracking(0.7)
+              .foregroundStyle(.white)
+              .lineLimit(2)
+          }
           Text(person.bio).font(NookTypography.business(15)).lineLimit(2).lineSpacing(2)
             .foregroundStyle(.white.opacity(0.88))
+            .padding(.bottom, 2)
           HStack(spacing: 9) {
             Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill")
             Circle().fill(.white.opacity(0.48)).frame(width: 3, height: 3)
@@ -377,9 +764,16 @@ struct NookProfileCard: View {
           .foregroundStyle(.white.opacity(0.82))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .foregroundStyle(.white).padding(.horizontal, 16).padding(.bottom, 82)
-      }.clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .foregroundStyle(.white).padding(.horizontal, 16)
+        .padding(.bottom, 88 + (immersive ? contentBottomInset : 0))
+      }
+      .clipShape(
+        RoundedRectangle(cornerRadius: immersive ? 0 : 22, style: .continuous))
     }.frame(maxWidth: .infinity).frame(height: height ?? (verticalSizeClass == .compact ? 320 : 438))
+  }
+
+  private var darkCoffee: Color {
+    Color(red: 0.16, green: 0.075, blue: 0.035)
   }
 
   private var profileName: some View {
@@ -406,11 +800,36 @@ struct ProfileImage: View {
   var alignment: Alignment = .center
   var faceAware = true
   var body: some View {
-    NookRemoteImage(
-      url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: faceAware
-    ) {
-      NookImageFallback()
-    }.clipped()
+    Group {
+      if let localAssetName {
+        localImage(named: localAssetName)
+      } else {
+        NookRemoteImage(
+          url: resolvedURL, contentMode: contentMode, alignment: alignment, faceAware: faceAware
+        ) {
+          localImage(named: fallbackAssetName)
+        }
+      }
+    }
+    .clipped()
+  }
+
+  private func localImage(named assetName: String) -> some View {
+    Image(assetName)
+      .resizable()
+      .aspectRatio(contentMode: contentMode)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+  private var localAssetName: String? {
+    guard let url, url.hasPrefix("asset://") else { return nil }
+    return String(url.dropFirst("asset://".count))
+  }
+  private var fallbackAssetName: String {
+    let assets = [
+      "NookDemoProfile", "NookDemoProfile2", "NookDemoProfile3", "NookDemoProfile4",
+    ]
+    let seed = name.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+    return assets[seed % assets.count]
   }
   private var resolvedURL: URL? {
     AppConfiguration.publicAssetURL(from: url)
@@ -448,8 +867,8 @@ struct SteamView: View {
 
 struct MatchCelebration: View {
   @EnvironmentObject var app: AppSession
-  @Environment(\.dismiss) private var dismiss
   let match: Match
+  let onDismiss: () -> Void
   @State private var meet = false
   @State private var cups = false
   @State private var coffeeBurst = false
@@ -457,7 +876,9 @@ struct MatchCelebration: View {
   @State private var departing = false
   var body: some View {
     ZStack {
-      NookBackground()
+      Color.black.opacity(departing ? 0 : 0.28)
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.65), value: departing)
       MatchCoffeeBurst(active: coffeeBurst).ignoresSafeArea().allowsHitTesting(false)
       VStack(spacing: 20) {
         Spacer()
@@ -484,9 +905,9 @@ struct MatchCelebration: View {
         }.frame(height: 230)
         VStack(spacing: 10) {
           Text("Tenemos café").font(NookTypography.display(41)).tracking(
-            -1)
+            -1).foregroundStyle(.white)
           Text("\(match.person.name) también se tomaría\nun café contigo.").font(.title3)
-            .foregroundStyle(.secondary).multilineTextAlignment(.center)
+            .foregroundStyle(.white.opacity(0.82)).multilineTextAlignment(.center)
         }.opacity(meet ? 1 : 0).offset(y: meet ? 0 : 16)
         Spacer()
         VStack(spacing: 10) {
@@ -495,18 +916,21 @@ struct MatchCelebration: View {
           }
           matchAction("Dejarlo para otro momento", icon: "clock", primary: false) {
             Haptics.selection()
-            dismiss()
+            onDismiss()
           }
-        }.frame(maxWidth: 286)
-      }.padding(NookSpacing.lg)
+        }
+        .frame(maxWidth: 330)
+        .padding(10)
+        .background(.black.opacity(0.30), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+      }
+      .padding(.horizontal, NookSpacing.lg)
+      .safeAreaPadding(.top, NookSpacing.sm)
+      .safeAreaPadding(.bottom, NookSpacing.sm)
         .opacity(departing ? 0 : 1)
-        .scaleEffect(departing ? 0.96 : 1)
-        .blur(radius: departing ? 5 : 0)
+        .scaleEffect(departing ? 0.985 : 1)
         .allowsHitTesting(!departing)
       if departing {
-        MidpointBridgeTransition()
-          .transition(.opacity.combined(with: .scale(scale: 0.94)))
-          .zIndex(20)
+        Color.clear.allowsHitTesting(false)
       }
     }.onAppear {
       withAnimation(NookMotion.playful) { meet = true }
@@ -522,13 +946,12 @@ struct MatchCelebration: View {
   private func beginMidpointTransition() {
     guard !departing else { return }
     Haptics.selection()
-    withAnimation(.easeInOut(duration: 0.48)) { departing = true }
-    Task {
-      try? await Task.sleep(for: .milliseconds(1_050))
+    withAnimation(.easeInOut(duration: 0.28)) {
+      departing = true
       app.selectedCoffeeMatch = match.id
       app.selectedTab = 1
-      dismiss()
     }
+    onDismiss()
   }
   private func avatar(name: String, photo: String?, fromLeft: Bool) -> some View {
     ZStack {
@@ -542,51 +965,18 @@ struct MatchCelebration: View {
       HStack(spacing: 10) {
         Image(systemName: icon).font(.system(size: 17, weight: .medium))
         Text(title).font(.system(size: 17, weight: .semibold, design: .default))
-      }.foregroundStyle(primary ? NookColors.inverseText : NookColors.espresso)
-        .frame(maxWidth: .infinity).frame(height: 52)
-        .background(primary ? NookColors.espresso : .clear, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 15).stroke(NookColors.espresso.opacity(primary ? 0 : 0.22), lineWidth: 0.8) }
-    }.buttonStyle(.plain)
-  }
-}
-
-private struct MidpointBridgeTransition: View {
-  @State private var expanded = false
-  @State private var locating = false
-
-  var body: some View {
-    ZStack {
-      NookColors.background.ignoresSafeArea()
-      Circle()
-        .fill(NookColors.mocha.opacity(expanded ? 0.08 : 0.3))
-        .frame(width: expanded ? 760 : 82, height: expanded ? 760 : 82)
-      Circle()
-        .stroke(NookColors.latte.opacity(expanded ? 0.12 : 0.72), lineWidth: expanded ? 1 : 3)
-        .frame(width: expanded ? 360 : 86, height: expanded ? 360 : 86)
-      VStack(spacing: 24) {
-        ZStack {
-          Circle().stroke(NookColors.mocha.opacity(0.28), lineWidth: 2).frame(width: 104, height: 104)
-          Circle()
-            .trim(from: 0.08, to: locating ? 0.94 : 0.28)
-            .stroke(NookColors.latte, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-            .frame(width: 104, height: 104).rotationEffect(.degrees(-90))
-          NookCoffeeLogo(size: 84, animated: false).clipShape(Circle())
-          Image(systemName: "location.fill")
-            .font(.system(size: 13, weight: .bold)).foregroundStyle(NookColors.warmBlack)
-            .frame(width: 30, height: 30).background(NookColors.latte, in: Circle())
-            .offset(x: locating ? 44 : 0, y: locating ? -36 : 0)
-            .opacity(locating ? 1 : 0)
-        }
-        Text("Buscando\npunto medio")
-          .font(NookTypography.display(38)).tracking(-0.7)
-          .foregroundStyle(.white).multilineTextAlignment(.center)
-          .opacity(locating ? 1 : 0).offset(y: locating ? 0 : 12)
       }
-    }
-    .onAppear {
-      withAnimation(.easeInOut(duration: 0.82)) { expanded = true }
-      withAnimation(.spring(response: 0.62, dampingFraction: 0.8).delay(0.16)) { locating = true }
-    }
+      .foregroundStyle(primary ? NookColors.espresso : Color.white)
+      .frame(maxWidth: .infinity).frame(height: 54)
+      .background(
+        primary ? NookColors.offWhite : Color.black.opacity(0.46),
+        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+          .stroke(primary ? Color.white.opacity(0.34) : Color.white.opacity(0.30), lineWidth: 1)
+      }
+      .shadow(color: .black.opacity(primary ? 0.24 : 0.12), radius: 8, y: 4)
+    }.buttonStyle(.plain)
   }
 }
 
@@ -655,7 +1045,7 @@ struct PersonProfileView: View {
   @State private var moderationError: String?
   var body: some View {
     ZStack(alignment: .topLeading) {
-      NookBackground()
+      NookInteriorBackdrop()
       ScrollView {
         VStack(spacing: 0) {
           ZStack(alignment: .bottomLeading) {
@@ -677,6 +1067,7 @@ struct PersonProfileView: View {
             }.foregroundStyle(.white).padding(18)
           }
           VStack(alignment: .leading, spacing: 16) {
+            if let intent = person.intent { NookIntentBadge(intent: intent, prominent: true) }
             MeetingIntentCard(intent: person.lookingFor, personName: person.name)
             profileSection("SOBRE MÍ") { Text(person.bio).font(.body.weight(.medium)).lineSpacing(3) }
             profileSection("SU FORMA DE TOMAR CAFÉ") {
@@ -943,6 +1334,7 @@ struct ProfileView: View {
   @State private var saving = false
   @State private var saved = false
   @State private var profileError: String?
+  @State private var currentIntent: UserIntent?
   var body: some View {
     NookScreenContainer(
       eyebrow: visible ? "PERFIL VISIBLE" : "PERFIL EN PAUSA",
@@ -975,6 +1367,12 @@ struct ProfileView: View {
               }.disabled(uploading).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
           }.clipShape(RoundedRectangle(cornerRadius: 24)).padding(.horizontal, 16)
+
+          if let currentIntent {
+            NookIntentBadge(intent: currentIntent, prominent: true)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.horizontal, 22)
+          }
 
           VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -1172,7 +1570,8 @@ struct ProfileView: View {
       preferredVibe = app.me?.preferredVibe ?? "SOCIAL"
       favoriteMoment = app.me?.favoriteCoffeeMoment ?? "AFTERWORK"
       preferredPlan = app.me?.preferredPlan ?? "IMPROVISE"
-    }.onChange(of: photoItems) { _, items in upload(items) }
+    }.task { currentIntent = try? await app.repository.currentIntent() }
+      .onChange(of: photoItems) { _, items in upload(items) }
       .onChange(of: bio) { _, value in if value.count > 500 { bio = String(value.prefix(500)) } }
       .onChange(of: sounds) { _, value in NookSoundManager.shared.enabled = value }
       .toolbar(.hidden, for: .navigationBar)
@@ -1287,13 +1686,18 @@ struct EditProfileSheet: View {
   @State private var photoItem: PhotosPickerItem?
   @State private var uploading = false
   @State private var photoError: String?
+  @State private var intentCategories: [IntentCategory] = []
+  @State private var selectedIntentCategory: UUID?
+  @State private var selectedIntentSubcategory: UUID?
+  @State private var savingIntent = false
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         ScrollView {
           VStack(alignment: .leading, spacing: 18) {
-            Text("Edita tu historia").font(NookTypography.business(34, weight: .bold))
+            Text("Edita tu historia").font(NookTypography.business(28, weight: .bold))
+            intentSelector
             VStack(alignment: .leading, spacing: 12) {
               Text("TUS FOTOS · \(app.me?.photos.count ?? 0)/8").font(.caption.bold()).tracking(1.3).foregroundStyle(NookColors.mocha)
               ScrollView(.horizontal) {
@@ -1355,11 +1759,14 @@ struct EditProfileSheet: View {
               Text(photoError).font(.footnote.weight(.semibold)).foregroundStyle(.red)
                 .frame(maxWidth: .infinity, alignment: .center)
             }
-            NookButton(title: "GUARDAR CAMBIOS", icon: "checkmark") { save() }
+            NookButton(title: "GUARDAR CAMBIOS", icon: "checkmark", isLoading: savingIntent) {
+              Task { await saveAll() }
+            }
           }.padding(18)
         }
       }.navigationTitle("Perfil").navigationBarTitleDisplayMode(.inline)
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cerrar") { dismiss() } } }
+        .task { await loadIntents() }
         .onChange(of: photoItem) { _, item in
           guard let item else { return }
           uploading = true
@@ -1375,6 +1782,77 @@ struct EditProfileSheet: View {
           }
         }
     }
+  }
+
+  private var selectedCategory: IntentCategory? {
+    intentCategories.first { $0.id == selectedIntentCategory }
+  }
+  private var intentSelector: some View {
+    VStack(alignment: .leading, spacing: 13) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("¿QUÉ TE APETECE AHORA?").font(NookTypography.sectionLabel).tracking(1.35)
+          .foregroundStyle(NookColors.mocha)
+        Text("Tu intención se verá antes de conectar contigo.")
+          .font(NookTypography.metadata).foregroundStyle(NookColors.warmGray)
+      }
+      ScrollView(.horizontal) {
+        HStack(spacing: 8) {
+          ForEach(intentCategories) { category in
+            Button {
+              Haptics.selection()
+              selectedIntentCategory = category.id
+              selectedIntentSubcategory = category.subcategories.first?.id
+            } label: {
+              Label(category.name, systemImage: category.icon)
+                .font(NookTypography.business(13, weight: .semibold))
+                .padding(.horizontal, 12).frame(height: 38)
+                .foregroundStyle(selectedIntentCategory == category.id ? NookColors.inverseText : NookColors.espresso)
+                .background(selectedIntentCategory == category.id ? NookColors.espresso : NookColors.surfaceSecondary.opacity(0.5), in: Capsule())
+            }.buttonStyle(.plain)
+          }
+        }
+      }.scrollIndicators(.hidden)
+      if let category = selectedCategory {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 8)], spacing: 8) {
+          ForEach(category.subcategories) { subcategory in
+            Button {
+              Haptics.selection(); selectedIntentSubcategory = subcategory.id
+            } label: {
+              HStack(spacing: 7) {
+                Image(systemName: selectedIntentSubcategory == subcategory.id ? "checkmark.circle.fill" : "circle")
+                Text(subcategory.name).lineLimit(2)
+              }
+              .font(NookTypography.business(12, weight: .semibold))
+              .foregroundStyle(NookColors.espresso)
+              .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+              .padding(.horizontal, 10)
+              .background(selectedIntentSubcategory == subcategory.id ? NookColors.primaryCoffeeSoft.opacity(0.65) : NookColors.surface, in: RoundedRectangle(cornerRadius: 13))
+            }.buttonStyle(.plain)
+          }
+        }
+      }
+    }.padding(16).background(NookColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 20))
+  }
+  @MainActor private func loadIntents() async {
+    do {
+      async let categoriesRequest = app.repository.intentCategories()
+      async let currentRequest = app.repository.currentIntent()
+      intentCategories = try await categoriesRequest
+      let current = try await currentRequest
+      selectedIntentCategory = current?.categoryId ?? intentCategories.first?.id
+      selectedIntentSubcategory = current?.subcategoryId ?? intentCategories.first?.subcategories.first?.id
+    } catch { photoError = "No hemos podido cargar las intenciones. Inténtalo de nuevo." }
+  }
+  @MainActor private func saveAll() async {
+    savingIntent = true
+    defer { savingIntent = false }
+    do {
+      if let selectedIntentCategory, let selectedIntentSubcategory {
+        _ = try await app.repository.updateIntent(
+          categoryID: selectedIntentCategory, subcategoryID: selectedIntentSubcategory)
+      }
+      save()
+    } catch { photoError = "No hemos podido guardar tu intención. Inténtalo de nuevo." }
   }
 
   @MainActor private func refreshPhotos() async throws { app.me = try await app.repository.me() }
@@ -1412,7 +1890,7 @@ struct SettingsView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         ScrollView {
           VStack(spacing: 12) {
             NookCard {
@@ -1441,7 +1919,14 @@ struct SettingsView: View {
           }.padding(16)
         }
       }.navigationTitle("Ajustes").navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cerrar") { dismiss() } } }
+        .toolbar {
+          ToolbarItem(placement: .topBarLeading) {
+            Button { dismiss() } label: {
+              Image(systemName: "xmark").font(.system(size: 13, weight: .semibold))
+                .frame(width: 32, height: 32)
+            }.accessibilityLabel("Cerrar")
+          }
+        }
         .task {
           visible = app.me?.visible ?? true
           do {

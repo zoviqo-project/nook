@@ -233,6 +233,31 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
     private var demoConversations: [Conversation] = []
     private var demoMessages: [UUID: [ChatMessage]] = [:]
     private var demoDates: [CoffeeDate] = []
+    private var selectedIntent: UserIntent?
+    private let demoIntentCategories: [IntentCategory] = {
+      let definitions: [(String, String, String, [String])] = [
+        ("PROJECT", "Proyecto", "laptopcomputer", ["Proyecto web", "App móvil", "Startup"]),
+        ("MEET", "Conocer", "heart", ["Algo serio", "Amistad", "Conocer sin presión"]),
+        ("TALK", "Hablar", "cup.and.saucer", ["Charlar", "Necesito hablar", "Conversación tranquila"]),
+        ("DO", "Hacer algo", "target", ["Tomar un café", "Pasear", "Concierto"]),
+        ("LEARN", "Aprender", "leaf", ["Idiomas", "Programación", "Café"]),
+        ("HELP", "Ayudar", "hands.sparkles", ["Dar un consejo", "Revisar una idea", "Mentoría"]),
+        ("SOCIAL", "Social", "globe.europe.africa", ["Gente de mi barrio", "Creativos", "Amantes del café"])
+      ]
+      return definitions.enumerated().map { categoryIndex, definition in
+        let categoryID = UUID(uuidString: String(format: "20000000-0000-0000-0000-%012d", categoryIndex + 1))!
+        return IntentCategory(
+          id: categoryID, code: definition.0, name: definition.1, icon: definition.2,
+          displayOrder: categoryIndex + 1,
+          subcategories: definition.3.enumerated().map { index, name in
+            IntentSubcategory(
+              id: UUID(uuidString: String(format: "21000000-0000-%04d-0000-%012d", categoryIndex + 1, index + 1))!,
+              code: name.folding(options: .diacriticInsensitive, locale: .current)
+                .uppercased().replacingOccurrences(of: " ", with: "_"),
+              name: name, displayOrder: index + 1)
+          })
+      }
+    }()
     init() {
       let moreNames = ["Emma", "Valeria", "Carlota", "Lia", "Marina", "Berta", "Olivia", "Alba", "Vega"]
       for (index, name) in moreNames.enumerated() {
@@ -253,6 +278,19 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
           ][index % 3], position: 0)]))
       }
       let now = Date()
+      for index in people.indices {
+        let category = demoIntentCategories[index % demoIntentCategories.count]
+        let subcategory = category.subcategories[index % category.subcategories.count]
+        people[index].intent = UserIntent(
+          categoryId: category.id, categoryCode: category.code, categoryName: category.name,
+          categoryIcon: category.icon, subcategoryId: subcategory.id,
+          subcategoryCode: subcategory.code, subcategoryName: subcategory.name)
+      }
+      let ownCategory = demoIntentCategories[2], ownSubcategory = demoIntentCategories[2].subcategories[0]
+      selectedIntent = UserIntent(
+        categoryId: ownCategory.id, categoryCode: ownCategory.code, categoryName: ownCategory.name,
+        categoryIcon: ownCategory.icon, subcategoryId: ownSubcategory.id,
+        subcategoryCode: ownSubcategory.code, subcategoryName: ownSubcategory.name)
       for (index, person) in people.prefix(3).enumerated() {
         let match = Match(id: UUID(), person: person, matchedAt: ISO8601DateFormatter().string(from: now.addingTimeInterval(Double(-index) * 86_400)), conversationId: UUID())
         demoMatches.append(match)
@@ -287,6 +325,19 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
         locale: payload.locale ?? "es")
     }
     func updateLocation(latitude: Double, longitude: Double, accuracy: Double, capturedAt: Date) async throws {}
+    func intentCategories() async throws -> [IntentCategory] { demoIntentCategories }
+    func currentIntent() async throws -> UserIntent? { selectedIntent }
+    func updateIntent(categoryID: UUID, subcategoryID: UUID) async throws -> UserIntent {
+      guard let category = demoIntentCategories.first(where: { $0.id == categoryID }),
+        let subcategory = category.subcategories.first(where: { $0.id == subcategoryID })
+      else { throw URLError(.badServerResponse) }
+      let value = UserIntent(
+        categoryId: category.id, categoryCode: category.code, categoryName: category.name,
+        categoryIcon: category.icon, subcategoryId: subcategory.id,
+        subcategoryCode: subcategory.code, subcategoryName: subcategory.name)
+      selectedIntent = value
+      return value
+    }
     func discover() async throws -> [DiscoverProfile] { people }
     func like(_ id: UUID) async throws -> LikeResult {
       guard let person = people.first(where: { $0.id == id }) else {
@@ -311,28 +362,15 @@ final class LocationManager: NSObject, ObservableObject, @preconcurrency CLLocat
       demoConversations.removeAll { $0.matchId == id }
       demoDates.removeAll { $0.matchId == id }
     }
+    func meetingPoint(matchID: UUID) async throws -> GeoPoint {
+      GeoPoint(latitude: 41.3874, longitude: 2.1686)
+    }
     private var liveShops: [CoffeeShop] = []
     func shops(latitude: Double, longitude: Double, radiusKm: Double) async throws -> [CoffeeShop] {
-      let path = "cafes/nearby?latitude=\(latitude)&longitude=\(longitude)&radius=\(GeographicMath.meters(fromKilometers: radiusKm))"
-      guard let url = URL(string: path, relativeTo: AppConfiguration.apiURL) else { throw URLError(.badURL) }
-      var request = URLRequest(url: url)
-      request.timeoutInterval = 10
-      request.cachePolicy = .useProtocolCachePolicy
-      let (data, response) = try await URLSession.shared.data(for: request)
-      guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-        throw URLError(.badServerResponse)
-      }
-      var places = try JSONDecoder().decode([CoffeeShop].self, from: data)
-      for index in places.indices {
-        if let photo = places[index].photoUrl, photo.hasPrefix("/") {
-          places[index].photoUrl = URL(string: photo, relativeTo: AppConfiguration.apiURL)?.absoluteURL.absoluteString
-        }
-        places[index].photoUrls = places[index].photoUrls?.map { photo in
-          photo.hasPrefix("/") ? (URL(string: photo, relativeTo: AppConfiguration.apiURL)?.absoluteURL.absoluteString ?? photo) : photo
-        }
-      }
-      liveShops = places
-      return places
+      // Keep visual-review and offline-demo builds deterministic and genuinely offline.
+      // Production continues to retrieve live Places results through APIRepository.
+      liveShops = demoShops.filter { $0.distanceKm <= radiusKm }
+      return liveShops
     }
     func conversations() async throws -> [Conversation] { demoConversations }
     func messages(_ id: UUID) async throws -> [ChatMessage] { demoMessages[id] ?? [] }

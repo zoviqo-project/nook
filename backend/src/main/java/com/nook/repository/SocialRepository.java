@@ -11,6 +11,11 @@ import com.nook.application.port.out.UserAccountStatusPort; import com.nook.doma
  public Optional<PhoneOtpChallenge> latestOtp(String phone){return em.createQuery("select c from SocialEntities$PhoneOtpChallenge c where c.phone=:phone order by c.createdAt desc",PhoneOtpChallenge.class).setParameter("phone",phone).setMaxResults(1).getResultStream().findFirst();}
  public long otpCountSince(String phone,Instant since){return em.createQuery("select count(c) from SocialEntities$PhoneOtpChallenge c where c.phone=:phone and c.createdAt>=:since",Long.class).setParameter("phone",phone).setParameter("since",since).getSingleResult();}
  public Profile profile(UUID id){return em.find(Profile.class,id);} public Preference preference(UUID id){return em.find(Preference.class,id);}
+ public UserIntent userIntent(UUID id){return em.find(UserIntent.class,id);}
+ public IntentCategory intentCategory(UUID id){return em.find(IntentCategory.class,id);}
+ public IntentSubcategory intentSubcategory(UUID id){return em.find(IntentSubcategory.class,id);}
+ public List<IntentCategory> intentCategories(){return em.createQuery("select c from SocialEntities$IntentCategory c where c.active=true order by c.displayOrder",IntentCategory.class).getResultList();}
+ public List<IntentSubcategory> intentSubcategories(UUID category){return em.createQuery("select s from SocialEntities$IntentSubcategory s where s.categoryId=:category and s.active=true order by s.displayOrder",IntentSubcategory.class).setParameter("category",category).getResultList();}
  public UserSetting settings(UUID id){return em.find(UserSetting.class,id);}
  public UserLocation location(UUID id){return em.find(UserLocation.class,id);}
  public List<Photo> photos(UUID id){return em.createQuery("select p from SocialEntities$Photo p where p.userId=:u and (p.source='USER' or not exists(select own.id from SocialEntities$Photo own where own.userId=:u and own.source='USER')) order by p.primary desc,p.position,p.createdAt",Photo.class).setParameter("u",id).getResultList();}

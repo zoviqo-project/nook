@@ -38,7 +38,7 @@ class MyCafesServiceTest {
     assertThat(result.get(0).availableActions()).containsExactly("ACCEPT","DECLINE","CHAT");
   }
 
-  private DiscoverProfile person(){return new DiscoverProfile(UUID.randomUUID(),"Marta",27,"Bio","Madrid",1.0,"Latte",null,null,2,null,LookingFor.MEET_PEOPLE,List.of("LATTE"),List.of(new PhotoDto(UUID.randomUUID(),"/photo",0,true)));}
+  private DiscoverProfile person(){return new DiscoverProfile(UUID.randomUUID(),"Marta",27,"Bio","Madrid",1.0,"Latte",null,null,2,null,LookingFor.MEET_PEOPLE,List.of("LATTE"),List.of(new PhotoDto(UUID.randomUUID(),"/photo",0,true)),null);}
   private DateDto date(UUID match,UUID sender,UUID receiver,DateStatus status,Instant created){
     ShopDto shop=new ShopDto(UUID.randomUUID(),"Cafetería","Dirección",null,1.0,"/cafe",null,null,null,List.of(),null,null,null,null,null,null,null,null,null,List.of(),List.of(),null);
     return new DateDto(UUID.randomUUID(),match,sender,receiver,shop,Instant.now().plusSeconds(3600),PaymentPreference.SPLIT,status,created,false,"UTC");

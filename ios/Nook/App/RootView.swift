@@ -53,15 +53,50 @@ struct ReviewRouteView: View {
   @State private var matches: [Match] = []
   @State private var shops: [CoffeeShop] = []
   @State private var chats: [Conversation] = []
+  @State private var reviewBio = "Arquitectura, conciertos y cafeterías pequeñas."
+  @State private var reviewVisible = true
+  @State private var reviewLooking = LookingFor.casualCoffee
   @Namespace private var namespace
   var body: some View {
     NavigationStack {
       Group {
-        if route == "person", let person = matches.first?.person { PersonProfileView(person: person) }
+        if route == "discover" { DiscoverView() }
+        else if route == "cafes" { ChatsView() }
+        else if route == "conversations" { ConversationsView() }
+        else if route == "shops", let match = matches.first {
+          CoffeeShopsView()
+            .onAppear { app.selectedCoffeeMatch = match.id }
+        }
+        else if route == "person", let person = matches.first?.person { PersonProfileView(person: person) }
         else if route == "shop", let shop = shops.first { CoffeeShopDetail(shop: shop, matches: matches, namespace: namespace) }
         else if route == "proposal", let shop = shops.first { ProposalSheet(shop: shop, matches: matches) }
         else if route == "chat", let chat = chats.first { ChatDetail(conversation: chat) }
+        else if route == "profile" { ProfileView() }
+        else if route == "filters" { DiscoveryFiltersView() }
+        else if route == "edit-profile" {
+          EditProfileSheet(
+            bio: $reviewBio, visible: $reviewVisible, looking: $reviewLooking, save: {})
+        }
         else if route == "settings" { SettingsView() }
+        else if route == "loading" {
+          ZStack { NookInteriorBackdrop(); NookSkeletonScreen(layout: .coffeeCards(rows: 3)) }
+        }
+        else if route == "empty" {
+          ZStack {
+            NookInteriorBackdrop()
+            NookEmptyState(
+              icon: "cup.and.saucer", title: "Tu primer café te espera",
+              text: "Descubre personas y conecta para proponer un café.")
+              .padding(24)
+          }
+        }
+        else if route == "error" {
+          ZStack {
+            NookInteriorBackdrop()
+            NookErrorView(message: "No hemos podido cargar esta pantalla.", retry: {})
+              .padding(24)
+          }
+        }
         else { NookLoadingView() }
       }
     }.task {
@@ -69,6 +104,9 @@ struct ReviewRouteView: View {
       async let s = try? app.repository.shops(latitude: 41.3874, longitude: 2.1686)
       async let c = try? app.repository.conversations()
       matches = await m ?? []; shops = await s ?? []; chats = await c ?? []
+      if route == "shops", app.selectedCoffeeMatch == nil {
+        app.selectedCoffeeMatch = matches.first?.id
+      }
     }
   }
 }
@@ -1378,9 +1416,7 @@ struct OnboardingView: View {
 struct MainTabView: View {
   @EnvironmentObject var app: AppSession
   var body: some View {
-    // The body and navigation share the vertical layout. Keeping the footer out of
-    // overlays/safeAreaInsets guarantees that every scroll view ends above it.
-    VStack(spacing: 0) {
+    ZStack {
       Group {
         switch app.selectedTab {
         case 0: NavigationStack { DiscoverView() }
@@ -1394,14 +1430,13 @@ struct MainTabView: View {
       }
       .id(app.selectedTab)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .clipped()
-      .transition(.opacity)
+    }
+    .safeAreaInset(edge: .bottom, spacing: 0) {
       if !app.tabBarHidden {
         NookFloatingTabBar(selection: $app.selectedTab)
           .transition(.move(edge: .bottom).combined(with: .opacity))
       }
     }
-    .animation(NookMotion.fast, value: app.tabBarHidden)
     .background {
       NookBackground()
     }
@@ -1467,8 +1502,9 @@ struct FloatingTabBar: View {
     }
     .padding(.horizontal, 16).padding(.vertical, 5)
     .frame(maxWidth: .infinity).frame(height: 52, alignment: .center)
-    .background(NookColors.surface.opacity(0.97))
-    .overlay(alignment: .top) { Rectangle().fill(NookColors.divider.opacity(0.55)).frame(height: 0.5) }
+    // Keep the bar transparent so the shared beige interior surface continues
+    // through the home-indicator safe area without a white band or separator.
+    .background(Color.clear)
     .animation(NookMotion.fast, value: selection)
     .task(id: "\(selection)-\(app.coffeeDataRevision)-\(app.matchDataRevision)") {
       await refreshNotifications()

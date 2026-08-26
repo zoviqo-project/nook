@@ -12,7 +12,7 @@ struct SafeCoffeeView: View {
   ]
   var body: some View {
     ZStack {
-      NookBackground()
+      NookInteriorBackdrop()
       VStack(spacing: NookSpacing.lg) {
         Spacer()
         CoffeeLogo(size: 86).offset(y: appeared ? 0 : 20).opacity(appeared ? 1 : 0)

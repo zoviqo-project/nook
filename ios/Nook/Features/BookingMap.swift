@@ -179,7 +179,6 @@ struct CoffeeShopsView: View {
   @State private var locationHandled = false
   var body: some View {
     ZStack(alignment: .top) {
-      NookBackground()
       if searching && app.selectedCoffeeMatch != nil {
         MidpointSearchState()
           .ignoresSafeArea()
@@ -200,6 +199,7 @@ struct CoffeeShopsView: View {
           }
           }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
+        .ignoresSafeArea(.container, edges: .bottom)
         .transition(.opacity)
       }
       if let shop = celebratedShop {
@@ -208,6 +208,7 @@ struct CoffeeShopsView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background { NookInteriorBackdrop().ignoresSafeArea() }
     .toolbar(.hidden, for: .navigationBar)
     .onAppear {
       // Reserve the entire screen before the first loading frame is laid out;
@@ -237,7 +238,9 @@ struct CoffeeShopsView: View {
       }
       if midpointMode { await preloadVisibleShopImages() }
       withAnimation(.easeInOut(duration: 0.35)) { searching = false }
-      withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+      if !midpointMode {
+        withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+      }
       withAnimation(NookMotion.spring) { appeared = true }
     }.sheet(item: $proposalShop) { shop in
       ProposalSheet(shop: shop, matches: vm.matches, isNookChoice: shop.id == vm.shops.first?.id)
@@ -258,7 +261,9 @@ struct CoffeeShopsView: View {
           await vm.useCurrentLocation(current, repo: app.repository)
         }
         withAnimation(.easeInOut(duration: 0.35)) { searching = false }
-        withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+        if app.selectedCoffeeMatch == nil {
+          withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+        }
         withAnimation(NookMotion.spring) { appeared = true }
       }
     }
@@ -299,21 +304,10 @@ struct CoffeeShopsView: View {
   }
   private var listView: some View {
     ScrollView {
-      LazyVStack(spacing: 11) {
-        HStack {
-          VStack(alignment: .leading, spacing: 3) {
-            Text(targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO")
-              .font(.caption2.bold()).tracking(1.4).foregroundStyle(NookColors.mocha)
-            Text(selectedArea)
-              .font(.system(size: 19, weight: .bold, design: .default))
-              .foregroundStyle(NookColors.espresso)
-          }
-          Spacer()
-          if vm.loading { Text("Buscando…").font(.caption.weight(.semibold)).foregroundStyle(NookColors.warmGray) }
-        }.padding(.horizontal, 6).padding(.bottom, 2)
+      LazyVStack(spacing: 0) {
         if vm.loading {
           NookSkeletonScreen(layout: .coffeeCards(rows: 2))
-            .padding(.horizontal, 2)
+            .frame(maxWidth: .infinity)
         } else if let error = vm.error {
           NookErrorView(message: error) {
             Task {
@@ -358,16 +352,16 @@ struct CoffeeShopsView: View {
           }.opacity(appeared ? 1 : 0).offset(y: appeared ? 0 : 35).animation(
             NookMotion.spring.delay(Double(index) * 0.06), value: appeared)
         }
-      }.padding(.horizontal, 14).padding(.top, 2)
+      }
     }.scrollIndicators(.hidden)
   }
   private func celebrateAndContinue(with shop: CoffeeShop) {
     Haptics.success()
     withAnimation(NookMotion.spring) { celebratedShop = shop }
     Task {
-      try? await Task.sleep(for: .milliseconds(1_250))
-      withAnimation(.easeOut(duration: 0.22)) { celebratedShop = nil }
-      try? await Task.sleep(for: .milliseconds(220))
+      try? await Task.sleep(for: .milliseconds(2_350))
+      withAnimation(.easeOut(duration: 0.38)) { celebratedShop = nil }
+      try? await Task.sleep(for: .milliseconds(380))
       proposalShop = shop
     }
   }
@@ -407,7 +401,7 @@ struct CoffeeShopsView: View {
   private var areaPicker: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         ScrollView {
           VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
@@ -522,7 +516,9 @@ struct CoffeeShopsView: View {
         await vm.useCurrentLocation(current, repo: app.repository)
       }
       withAnimation(.easeInOut(duration: 0.55)) { searching = false }
-      withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+      if app.selectedCoffeeMatch == nil {
+        withAnimation(NookMotion.fast) { app.tabBarHidden = false }
+      }
       withAnimation(NookMotion.spring) { appeared = true }
     }
   }
@@ -800,23 +796,27 @@ private struct NookChoiceCelebration: View {
   let shopName: String
   @State private var appeared = false
   @State private var premiumGlow = false
+  @State private var burst = false
   var body: some View {
     ZStack {
-      NookColors.cream.opacity(0.96).ignoresSafeArea()
       VStack(spacing: 18) {
         ZStack {
-          ForEach(0..<8) { index in
+          ForEach(0..<12) { index in
             CoffeeBean().frame(width: 10, height: 16)
-              .rotationEffect(.degrees(Double(index * 45)))
-              .offset(y: appeared ? -70 : -42)
-              .rotationEffect(.degrees(Double(index * 45)))
-              .opacity(appeared ? 0.28 : 0)
-              .animation(.easeOut(duration: 0.75).delay(Double(index) * 0.025), value: appeared)
+              .rotationEffect(.degrees(Double(index * 31) + (burst ? 150 : 0)))
+              .offset(y: burst ? -112 : -28)
+              .rotationEffect(.degrees(Double(index * 30)))
+              .scaleEffect(burst ? 0.72 : 0.16)
+              .opacity(burst ? 0 : 0.9)
+              .animation(.easeOut(duration: 1.18).delay(Double(index) * 0.018), value: burst)
           }
-          Circle().fill(NookColors.espresso).frame(width: 76, height: 76)
-          Image(systemName: "cup.and.saucer.fill").font(.system(size: 27, weight: .medium))
-            .foregroundStyle(NookColors.inverseText)
-        }.scaleEffect(appeared ? 1 : 0.72)
+          Circle().fill(NookColors.offWhite).frame(width: 82, height: 82)
+            .shadow(color: NookColors.nookGold.opacity(premiumGlow ? 0.48 : 0.20), radius: premiumGlow ? 24 : 9)
+          Image(systemName: "cup.and.saucer.fill").font(.system(size: 29, weight: .medium))
+            .foregroundStyle(NookColors.espresso)
+        }
+        .scaleEffect(appeared ? (premiumGlow ? 1.04 : 1) : 0.30)
+        .rotationEffect(.degrees(appeared ? 0 : -24))
         VStack(spacing: 7) {
           Text("¡Buena elección!").font(NookTypography.display(38)).tracking(-0.4)
           HStack(spacing: 7) {
@@ -827,28 +827,45 @@ private struct NookChoiceCelebration: View {
               .symbolEffect(.pulse, options: .repeating.speed(0.55), value: premiumGlow)
           }
           .font(NookTypography.business(11, weight: .bold))
-          .foregroundStyle(NookColors.inverseText)
+          .foregroundStyle(.white)
           .padding(.horizontal, 15).frame(height: 34)
-          .background(
-            LinearGradient(
-              colors: [NookColors.nookGold.opacity(0.72), NookColors.mocha,
-                NookColors.nookGold],
-              startPoint: .leading, endPoint: .trailing),
-            in: Capsule())
-          .overlay(Capsule().stroke(.white.opacity(0.48), lineWidth: 1))
-          .shadow(
-            color: Color.yellow.opacity(premiumGlow ? 0.42 : 0.16),
-            radius: premiumGlow ? 15 : 6)
+          .background(.white.opacity(0.12), in: Capsule())
+          .overlay(Capsule().stroke(.white.opacity(0.24), lineWidth: 1))
           .scaleEffect(premiumGlow ? 1.025 : 1)
           Text(shopName).font(.system(size: 15, weight: .medium, design: .default))
-            .foregroundStyle(NookColors.espresso.opacity(0.58))
+            .foregroundStyle(.white.opacity(0.76))
         }
-      }.foregroundStyle(NookColors.espresso).multilineTextAlignment(.center)
-    }.onAppear {
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 18)
+      }
+      .foregroundStyle(.white)
+      .multilineTextAlignment(.center)
+      .padding(.horizontal, 30)
+      .padding(.vertical, 28)
+      .frame(maxWidth: 340)
+      .background {
+        RadialGradient(
+          colors: [
+            NookColors.warmBlack.opacity(0.98),
+            NookColors.primaryCoffeePressed.opacity(0.78),
+            NookColors.primaryCoffee.opacity(0.36),
+            .clear,
+          ],
+          center: .center, startRadius: 20, endRadius: 265)
+          .frame(width: 540, height: 440)
+          .blur(radius: 30)
+          .allowsHitTesting(false)
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    .contentShape(Rectangle())
+    .onAppear {
       withAnimation(NookMotion.spring) { appeared = true }
+      withAnimation(.easeOut(duration: 1.15).delay(0.18)) { burst = true }
       withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
         premiumGlow = true
       }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.48) { Haptics.success() }
     }
   }
 }
@@ -1012,12 +1029,14 @@ private struct SmartCoffeeSearch: View {
         .animation(.easeOut(duration: 1.1), value: active)
         .frame(width: proxy.size.width, height: proxy.size.height).clipped()
 
-        LinearGradient(
-          colors: [NookColors.warmBlack.opacity(0.74), .clear, NookColors.warmBlack.opacity(0.82)],
-          startPoint: .top, endPoint: .bottom).ignoresSafeArea()
-        RadialGradient(
-          colors: [NookColors.warmBlack.opacity(0.84), NookColors.warmBlack.opacity(0.26), .clear],
-          center: .center, startRadius: 20, endRadius: 235).ignoresSafeArea()
+        if !minimal {
+          LinearGradient(
+            colors: [NookColors.warmBlack.opacity(0.74), .clear, NookColors.warmBlack.opacity(0.82)],
+            startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+          RadialGradient(
+            colors: [NookColors.warmBlack.opacity(0.84), NookColors.warmBlack.opacity(0.26), .clear],
+            center: .center, startRadius: 20, endRadius: 235).ignoresSafeArea()
+        }
 
         VStack(spacing: 0) {
           Spacer()
@@ -1056,6 +1075,23 @@ private struct SmartCoffeeSearch: View {
                 foreground: .white.opacity(0.7),
                 accent: NookColors.mocha
               ).padding(.top, 5)
+            }
+          }
+          .padding(.horizontal, minimal ? 28 : 0)
+          .padding(.vertical, minimal ? 26 : 0)
+          .background {
+            if minimal {
+              RadialGradient(
+                colors: [
+                  NookColors.warmBlack.opacity(0.94),
+                  NookColors.primaryCoffeePressed.opacity(0.72),
+                  NookColors.primaryCoffee.opacity(0.34),
+                  .clear,
+                ],
+                center: .center, startRadius: 18, endRadius: 178)
+                .frame(width: 360, height: 250)
+                .blur(radius: 16)
+                .allowsHitTesting(false)
             }
           }
           Spacer()
@@ -1107,8 +1143,8 @@ private struct SmartCoffeeSearch: View {
     }
     .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
     .brightness(index == focus ? 0.08 : 0)
-    .saturation(index == focus ? 1 : 0.72)
-    .opacity(active ? (index == focus ? 1 : 0.62) : 0)
+    .saturation(minimal ? 1 : (index == focus ? 1 : 0.72))
+    .opacity(active ? (minimal ? 1 : (index == focus ? 1 : 0.62)) : 0)
     .animation(NookMotion.spring.delay(Double(index) * 0.035), value: active)
     .animation(NookMotion.spring, value: focus)
   }
@@ -1160,7 +1196,7 @@ struct NookCoffeeShopCard: View {
         TabView(selection: $selectedPhoto) {
           ForEach(Array(gallery.enumerated()), id: \.offset) { index, photo in
             ShopImage(url: photo.isEmpty ? nil : photo, seed: "\(shop.name)-\(index)")
-              .frame(width: proxy.size.width, height: 204)
+              .frame(width: proxy.size.width, height: 220)
               .tag(index)
           }
         }
@@ -1205,21 +1241,16 @@ struct NookCoffeeShopCard: View {
           }.font(.system(size: 13, weight: .semibold, design: .default))
         }.foregroundStyle(.white).padding(16)
       }
-    }.frame(height: 198).clipShape(
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-    ).overlay {
-      RoundedRectangle(cornerRadius: 20, style: .continuous)
-        .stroke(
-          recommended
-            ? NookColors.nookGold.opacity(choiceBorderGlow ? 1 : 0.46)
-            : .clear,
-          lineWidth: recommended ? (choiceBorderGlow ? 3 : 1.5) : 0)
     }
-    .shadow(
-      color: recommended
-        ? NookColors.nookGold.opacity(choiceBorderGlow ? 0.32 : 0.10)
-        : NookShadow.card,
-      radius: recommended ? (choiceBorderGlow ? 22 : 10) : 12, y: 5)
+    .frame(height: 220)
+    .clipped()
+    .overlay(alignment: .leading) {
+      if recommended {
+        Rectangle()
+          .fill(NookColors.nookGold.opacity(choiceBorderGlow ? 1 : 0.62))
+          .frame(width: 3)
+      }
+    }
     .onAppear {
       guard recommended else { return }
       withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
@@ -1258,12 +1289,11 @@ struct CoffeeShopDetail: View {
   let matches: [Match]
   let namespace: Namespace.ID
   @State private var propose = false
-  @State private var visible = false
   @State private var mapPosition: MapCameraPosition = .automatic
   @State private var coordinate: CLLocationCoordinate2D?
   var body: some View {
     ZStack {
-      NookBackground()
+      NookInteriorBackdrop()
       ScrollView {
         VStack(spacing: 0) {
           ZStack(alignment: .topLeading) {
@@ -1310,10 +1340,8 @@ struct CoffeeShopDetail: View {
             .background(NookColors.cream, in: UnevenRoundedRectangle(topLeadingRadius: 32, topTrailingRadius: 32))
             .offset(y: -28).padding(.bottom, -28)
         }
-          .opacity(visible ? 1 : 0).offset(y: visible ? 0 : 20)
       }
     }.onAppear {
-      withAnimation(NookMotion.spring.delay(0.2)) { visible = true }
       Task { await locateShop() }
     }.sheet(isPresented: $propose) { ProposalSheet(shop: shop, matches: matches) }
   }
@@ -1372,7 +1400,7 @@ struct ProposalSheet: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookBackground()
+        NookInteriorBackdrop()
         if confirmed {
           proposalSent
             .transition(.scale(scale: 0.94).combined(with: .opacity))
@@ -1384,7 +1412,7 @@ struct ProposalSheet: View {
                 height: 4)
             }
           }
-          Group {
+          ScrollView {
             if needsPersonChoice && step == 0 {
               choiceStep("¿Con quién?", "Elige la persona para este café") {
                 if matches.isEmpty {
@@ -1464,7 +1492,9 @@ struct ProposalSheet: View {
                 }
               }
             }
-            Spacer()
+          }
+          .scrollIndicators(.hidden)
+          .frame(maxHeight: .infinity)
             NookButton(
               title: sending ? "ENVIANDO PROPUESTA…" : (isReview ? "ENVIAR" : "CONTINUAR"),
               icon: isReview ? "paperplane" : "arrow.right", isLoading: sending
@@ -1498,8 +1528,14 @@ struct ProposalSheet: View {
                 }
               }
             }.disabled(!canContinue)
-          }.padding(14)
-          }.navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
+          }
+          .padding(14)
+          // The custom full-bleed backdrop makes the sheet content extend beneath
+          // the translucent navigation bar. Reserve its visual height so the step
+          // indicator and first heading never collide with the toolbar.
+          .safeAreaPadding(.top, 30)
+          .safeAreaPadding(.bottom, 10)
+          .navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
             .toolbar {
               ToolbarItem(placement: .topBarLeading) {
                 Button { if step == 0 { dismiss() } else { withAnimation(NookMotion.spring) { step -= 1 } } } label: {
@@ -1628,8 +1664,8 @@ struct ProposalSheet: View {
   ) -> some View {
     VStack(alignment: .leading, spacing: NookSpacing.md) {
       VStack(alignment: .leading, spacing: NookSpacing.xs) {
-        Text(title).font(NookTypography.title)
-        Text(subtitle).font(NookTypography.body).foregroundStyle(NookColors.textSecondary)
+        Text(title).font(NookTypography.business(28, weight: .bold))
+        Text(subtitle).font(NookTypography.secondary).foregroundStyle(NookColors.textSecondary)
       }
       content()
     }.frame(maxWidth: .infinity, alignment: .leading).transition(

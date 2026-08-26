@@ -50,7 +50,7 @@ class ConversationServiceTest {
     Profile profile=new Profile();profile.userId=other;
     Message latest=new Message();latest.body="Último mensaje";
     DiscoverProfile person=new DiscoverProfile(other,"Laura",29,"Bio","Barcelona",1.0,
-        null,null,null,null,null,LookingFor.CASUAL_COFFEE,List.of(),List.of());
+        null,null,null,null,null,LookingFor.CASUAL_COFFEE,List.of(),List.of(),null);
     when(repository.conversations(user)).thenReturn(List.of(conversation));
     when(repository.find(Match.class,conversation.matchId)).thenReturn(match);
     when(repository.profile(other)).thenReturn(profile);

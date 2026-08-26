@@ -5,8 +5,8 @@ import Vision
 
 enum NookColors {
   // Semantic palette. All global surfaces should be sourced from these tokens.
-  static let background = Color(red: 0.982, green: 0.965, blue: 0.933)
-  static let surface = Color(red: 1.000, green: 0.992, blue: 0.976)
+  static let background = Color.white
+  static let surface = Color.white
   static let surfaceSecondary = Color(red: 0.949, green: 0.914, blue: 0.867)
   static let primaryCoffee = Color(red: 0.455, green: 0.282, blue: 0.190)
   static let primaryCoffeePressed = Color(red: 0.345, green: 0.200, blue: 0.133)
@@ -22,7 +22,7 @@ enum NookColors {
   static let caramelSoft = Color(red: 0.965, green: 0.895, blue: 0.805)
   static let terracottaSoft = Color(red: 0.925, green: 0.805, blue: 0.745)
   static let nookGold = Color(red: 0.94, green: 0.66, blue: 0.18)
-  static let surfaceRaised = Color(red: 1.000, green: 0.997, blue: 0.988)
+  static let surfaceRaised = Color.white
   static let googleBlue = Color(red: 0.26, green: 0.52, blue: 0.96)
   static let facebookBlue = Color(red: 0.23, green: 0.35, blue: 0.60)
 
@@ -134,17 +134,14 @@ struct NookBackground: View {
 /// the warmth of authentication without repeating its hero photography.
 struct NookInteriorBackdrop: View {
   var body: some View {
-    LinearGradient(
-      colors: [Color.white, NookColors.surface, NookColors.background.opacity(0.72)],
-      startPoint: .top, endPoint: .bottom)
-      .ignoresSafeArea()
+    Color.white
   }
 }
 
 /// A quieter, more ceremonial coffee surface for focused screens such as filters and settings.
 struct NookRegalCoffeeBackground: View {
   var body: some View {
-    NookBackground()
+    NookInteriorBackdrop()
   }
 }
 
@@ -318,27 +315,31 @@ struct NookScreenContainer<Content: View>: View {
   var secondaryActionActive = false
   var secondaryActionAnimated = false
   var secondaryActionRing = false
+  var headerHeight: CGFloat = 62
   @ViewBuilder let content: () -> Content
 
   var body: some View {
-    ZStack {
+    VStack(spacing: 0) {
+      NookHeader(
+        eyebrow: eyebrow, title: title, branded: brandedHeader, actionIcon: actionIcon,
+        actionLabel: actionLabel, action: action, actionActive: actionActive,
+        actionAnimated: actionAnimated, actionRing: actionRing,
+        secondaryActionIcon: secondaryActionIcon,
+        secondaryActionLabel: secondaryActionLabel,
+        secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
+        secondaryActionAnimated: secondaryActionAnimated,
+        secondaryActionRing: secondaryActionRing, cinematic: false)
+        .frame(height: headerHeight)
+        .zIndex(1)
+      content()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .background {
       if let solidBackground {
         solidBackground.ignoresSafeArea()
       } else {
-        NookInteriorBackdrop()
-      }
-      VStack(spacing: 0) {
-        NookHeader(
-          eyebrow: eyebrow, title: title, branded: brandedHeader, actionIcon: actionIcon,
-          actionLabel: actionLabel, action: action, actionActive: actionActive,
-          actionAnimated: actionAnimated, actionRing: actionRing,
-          secondaryActionIcon: secondaryActionIcon,
-          secondaryActionLabel: secondaryActionLabel,
-          secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
-          secondaryActionAnimated: secondaryActionAnimated,
-          secondaryActionRing: secondaryActionRing, cinematic: false)
-          .zIndex(1)
-        content().frame(maxWidth: .infinity, maxHeight: .infinity)
+        NookInteriorBackdrop().ignoresSafeArea()
       }
     }
   }
@@ -471,7 +472,7 @@ struct NookSkeletonScreen: View {
   private func coffeeCards(rows: Int) -> some View {
     LazyVStack(spacing: 14) {
       ForEach(0..<rows, id: \.self) { index in
-        skeletonBlock(height: 242, radius: 26)
+        skeletonBlock(height: 198, radius: 20)
           .overlay(alignment: .bottomLeading) {
             VStack(alignment: .leading, spacing: 9) {
               skeletonBlock(width: index.isMultiple(of: 2) ? 190 : 225, height: 23, radius: 8)
@@ -526,8 +527,7 @@ struct NookSkeletonScreen: View {
         HStack(spacing: 15) {
           ForEach(0..<4, id: \.self) { index in
             VStack(spacing: 7) {
-              skeletonBlock(width: 62, height: 62, radius: 31)
-              skeletonBlock(width: index.isMultiple(of: 2) ? 54 : 46, height: 10, radius: 5)
+              skeletonBlock(width: 56, height: 56, radius: 28)
             }
           }
           Spacer(minLength: 0)
@@ -538,7 +538,7 @@ struct NookSkeletonScreen: View {
       LazyVStack(spacing: 0) {
         ForEach(0..<rows, id: \.self) { index in
           HStack(spacing: 14) {
-            skeletonBlock(width: 64, height: 64, radius: 32)
+            skeletonBlock(width: 56, height: 56, radius: 28)
             VStack(alignment: .leading, spacing: 9) {
               HStack {
                 skeletonBlock(width: index.isMultiple(of: 2) ? 132 : 164, height: 18, radius: 7)
@@ -548,7 +548,7 @@ struct NookSkeletonScreen: View {
               skeletonBlock(width: index.isMultiple(of: 2) ? 206 : 174, height: 14, radius: 6)
             }
           }
-          .frame(height: 90)
+          .frame(height: 74)
         }
       }.padding(.horizontal, 18)
       Spacer(minLength: 0)
@@ -646,8 +646,8 @@ struct NookChip: View {
       Haptics.selection()
       withAnimation(NookMotion.playful) { action() }
     } label: {
-      Text(title).font(.system(size: 16, weight: .bold, design: .default)).padding(.horizontal, 18)
-        .frame(minHeight: 50).foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso)
+      Text(title).font(.system(size: 14, weight: .semibold, design: .default)).padding(.horizontal, 15)
+        .frame(minHeight: 44).foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso)
         .background(
           selected ? NookColors.espresso : NookColors.offWhite.opacity(0.9), in: Capsule()
         ).overlay(Capsule().stroke(NookColors.latte.opacity(0.4))).scaleEffect(selected ? 1.04 : 1)
@@ -659,10 +659,13 @@ struct NookCard<Content: View>: View {
   let content: Content
   init(@ViewBuilder content: () -> Content) { self.content = content() }
   var body: some View {
-    content.padding(NookSpacing.lg).background(
+    content.padding(NookSpacing.md).background(
       NookColors.surfaceRaised,
-      in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous)
-    ).shadow(color: NookShadow.card.opacity(0.7), radius: 8, y: 3)
+      in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+    ).overlay {
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
+        .stroke(NookColors.divider.opacity(0.38), lineWidth: 0.7)
+    }.shadow(color: NookShadow.card.opacity(0.45), radius: 6, y: 2)
   }
 }
 
@@ -699,7 +702,7 @@ struct NookCoffeeLogo: View {
 struct NookImageFallback: View {
   var body: some View {
     GeometryReader { proxy in
-      let side = max(24, min(proxy.size.width, proxy.size.height) * 0.44)
+      let side = max(24, min(90, min(proxy.size.width, proxy.size.height) * 0.30))
       ZStack {
         NookColors.surfaceSecondary
         Image("NookBrandMark")
@@ -944,6 +947,43 @@ struct NookStatusBadge: View {
     Label(text, systemImage: icon).font(.system(size: 12, weight: .bold, design: .default))
       .foregroundStyle(color).padding(.horizontal, 11).padding(.vertical, 7)
       .background(color.opacity(0.11), in: Capsule())
+  }
+}
+
+struct NookIntentBadge: View {
+  let intent: UserIntent
+  var prominent = false
+  var onMedia = false
+  private var tint: Color {
+    switch intent.categoryCode {
+    case "PROJECT": Color(red: 0.34, green: 0.43, blue: 0.52)
+    case "MEET": Color(red: 0.67, green: 0.35, blue: 0.36)
+    case "TALK": NookColors.primaryCoffee
+    case "DO": Color(red: 0.35, green: 0.50, blue: 0.39)
+    case "LEARN": Color(red: 0.47, green: 0.39, blue: 0.57)
+    case "HELP": Color(red: 0.68, green: 0.51, blue: 0.22)
+    case "SOCIAL": Color(red: 0.68, green: 0.43, blue: 0.28)
+    default: NookColors.mocha
+    }
+  }
+  var body: some View {
+    HStack(spacing: 7) {
+      Image(systemName: intent.categoryIcon)
+        .font(.system(size: prominent ? 13 : 11, weight: .semibold))
+      Text(intent.categoryName.uppercased())
+        .font(.system(size: prominent ? 11 : 9, weight: .bold)).tracking(0.8)
+      Circle().fill(tint.opacity(0.5)).frame(width: 3, height: 3)
+      Text(intent.subcategoryName)
+        .font(.system(size: prominent ? 12 : 10, weight: .semibold)).lineLimit(1)
+    }
+    .foregroundStyle(tint)
+    .padding(.horizontal, prominent ? 12 : 10)
+    .frame(height: prominent ? 34 : 29)
+    .background(onMedia ? Color.white.opacity(0.88) : tint.opacity(0.105), in: Capsule())
+    .overlay(Capsule().stroke(onMedia ? Color.white.opacity(0.62) : tint.opacity(0.20), lineWidth: 0.8))
+    .shadow(color: onMedia ? Color.black.opacity(0.12) : .clear, radius: 8, y: 3)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(intent.categoryName), \(intent.subcategoryName)")
   }
 }
 

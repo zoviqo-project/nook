@@ -88,6 +88,18 @@ actor APIRepository: NookRepository {
   func updateProfile(_ p: ProfileUpdate) async throws -> Me {
     try await call("users/me", method: "PATCH", body: p)
   }
+  func intentCategories() async throws -> [IntentCategory] { try await call("intent-categories") }
+  func currentIntent() async throws -> UserIntent? {
+    let state: UserIntentState = try await call("users/me/intent")
+    return state.intent
+  }
+  func updateIntent(categoryID: UUID, subcategoryID: UUID) async throws -> UserIntent {
+    let state: UserIntentState = try await call(
+      "users/me/intent", method: "PUT",
+      body: IntentUpdateBody(categoryId: categoryID, subcategoryId: subcategoryID))
+    guard let intent = state.intent else { throw URLError(.cannotParseResponse) }
+    return intent
+  }
   func settings() async throws -> UserSettings { try await call("users/me/settings") }
   func updateSettings(_ payload: UserSettingsUpdate) async throws -> UserSettings {
     try await call("users/me/settings", method: "PUT", body: payload)
@@ -380,6 +392,7 @@ private struct PhoneRequestBody: Codable { let phone: String }
 private struct PhoneVerifyBody: Codable { let challengeId: UUID; let code: String }
 private struct RefreshBody: Codable { let refreshToken: String }
 private struct MessageBody: Codable { let body: String; let clientMessageId: UUID }
+private struct IntentUpdateBody: Codable { let categoryId, subcategoryId: UUID }
 private struct DateBody: Codable {
   let matchId, coffeeShopId: UUID
   let proposedAt: String
