@@ -169,7 +169,6 @@ struct DiscoverView: View {
   @State private var entrance = false
   @State private var showFilters = false
   @State private var showProfile = false
-  @State private var selectedProfile: DiscoverProfile?
   @AppStorage("didSeeDiscoveryPhotoSwipeHint") private var didSeeSwipeHint = false
   @State private var showSwipeHint = false
   @State private var swipeHintPulse = false
@@ -266,7 +265,6 @@ struct DiscoverView: View {
           .presentationDragIndicator(.hidden)
           .presentationBackground(NookColors.background)
       }
-      .fullScreenCover(item: $selectedProfile) { PersonProfileView(person: $0) }
       .onChange(of: vm.people) { _, people in
         photoIndex = 0
         app.cacheDiscover(people)
@@ -290,7 +288,7 @@ struct DiscoverView: View {
             person: person, viewer: app.me, height: cardHeight,
             photoURL: selectedPhotoURL(for: person),
             nextPhotoURL: adjacentPhotoURL(for: person), photoOffset: photoSwipeOffset,
-            onNameTap: { selectedProfile = person }, immersive: true,
+            expandableInfo: true, immersive: true,
           contentTopInset: topInset, contentBottomInset: bottomInset
         )
           .offset(drag).rotationEffect(.degrees(Double(drag.width / 28)))
@@ -692,7 +690,7 @@ private struct NookLightStatusBarBridge: UIViewRepresentable {
   }
 
   static func dismantleUIView(_ uiView: UIView, coordinator: ()) {
-    uiView.window?.overrideUserInterfaceStyle = .light
+    uiView.window?.overrideUserInterfaceStyle = .unspecified
   }
 }
 
@@ -704,10 +702,12 @@ struct NookProfileCard: View {
   var nextPhotoURL: String? = nil
   var photoOffset: CGFloat = 0
   var onNameTap: (() -> Void)? = nil
+  var expandableInfo = false
   var immersive = false
   var contentTopInset: CGFloat = 0
   var contentBottomInset: CGFloat = 0
   @Environment(\.verticalSizeClass) private var verticalSizeClass
+  @State private var infoExpanded = false
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .bottomLeading) {
@@ -735,14 +735,27 @@ struct NookProfileCard: View {
           ]),
           startPoint: .top, endPoint: .bottom)
         VStack(alignment: .leading, spacing: 8) {
-          if let onNameTap {
-            Button(action: onNameTap) {
+          if onNameTap != nil || expandableInfo {
+            Button {
+              Haptics.selection()
+              if expandableInfo {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) {
+                  infoExpanded.toggle()
+                }
+              } else {
+                onNameTap?()
+              }
+            } label: {
               profileName
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Ver información de \(person.name)")
+            .accessibilityLabel(infoExpanded ? "Ocultar información de \(person.name)" : "Ver información de \(person.name)")
           } else {
             profileName
+          }
+          if expandableInfo && infoExpanded {
+            expandedProfileInfo
+              .transition(.opacity.combined(with: .move(edge: .top)))
           }
           if !immersive {
             Text(person.intent?.subcategoryName ?? person.lookingFor.profileTitle)
@@ -752,16 +765,18 @@ struct NookProfileCard: View {
               .foregroundStyle(.white)
               .lineLimit(2)
           }
-          Text(person.bio).font(NookTypography.business(15)).lineLimit(2).lineSpacing(2)
-            .foregroundStyle(.white.opacity(0.88))
-            .padding(.bottom, 2)
-          HStack(spacing: 9) {
-            Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill")
-            Circle().fill(.white.opacity(0.48)).frame(width: 3, height: 3)
-            Text(person.coffeePersonality ?? "Buena conversación").lineLimit(1)
+          if !infoExpanded {
+            Text(person.bio).font(NookTypography.business(15)).lineLimit(2).lineSpacing(2)
+              .foregroundStyle(.white.opacity(0.88))
+              .padding(.bottom, 2)
+            HStack(spacing: 9) {
+              Label("\(person.distanceKm.formatted()) km", systemImage: "location.fill")
+              Circle().fill(.white.opacity(0.48)).frame(width: 3, height: 3)
+              Text(person.coffeePersonality ?? "Buena conversación").lineLimit(1)
+            }
+            .font(NookTypography.business(13, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.82))
           }
-          .font(NookTypography.business(13, weight: .semibold))
-          .foregroundStyle(.white.opacity(0.82))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .foregroundStyle(.white).padding(.horizontal, 16)
@@ -781,8 +796,8 @@ struct NookProfileCard: View {
       Text("\(person.name), \(person.age)")
         .lineLimit(1)
         .minimumScaleFactor(0.78)
-      if onNameTap != nil {
-        Image(systemName: "info.circle.fill")
+      if onNameTap != nil || expandableInfo {
+        Image(systemName: infoExpanded ? "xmark.circle.fill" : "info.circle.fill")
           .font(.system(size: 18, weight: .semibold))
           .foregroundStyle(.white.opacity(0.88))
       }
@@ -790,6 +805,40 @@ struct NookProfileCard: View {
     .font(NookTypography.business(28, weight: .bold))
     .tracking(-0.45)
     .contentShape(Rectangle())
+  }
+
+  private var expandedProfileInfo: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      Text(person.bio)
+        .font(NookTypography.business(15, weight: .medium))
+        .lineSpacing(3)
+        .fixedSize(horizontal: false, vertical: true)
+      HStack(spacing: 8) {
+        infoChip(icon: "location.fill", text: "\(person.distanceKm.formatted()) km")
+        infoChip(
+          icon: "cup.and.saucer.fill",
+          text: person.coffeePersonality ?? "Buena conversación")
+      }
+      HStack(spacing: 8) {
+        infoChip(
+          icon: "sparkles",
+          text: person.intent?.subcategoryName ?? person.lookingFor.profileTitle)
+        if let preference = person.coffeePreferences.first {
+          infoChip(icon: "heart.fill", text: preference)
+        }
+      }
+    }
+    .foregroundStyle(.white)
+    .padding(.top, 2).padding(.bottom, 3)
+  }
+
+  private func infoChip(icon: String, text: String) -> some View {
+    Label(text, systemImage: icon)
+      .font(.system(size: 11, weight: .semibold, design: .default))
+      .lineLimit(1).minimumScaleFactor(0.72)
+      .padding(.horizontal, 10).frame(height: 30)
+      .background(.white.opacity(0.13), in: Capsule())
+      .overlay(Capsule().stroke(.white.opacity(0.16), lineWidth: 0.7))
   }
 }
 

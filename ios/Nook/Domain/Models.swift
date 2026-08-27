@@ -420,6 +420,7 @@ protocol UserRepository: Sendable {
   func verifyPhoneOtp(challengeId: UUID, code: String) async throws -> Me
   func restore() async throws -> Me?
   func logout() async
+  func clearLocalSession() async
   func me() async throws -> Me
   func updateProfile(_ payload: ProfileUpdate) async throws -> Me
   func uploadPhoto(data: Data, mimeType: String) async throws -> Photo
@@ -432,6 +433,9 @@ protocol UserRepository: Sendable {
   func intentCategories() async throws -> [IntentCategory]
   func currentIntent() async throws -> UserIntent?
   func updateIntent(categoryID: UUID, subcategoryID: UUID) async throws -> UserIntent
+}
+extension UserRepository {
+  func clearLocalSession() async { await logout() }
 }
 protocol DiscoveryRepository: Sendable {
   func discover() async throws -> [DiscoverProfile]

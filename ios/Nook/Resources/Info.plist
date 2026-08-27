@@ -37,8 +37,10 @@
             <array><string>$(GOOGLE_REVERSED_CLIENT_ID)</string></array>
         </dict>
     </array>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Elige fotos para tu perfil de Nook.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Elige fotos para tu perfil de Nook.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Tu permiso permite a Nook medir la eficacia de sus campañas. La app funciona igual aunque no lo permitas.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Nook añade tus cafés aceptados al calendario para que no se te pase la cita.</string>
     <key>UIAppFonts</key>

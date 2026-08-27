@@ -3,6 +3,13 @@ import ImageIO
 import UIKit
 
 actor APIRepository: NookRepository {
+  private static let authenticationSession: URLSession = {
+    let configuration = URLSessionConfiguration.default
+    configuration.timeoutIntervalForRequest = 90
+    configuration.timeoutIntervalForResource = 100
+    configuration.waitsForConnectivity = true
+    return URLSession(configuration: configuration)
+  }()
   private let baseURL: URL
   private let session: URLSession
   private let tokens: TokenStore
@@ -13,9 +20,10 @@ actor APIRepository: NookRepository {
     if let session { self.session = session }
     else {
       let configuration = URLSessionConfiguration.default
-      // Render free services can need close to a minute to wake from a cold start.
-      configuration.timeoutIntervalForRequest = 120
-      configuration.timeoutIntervalForResource = 150
+      // Keep the app responsive on changing Wi-Fi/cellular networks. Startup has
+      // its own shorter deadline and regular requests fail promptly enough for UI recovery.
+      configuration.timeoutIntervalForRequest = 15
+      configuration.timeoutIntervalForResource = 25
       configuration.requestCachePolicy = .useProtocolCachePolicy
       configuration.urlCache = URLCache(memoryCapacity: 24_000_000, diskCapacity: 80_000_000)
       self.session = URLSession(configuration: configuration)
@@ -46,14 +54,10 @@ actor APIRepository: NookRepository {
       "auth/\(provider.lowercased())", method: "POST",
       body: FederatedBody(identityToken: identityToken, displayName: displayName), auth: false)
     try save(response)
-    do {
-      // A social login is complete only when the issued access token can restore the
-      // authenticated user. This keeps Keychain and the global app state in sync.
-      return try await me()
-    } catch {
-      try? tokens.clear()
-      throw error
-    }
+    // The authenticated response already contains the server-verified user. Returning
+    // it directly avoids a second network request that could invalidate a successful
+    // social login on slow or changing mobile connections.
+    return response.user
   }
   func requestPhoneOtp(_ phone: String) async throws -> PhoneOtpChallenge {
     try await call("auth/phone/request-code", method: "POST", body: PhoneRequestBody(phone: phone), auth: false)
@@ -84,6 +88,7 @@ actor APIRepository: NookRepository {
     }
     try? tokens.clear()
   }
+  func clearLocalSession() async { try? tokens.clear() }
   func me() async throws -> Me { try await call("users/me") }
   func updateProfile(_ p: ProfileUpdate) async throws -> Me {
     try await call("users/me", method: "PATCH", body: p)
@@ -294,6 +299,7 @@ actor APIRepository: NookRepository {
     }
     guard let endpoint = URL(string: path, relativeTo: baseURL) else { throw URLError(.badURL) }
     var req = URLRequest(url: endpoint)
+    if path.hasPrefix("auth/") { req.timeoutInterval = 90 }
     req.httpMethod = method
     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
     if let body { req.httpBody = try JSONEncoder().encode(body) }
@@ -303,7 +309,8 @@ actor APIRepository: NookRepository {
     let data: Data
     let response: URLResponse
     do {
-      (data, response) = try await session.data(for: req)
+      let requestSession = path.hasPrefix("auth/") ? Self.authenticationSession : session
+      (data, response) = try await requestSession.data(for: req)
     } catch let error as URLError
       where method == "GET" && retryCount < 2 && Self.isTransient(error)
     {

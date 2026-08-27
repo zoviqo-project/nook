@@ -78,6 +78,11 @@ final class GoogleSignInCoordinator: NSObject, ObservableObject,
       !callbackScheme.isEmpty
     else { throw GoogleSignInError.notConfigured }
 
+    // Render may need close to a minute to wake from its free-tier sleep. Start
+    // that work while the user is choosing a Google account so the verified
+    // token can be accepted immediately when the browser returns.
+    let backendWarmup = Task { await Self.warmBackend() }
+
     let verifier = Self.randomURLSafe(bytes: 48)
     let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
     let state = Self.randomURLSafe(bytes: 24)
@@ -91,6 +96,7 @@ final class GoogleSignInCoordinator: NSObject, ObservableObject,
       .init(name: "state", value: state), .init(name: "prompt", value: "select_account")
     ]
     let callbackURL = try await authenticate(url: components.url!, scheme: callbackScheme)
+    await backendWarmup.value
     guard let callback = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
       callback.queryItems?.first(where: { $0.name == "state" })?.value == state
     else { throw GoogleSignInError.stateMismatch }
@@ -98,6 +104,17 @@ final class GoogleSignInCoordinator: NSObject, ObservableObject,
       throw GoogleSignInError.invalidCallback
     }
     return try await exchange(code: code, verifier: verifier, clientID: clientID, redirectURI: redirectURI)
+  }
+
+  private static func warmBackend() async {
+    guard var components = URLComponents(
+      url: AppConfiguration.apiURL, resolvingAgainstBaseURL: false) else { return }
+    components.path = "/actuator/health"
+    components.query = nil
+    guard let url = components.url else { return }
+    var request = URLRequest(url: url)
+    request.timeoutInterval = 90
+    _ = try? await URLSession.shared.data(for: request)
   }
 
   private func authenticate(url: URL, scheme: String) async throws -> URL {

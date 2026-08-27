@@ -2,9 +2,11 @@ import PhotosUI
 import SwiftUI
 import CoreLocation
 import AuthenticationServices
+import AppTrackingTransparency
 
 struct RootView: View {
   @EnvironmentObject var app: AppSession
+  private let permissionFlowKey = "nook.systemPermissionFlow.v2.completed"
   var body: some View {
     ZStack {
       NookBackground()
@@ -16,7 +18,25 @@ struct RootView: View {
       } else {
         content.transition(.opacity)
       }
-    }.animation(.easeInOut(duration: 0.62), value: app.stage)
+    }
+    .animation(.easeInOut(duration: 0.62), value: app.stage)
+    .onChange(of: app.stage) { _, stage in
+      guard stage == .app,
+        !UserDefaults.standard.bool(forKey: permissionFlowKey) else { return }
+      Task { await requestSystemPermissions() }
+    }
+  }
+
+  private func requestSystemPermissions() async {
+    try? await Task.sleep(for: .milliseconds(900))
+    guard app.stage == .app else { return }
+    if #available(iOS 14, *), ATTrackingManager.trackingAuthorizationStatus == .notDetermined {
+      _ = await ATTrackingManager.requestTrackingAuthorization()
+      try? await Task.sleep(for: .milliseconds(450))
+    }
+    guard app.stage == .app else { return }
+    _ = await app.requestPushAuthorization()
+    UserDefaults.standard.set(true, forKey: permissionFlowKey)
   }
   @ViewBuilder private var content: some View {
     #if DEBUG
@@ -1430,12 +1450,6 @@ struct MainTabView: View {
       }
       .id(app.selectedTab)
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
-      if !app.tabBarHidden {
-        NookFloatingTabBar(selection: $app.selectedTab)
-          .transition(.move(edge: .bottom).combined(with: .opacity))
-      }
     }
     .background {
       NookBackground()

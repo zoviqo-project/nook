@@ -177,29 +177,57 @@ struct CoffeeShopsView: View {
   @State private var searchLabel: String?
   @State private var otherPlaceMode = false
   @State private var locationHandled = false
+  @State private var placeQuery = ""
+  @State private var placeFilter: PlaceFilter = .all
+  @State private var resultsExpanded = true
+  @FocusState private var placeSearchFocused: Bool
+
+  private enum PlaceFilter: String, CaseIterable, Identifiable {
+    case all = "Todos"
+    case open = "Abiertos"
+    case topRated = "Mejor valorados"
+    case nearby = "A menos de 1 km"
+    var id: String { rawValue }
+  }
   var body: some View {
     ZStack(alignment: .top) {
       if searching && app.selectedCoffeeMatch != nil {
-        MidpointSearchState()
+        MidpointSearchState(
+          ownName: app.me?.name ?? "Tú",
+          ownPhoto: app.me?.photos.first?.url,
+          otherName: selectedMatch?.person.name ?? "Tu café",
+          otherPhoto: selectedMatch?.person.photos.first?.url
+        )
           .ignoresSafeArea()
           .transition(.opacity)
       } else if location.denied && app.selectedCoffeeMatch == nil && !otherPlaceMode {
         LocationPermissionState(openSettings: location.openSettings)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        NookScreenContainer(
-          eyebrow: otherPlaceMode ? "OTRO LUGAR" : (targetPerson == nil ? "CERCA DE TI" : "PUNTO MEDIO"),
-          title: "Elige el lugar", actionIcon: showMap ? "rectangle.grid.1x2.fill" : "map.fill",
-          actionLabel: showMap ? "Ver lista" : "Ver mapa",
-          action: { withAnimation(NookMotion.spring) { showMap.toggle() } }
-        ) {
-          VStack(spacing: 8) {
-          Group {
-            if showMap { mapView } else { listView }
+        GeometryReader { proxy in
+          ZStack(alignment: .bottom) {
+            CoffeeDiscoveryMap(
+              shops: filteredShops, searchPoint: vm.searchPoint,
+              recommendedShopID: vm.shops.first?.id,
+              selected: $selected
+            ) { shop in
+              withAnimation(NookMotion.spring) {
+                selected = shop
+                resultsExpanded = true
+              }
+            } searchHere: { center in
+              placeSearchFocused = false
+              selected = nil
+              await vm.searchVisibleArea(GeoPoint(center), repo: app.repository)
+              await preloadVisibleShopImages()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            resultsPanel(in: proxy.size)
           }
-          }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .ignoresSafeArea(.container, edges: .bottom)
+        .background(Color.white)
+        .ignoresSafeArea(.container, edges: [.top, .bottom])
         .transition(.opacity)
       }
       if let shop = celebratedShop {
@@ -213,12 +241,12 @@ struct CoffeeShopsView: View {
     .onAppear {
       // Reserve the entire screen before the first loading frame is laid out;
       // otherwise the outgoing tab bar briefly leaves an empty strip below.
-      if app.selectedCoffeeMatch != nil { app.tabBarHidden = true }
+      app.tabBarHidden = true
     }
     .task {
       vm.beginLocationRequest()
       let midpointMode = app.selectedCoffeeMatch != nil
-      if midpointMode { withAnimation(NookMotion.fast) { app.tabBarHidden = true } }
+      withAnimation(NookMotion.fast) { app.tabBarHidden = true }
       location.request()
       for _ in 0..<150 where location.location == nil && !location.denied {
         try? await Task.sleep(for: .milliseconds(100))
@@ -238,9 +266,6 @@ struct CoffeeShopsView: View {
       }
       if midpointMode { await preloadVisibleShopImages() }
       withAnimation(.easeInOut(duration: 0.35)) { searching = false }
-      if !midpointMode {
-        withAnimation(NookMotion.fast) { app.tabBarHidden = false }
-      }
       withAnimation(NookMotion.spring) { appeared = true }
     }.sheet(item: $proposalShop) { shop in
       ProposalSheet(shop: shop, matches: vm.matches, isNookChoice: shop.id == vm.shops.first?.id)
@@ -261,12 +286,13 @@ struct CoffeeShopsView: View {
           await vm.useCurrentLocation(current, repo: app.repository)
         }
         withAnimation(.easeInOut(duration: 0.35)) { searching = false }
-        if app.selectedCoffeeMatch == nil {
-          withAnimation(NookMotion.fast) { app.tabBarHidden = false }
-        }
         withAnimation(NookMotion.spring) { appeared = true }
       }
     }
+  }
+  private var selectedMatch: Match? {
+    guard let id = app.selectedCoffeeMatch else { return nil }
+    return vm.matches.first { $0.id == id }
   }
   @MainActor private func preloadVisibleShopImages() async {
     let urls = vm.shops.prefix(6).compactMap { resolvedShopPhotoURL($0.photoUrl) }
@@ -304,10 +330,9 @@ struct CoffeeShopsView: View {
   }
   private var listView: some View {
     ScrollView {
-      LazyVStack(spacing: 0) {
+      LazyVStack(spacing: 18) {
         if vm.loading {
-          NookSkeletonScreen(layout: .coffeeCards(rows: 2))
-            .frame(maxWidth: .infinity)
+          ForEach(0..<3, id: \.self) { _ in CoffeePlaceCardSkeleton() }
         } else if let error = vm.error {
           NookErrorView(message: error) {
             Task {
@@ -324,26 +349,31 @@ struct CoffeeShopsView: View {
               }
             }
           }.frame(maxWidth: .infinity).padding(.top, 28)
-        } else if vm.state == .empty {
+        } else if vm.state == .empty || filteredShops.isEmpty {
           NookEmptyState(
-            icon: location.denied ? "location.slash" : "cup.and.saucer",
-            title: location.denied ? "Necesitamos tu zona" : "No encontramos cafeterías",
+            icon: location.denied ? "location.slash" : (placeQuery.isEmpty ? "cup.and.saucer" : "magnifyingglass"),
+            title: location.denied ? "Necesitamos tu zona" : (placeQuery.isEmpty ? "No encontramos cafeterías" : "No hay coincidencias"),
             text: location.denied
               ? "Activa la ubicación para descubrir cafeterías cercanas."
-              : "No hay resultados disponibles en esta zona por ahora.")
+              : (placeQuery.isEmpty ? "No hay resultados disponibles en esta zona por ahora." : "Prueba con otro nombre, barrio o filtro."))
             .frame(maxWidth: .infinity)
             .containerRelativeFrame(.vertical, alignment: .center)
         }
-        ForEach(Array(vm.shops.enumerated()), id: \.element.id) { index, shop in
+        ForEach(Array(filteredShops.enumerated()), id: \.element.id) { index, shop in
           VStack(spacing: 0) {
-            Button {
-              withAnimation(NookMotion.spring) { selected = selected?.id == shop.id ? nil : shop }
-            } label: {
-              NookCoffeeShopCard(shop: shop, namespace: namespace, recommended: index == 0)
-            }.buttonStyle(.plain)
+            NookCoffeeShopCard(
+              shop: shop, namespace: namespace,
+              recommended: shop.id == vm.shops.first?.id,
+              choose: {
+                if shop.id == vm.shops.first?.id { celebrateAndContinue(with: shop) }
+                else { proposalShop = shop }
+              },
+              details: {
+                withAnimation(NookMotion.spring) { selected = selected?.id == shop.id ? nil : shop }
+              })
             if selected?.id == shop.id {
-              InlineCoffeeShopDetail(shop: shop, recommended: index == 0) {
-                if index == 0 { celebrateAndContinue(with: shop) }
+              InlineCoffeeShopDetail(shop: shop, recommended: shop.id == vm.shops.first?.id) {
+                if shop.id == vm.shops.first?.id { celebrateAndContinue(with: shop) }
                 else { proposalShop = shop }
               } close: {
                 withAnimation(NookMotion.spring) { selected = nil }
@@ -353,7 +383,55 @@ struct CoffeeShopsView: View {
             NookMotion.spring.delay(Double(index) * 0.06), value: appeared)
         }
       }
-    }.scrollIndicators(.hidden)
+      .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 34)
+    }
+    .scrollIndicators(.hidden)
+    .background(Color.white)
+  }
+  private func resultsPanel(in size: CGSize) -> some View {
+    let collapsedHeight = min(430, size.height * 0.52)
+    let expandedHeight = max(collapsedHeight, size.height - 138)
+    return VStack(spacing: 0) {
+      VStack(spacing: 7) {
+        Capsule().fill(NookColors.espresso.opacity(0.20)).frame(width: 38, height: 5)
+        HStack(alignment: .center) {
+          VStack(alignment: .leading, spacing: 2) {
+            Text("CAFETERÍAS PARA VOSOTROS")
+              .font(.system(size: 9, weight: .bold, design: .default)).tracking(1.35)
+              .foregroundStyle(NookColors.mocha)
+            Text(vm.loading ? "Buscando lugares…" : "\(filteredShops.count) lugares cerca")
+              .font(NookTypography.business(18, weight: .bold))
+              .foregroundStyle(NookColors.mocha)
+          }
+          Spacer()
+          Button {
+            withAnimation(NookMotion.spring) { resultsExpanded.toggle() }
+          } label: {
+            Image(systemName: resultsExpanded ? "chevron.down" : "chevron.up")
+              .font(.system(size: 13, weight: .bold)).foregroundStyle(NookColors.espresso)
+              .frame(width: 34, height: 34).background(NookColors.espresso.opacity(0.06), in: Circle())
+          }.buttonStyle(.plain)
+        }
+      }
+      .padding(.horizontal, 18).padding(.top, 9).padding(.bottom, 10)
+      .contentShape(Rectangle())
+      .gesture(
+        DragGesture(minimumDistance: 10).onEnded { value in
+          withAnimation(NookMotion.spring) {
+            if value.translation.height < -28 { resultsExpanded = true }
+            if value.translation.height > 28 { resultsExpanded = false }
+          }
+        })
+
+      placesDiscoveryControls
+
+      listView
+    }
+    .frame(height: resultsExpanded ? expandedHeight : collapsedHeight, alignment: .top)
+    .background(Color.white)
+    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 28, topTrailingRadius: 28))
+    .shadow(color: NookColors.warmBlack.opacity(0.18), radius: 22, y: -7)
+    .animation(NookMotion.spring, value: resultsExpanded)
   }
   private func celebrateAndContinue(with shop: CoffeeShop) {
     Haptics.success()
@@ -368,6 +446,70 @@ struct CoffeeShopsView: View {
   private var selectedArea: String {
     vm.meetingArea ?? app.me?.city ?? "Tu zona"
   }
+  private var filteredShops: [CoffeeShop] {
+    let query = placeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+      .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+    var values = vm.shops.filter { shop in
+      guard !query.isEmpty else { return true }
+      return [shop.name, shop.address, shop.neighborhood, shop.category]
+        .compactMap { $0 }
+        .joined(separator: " ")
+        .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        .contains(query)
+    }
+    switch placeFilter {
+    case .all: break
+    case .open: values = values.filter { $0.openNow == true }
+    case .topRated:
+      values = values.filter { ($0.rating ?? 0) >= 4.3 }
+        .sorted { ($0.rating ?? 0) > ($1.rating ?? 0) }
+    case .nearby: values = values.filter { $0.distanceKm < 1 }
+    }
+    return values
+  }
+
+  private var placesDiscoveryControls: some View {
+    VStack(spacing: 10) {
+      HStack(spacing: 10) {
+        Image(systemName: "magnifyingglass")
+          .font(.system(size: 16, weight: .semibold)).foregroundStyle(NookColors.espresso.opacity(0.55))
+        TextField("Buscar cafetería o zona", text: $placeQuery)
+          .font(.system(size: 15, weight: .medium, design: .default))
+          .textInputAutocapitalization(.words).submitLabel(.search)
+          .focused($placeSearchFocused)
+          .onChange(of: placeQuery) { _, value in
+            if value.isEmpty { placeSearchFocused = false }
+          }
+        if !placeQuery.isEmpty {
+          Button { placeQuery = "" } label: {
+            Image(systemName: "xmark.circle.fill").foregroundStyle(NookColors.espresso.opacity(0.32))
+          }.buttonStyle(.plain).accessibilityLabel("Borrar búsqueda")
+        }
+      }
+      .padding(.horizontal, 14).frame(height: 46)
+      .background(NookColors.espresso.opacity(0.055), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+      ScrollView(.horizontal) {
+        HStack(spacing: 8) {
+          ForEach(PlaceFilter.allCases) { filter in
+            Button {
+              Haptics.selection()
+              withAnimation(NookMotion.fast) { placeFilter = filter }
+            } label: {
+              Text(filter.rawValue)
+                .font(.system(size: 12, weight: .semibold, design: .default))
+                .foregroundStyle(placeFilter == filter ? NookColors.inverseText : NookColors.espresso.opacity(0.72))
+                .padding(.horizontal, 13).frame(height: 34)
+                .background(placeFilter == filter ? NookColors.espresso : NookColors.espresso.opacity(0.045), in: Capsule())
+            }.buttonStyle(.plain)
+          }
+        }
+      }.scrollIndicators(.hidden)
+    }
+    .padding(.horizontal, 16).padding(.bottom, 12)
+    .background(Color.white)
+  }
+
   private var placeModeSelector: some View {
     HStack(spacing: 6) {
       placeModeButton(targetPerson == nil ? "Mi ubicación" : "Punto medio", icon: targetPerson == nil ? "location.fill" : "point.3.connected.trianglepath.dotted", selected: !otherPlaceMode) {
@@ -516,9 +658,6 @@ struct CoffeeShopsView: View {
         await vm.useCurrentLocation(current, repo: app.repository)
       }
       withAnimation(.easeInOut(duration: 0.55)) { searching = false }
-      if app.selectedCoffeeMatch == nil {
-        withAnimation(NookMotion.fast) { app.tabBarHidden = false }
-      }
       withAnimation(NookMotion.spring) { appeared = true }
     }
   }
@@ -553,7 +692,7 @@ struct CoffeeShopsView: View {
   }
   private var mapView: some View {
     CoffeeMapExplorer(
-      shops: vm.shops, areaName: selectedArea, searchPoint: vm.searchPoint,
+      shops: filteredShops, areaName: selectedArea, searchPoint: vm.searchPoint,
       currentLocation: location.location.map { GeoPoint($0.coordinate) }, radiusKm: $vm.radiusKm,
       selected: $selected, loading: vm.mapLoading
     ) {
@@ -572,11 +711,176 @@ struct CoffeeShopsView: View {
 }
 
 private struct MidpointSearchState: View {
+  let ownName: String
+  let ownPhoto: String?
+  let otherName: String
+  let otherPhoto: String?
+
   var body: some View {
     SmartCoffeeSearch(
-      person: nil, ownName: nil, ownCity: nil, ownPhoto: nil, meetingArea: nil,
+      person: nil, ownName: ownName, ownCity: nil, ownPhoto: ownPhoto,
+      meetingArea: nil, otherName: otherName, otherPhoto: otherPhoto,
       title: "Buscando\npunto medio", minimal: true)
     .accessibilityElement(children: .combine)
+  }
+}
+
+private struct CoffeeDiscoveryMap: View {
+  let shops: [CoffeeShop]
+  let searchPoint: GeoPoint?
+  let recommendedShopID: UUID?
+  @Binding var selected: CoffeeShop?
+  let select: (CoffeeShop) -> Void
+  let searchHere: @MainActor (CLLocationCoordinate2D) async -> Void
+  @State private var camera: MapCameraPosition = .automatic
+  @State private var visibleRegion: MKCoordinateRegion?
+  @State private var searchedRegion: MKCoordinateRegion?
+  @State private var userMovedMap = false
+  @State private var searchingArea = false
+  @State private var hasPositionedCamera = false
+
+  var body: some View {
+    ZStack(alignment: .top) {
+      Map(position: $camera) {
+        UserAnnotation()
+        if let searchPoint {
+          Annotation("Punto medio", coordinate: searchPoint.coordinate) {
+            AnimatedMidpointMarker()
+          }
+        }
+        ForEach(shops) { shop in
+          if let latitude = shop.latitude, let longitude = shop.longitude {
+            Annotation(shop.name, coordinate: .init(latitude: latitude, longitude: longitude)) {
+              Button { select(shop) } label: {
+                VStack(spacing: 3) {
+                  ZStack {
+                    Circle().fill(
+                      shop.id == recommendedShopID
+                        ? NookColors.nookGold
+                        : (selected?.id == shop.id ? NookColors.mocha : NookColors.espresso))
+                      .frame(width: selected?.id == shop.id ? 46 : 40, height: selected?.id == shop.id ? 46 : 40)
+                    Image(systemName: shop.id == recommendedShopID ? "sparkles" : "cup.and.saucer.fill")
+                      .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
+                  }
+                  .overlay(Circle().stroke(.white, lineWidth: 2.5))
+                  .shadow(color: .black.opacity(0.20), radius: 7, y: 4)
+                  if shop.id == recommendedShopID, selected?.id != shop.id {
+                    Text("NOOK").font(.system(size: 8, weight: .black)).tracking(0.8)
+                      .foregroundStyle(NookColors.primaryCoffeePressed)
+                      .padding(.horizontal, 6).frame(height: 18)
+                      .background(.white, in: Capsule())
+                  }
+                  if selected?.id == shop.id {
+                    Text(shop.name).font(.system(size: 10, weight: .bold)).lineLimit(1)
+                      .foregroundStyle(NookColors.espresso).padding(.horizontal, 7).frame(height: 22)
+                      .background(.white, in: Capsule())
+                  }
+                }
+              }.buttonStyle(.plain)
+            }
+          }
+        }
+      }
+      .onMapCameraChange(frequency: .onEnd) { context in
+        visibleRegion = context.region
+        guard hasPositionedCamera, let searchedRegion else { return }
+        let moved = GeographicMath.distanceMeters(
+          GeoPoint(context.region.center), GeoPoint(searchedRegion.center)) > 120
+        let zoomed = abs(context.region.span.latitudeDelta - searchedRegion.span.latitudeDelta)
+          > searchedRegion.span.latitudeDelta * 0.14
+        userMovedMap = moved || zoomed
+      }
+      .mapStyle(.standard(elevation: .flat))
+      .environment(\.colorScheme, .light)
+
+      if userMovedMap, let region = visibleRegion {
+        Button {
+          Task { @MainActor in
+            searchingArea = true
+            await searchHere(region.center)
+            searchedRegion = region
+            userMovedMap = false
+            searchingArea = false
+          }
+        } label: {
+          HStack(spacing: 8) {
+            if searchingArea { ProgressView().tint(.white).controlSize(.small) }
+            else { Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .bold)) }
+            Text(searchingArea ? "Buscando…" : "Buscar cafeterías en esta zona")
+              .font(.system(size: 13, weight: .bold))
+          }
+          .foregroundStyle(.white)
+          .padding(.horizontal, 17).frame(height: 42)
+          .background(NookColors.espresso.opacity(0.94), in: Capsule())
+          .shadow(color: .black.opacity(0.22), radius: 12, y: 5)
+        }
+        .buttonStyle(.plain).disabled(searchingArea)
+        .padding(.top, 64)
+        .transition(.move(edge: .top).combined(with: .opacity))
+      }
+    }
+    .animation(NookMotion.fast, value: userMovedMap)
+    .onAppear { positionCamera() }
+    .onChange(of: searchPoint) { _, _ in
+      if !userMovedMap { positionCamera() }
+    }
+  }
+
+  private func positionCamera() {
+    guard let searchPoint else { return }
+    let region = MKCoordinateRegion(
+      center: searchPoint.coordinate,
+      span: MKCoordinateSpan(latitudeDelta: 0.035, longitudeDelta: 0.035))
+    hasPositionedCamera = false
+    searchedRegion = region
+    camera = .region(region)
+    Task { @MainActor in
+      try? await Task.sleep(for: .milliseconds(350))
+      hasPositionedCamera = true
+    }
+  }
+}
+
+private struct AnimatedMidpointMarker: View {
+  @State private var dashPhase: CGFloat = 0
+  @State private var pulse = false
+
+  var body: some View {
+    ZStack {
+      Path { path in
+        path.move(to: CGPoint(x: 5, y: 9))
+        path.addLine(to: CGPoint(x: 50, y: 38))
+        path.move(to: CGPoint(x: 95, y: 9))
+        path.addLine(to: CGPoint(x: 50, y: 38))
+      }
+      .stroke(
+        NookColors.mocha.opacity(0.9),
+        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [5, 7], dashPhase: dashPhase))
+
+      Circle()
+        .fill(NookColors.caramelSoft.opacity(pulse ? 0.12 : 0.38))
+        .frame(width: pulse ? 58 : 42, height: pulse ? 58 : 42)
+        .position(x: 50, y: 38)
+
+      Image(systemName: "point.3.connected.trianglepath.dotted")
+        .font(.system(size: 17, weight: .bold))
+        .foregroundStyle(.white)
+        .frame(width: 36, height: 36)
+        .background(NookColors.mocha, in: Circle())
+        .overlay(Circle().stroke(.white, lineWidth: 2.5))
+        .shadow(color: NookColors.mocha.opacity(0.3), radius: 8, y: 4)
+        .position(x: 50, y: 38)
+    }
+    .frame(width: 100, height: 62)
+    .onAppear {
+      withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) {
+        dashPhase = -24
+      }
+      withAnimation(.easeOut(duration: 1.35).repeatForever(autoreverses: false)) {
+        pulse = true
+      }
+    }
+    .accessibilityLabel("Punto medio")
   }
 }
 
@@ -640,29 +944,38 @@ private struct CoffeeMapExplorer: View {
         userMovedMap = GeographicMath.distanceMeters(GeoPoint(context.region.center), searchPoint) > 180
       }
       .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
-      .overlay(NookColors.mocha.opacity(0.035).allowsHitTesting(false))
-      .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-      .overlay(RoundedRectangle(cornerRadius: 26).stroke(NookColors.espresso.opacity(0.09), lineWidth: 0.8))
+      .overlay {
+        LinearGradient(
+          colors: [NookColors.caramelSoft.opacity(0.10), NookColors.mocha.opacity(0.07)],
+          startPoint: .topLeading, endPoint: .bottomTrailing)
+          .blendMode(.multiply)
+          .allowsHitTesting(false)
+      }
+      .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+          .stroke(NookColors.espresso.opacity(0.10), lineWidth: 0.8)
+      }
 
       VStack(spacing: 10) {
         HStack(spacing: 8) {
           Button(action: changeArea) {
             HStack(spacing: 10) {
             Image(systemName: "location.fill").font(.system(size: 12, weight: .bold))
-              .foregroundStyle(NookColors.mocha)
+              .foregroundStyle(NookColors.caramelSoft)
             VStack(alignment: .leading, spacing: 1) {
               Text("BUSCANDO EN").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.1)
-                .foregroundStyle(NookColors.warmGray)
+                .foregroundStyle(.white.opacity(0.58))
               Text(areaName).font(.system(size: 14, weight: .bold, design: .default)).lineLimit(1)
             }
             Spacer()
             Text("Cambiar").font(.system(size: 11, weight: .bold, design: .default))
-              .foregroundStyle(NookColors.mocha)
+              .foregroundStyle(NookColors.caramelSoft)
             Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold))
           }
-          .foregroundStyle(NookColors.espresso).padding(.horizontal, 14).frame(height: 52)
-          .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 17).stroke(NookColors.espresso.opacity(0.08)))
+          .foregroundStyle(.white).padding(.horizontal, 14).frame(height: 52)
+          .background(NookColors.warmBlack.opacity(0.91), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 17).stroke(.white.opacity(0.12)))
           }.buttonStyle(.plain).accessibilityLabel("Cambiar zona, ahora \(areaName)")
           Button {
             Task {
@@ -671,8 +984,9 @@ private struct CoffeeMapExplorer: View {
             }
           } label: {
             Image(systemName: "location.circle.fill").font(.system(size: 20, weight: .semibold))
-              .frame(width: 52, height: 52).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 17))
-          }.buttonStyle(.plain).foregroundStyle(NookColors.espresso)
+              .frame(width: 52, height: 52)
+              .background(NookColors.caramelSoft, in: RoundedRectangle(cornerRadius: 17))
+          }.buttonStyle(.plain).foregroundStyle(NookColors.warmBlack)
             .disabled(currentLocation == nil).accessibilityLabel("Mi ubicación")
         }
 
@@ -686,8 +1000,8 @@ private struct CoffeeMapExplorer: View {
               Text("Nuevos cafés por aquí…").font(.system(size: 13, weight: .bold, design: .default))
             }
           }
-          .foregroundStyle(NookColors.espresso).padding(.horizontal, 14).padding(.vertical, 10)
-          .background(.ultraThinMaterial, in: Capsule())
+          .foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 10)
+          .background(NookColors.warmBlack.opacity(0.9), in: Capsule())
           .transition(.scale(scale: 0.92).combined(with: .opacity))
         }
 
@@ -713,19 +1027,20 @@ private struct CoffeeMapExplorer: View {
               VStack(alignment: .leading, spacing: 3) {
                 Text(shop.name).font(.system(size: 17, weight: .bold, design: .default)).lineLimit(1)
                 Text("\(shop.vibeLabel)  ·  \(String(format: "%.1f", shop.distanceKm)) km")
-                  .font(.caption.weight(.medium)).foregroundStyle(NookColors.warmGray).lineLimit(1)
+                  .font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.64)).lineLimit(1)
               }
               Spacer()
               Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
-                .frame(width: 38, height: 38).background(NookColors.espresso, in: Circle())
-                .foregroundStyle(NookColors.inverseText)
-            }.padding(9).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 21, style: .continuous))
-              .overlay(RoundedRectangle(cornerRadius: 21).stroke(NookColors.espresso.opacity(0.08)))
-          }.buttonStyle(.plain).foregroundStyle(NookColors.espresso)
+                .frame(width: 38, height: 38).background(NookColors.caramelSoft, in: Circle())
+                .foregroundStyle(NookColors.warmBlack)
+            }.padding(9).background(NookColors.warmBlack.opacity(0.93), in: RoundedRectangle(cornerRadius: 21, style: .continuous))
+              .overlay(RoundedRectangle(cornerRadius: 21).stroke(.white.opacity(0.12)))
+          }.buttonStyle(.plain).foregroundStyle(.white)
         } else {
           Label("Toca una taza", systemImage: "cup.and.saucer.fill")
-            .font(.system(size: 12, weight: .semibold, design: .default)).foregroundStyle(NookColors.espresso.opacity(0.72))
-            .padding(.horizontal, 15).padding(.vertical, 10).background(.ultraThinMaterial, in: Capsule())
+            .font(.system(size: 12, weight: .semibold, design: .default)).foregroundStyle(.white.opacity(0.84))
+            .padding(.horizontal, 15).padding(.vertical, 10)
+            .background(NookColors.warmBlack.opacity(0.88), in: Capsule())
         }
 
         VStack(spacing: 7) {
@@ -733,20 +1048,19 @@ private struct CoffeeMapExplorer: View {
             Text("RADIO").font(.system(size: 9, weight: .bold, design: .default)).tracking(1.2)
             Spacer()
             Text("\(Int(radiusKm)) km").font(.system(size: 13, weight: .bold, design: .default))
-              .foregroundStyle(NookColors.mocha)
+              .foregroundStyle(NookColors.caramelSoft)
           }
           Slider(value: $radiusKm, in: 1...30, step: 1) { editing in
             if !editing { radiusChanged(radiusKm) }
-          }.tint(NookColors.mocha)
-        }.foregroundStyle(NookColors.espresso).padding(.horizontal, 14).padding(.vertical, 10)
-          .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-          .overlay(RoundedRectangle(cornerRadius: 17).stroke(NookColors.espresso.opacity(0.08)))
+          }.tint(NookColors.caramelSoft)
+        }.foregroundStyle(.white).padding(.horizontal, 14).padding(.vertical, 10)
+          .background(NookColors.warmBlack.opacity(0.93), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+          .overlay(RoundedRectangle(cornerRadius: 17).stroke(.white.opacity(0.12)))
       }
-      .padding(.horizontal, 14)
-      .padding(.top, 14)
-      .padding(.bottom, 14)
+      .padding(12)
     }
-    .padding(.horizontal, 12)
+    .padding(14)
+    .background(Color.white)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .layoutPriority(1)
     .animation(NookMotion.fast, value: loading)
@@ -846,14 +1160,15 @@ private struct NookChoiceCelebration: View {
       .background {
         RadialGradient(
           colors: [
-            NookColors.warmBlack.opacity(0.98),
-            NookColors.primaryCoffeePressed.opacity(0.78),
-            NookColors.primaryCoffee.opacity(0.36),
+            NookColors.warmBlack,
+            NookColors.warmBlack.opacity(0.92),
+            NookColors.primaryCoffeePressed.opacity(0.72),
+            NookColors.warmBlack.opacity(0.34),
             .clear,
           ],
-          center: .center, startRadius: 20, endRadius: 265)
-          .frame(width: 540, height: 440)
-          .blur(radius: 30)
+          center: .center, startRadius: 24, endRadius: 350)
+          .frame(width: 720, height: 620)
+          .blur(radius: 44)
           .allowsHitTesting(false)
       }
     }
@@ -896,6 +1211,28 @@ private extension CoffeeShop {
     if openNow == true { facts.append("abierto ahora") }
     else if openNow == false { facts.append("cerrado ahora") }
     return facts.joined(separator: " · ") + "."
+  }
+
+  var todayHoursText: String? {
+    guard let openingHours, !openingHours.isEmpty else { return nil }
+    let weekday = Calendar.autoupdatingCurrent.component(.weekday, from: Date())
+    let names: [Int: [String]] = [
+      1: ["domingo", "sunday"], 2: ["lunes", "monday"],
+      3: ["martes", "tuesday"], 4: ["miércoles", "miercoles", "wednesday"],
+      5: ["jueves", "thursday"], 6: ["viernes", "friday"],
+      7: ["sábado", "sabado", "saturday"],
+    ]
+    let entries = openingHours.components(separatedBy: " · ")
+    if let entry = entries.first(where: { value in
+      let normalized = value.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+      return (names[weekday] ?? []).contains { normalized.hasPrefix($0.folding(options: .diacriticInsensitive, locale: .current)) }
+    }) {
+      guard let separator = entry.firstIndex(of: ":") else { return entry }
+      let value = String(entry[entry.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+      return value.lowercased().contains("cerrado") || value.lowercased().contains("closed")
+        ? "Cerrado hoy" : "Hoy · \(value)"
+    }
+    return entries.count == 1 ? openingHours : nil
   }
 }
 
@@ -985,12 +1322,78 @@ private struct InlineCoffeeShopDetail: View {
   }
 }
 
+private struct MidpointPeopleRoute: View {
+  let ownName: String
+  let ownPhoto: String?
+  let otherName: String
+  let otherPhoto: String?
+  @State private var dashPhase: CGFloat = 0
+  @State private var pulse = false
+
+  var body: some View {
+    HStack(spacing: 1) {
+      avatar(name: ownName, photo: ownPhoto)
+      routeLine
+      ZStack {
+        Circle()
+          .fill(NookColors.mocha.opacity(0.2))
+          .frame(width: pulse ? 88 : 72, height: pulse ? 88 : 72)
+        Circle().stroke(.white.opacity(0.22), lineWidth: 3).frame(width: 70, height: 70)
+        Image(systemName: "location.fill")
+          .font(.system(size: 24, weight: .bold))
+          .foregroundStyle(NookColors.inverseText)
+          .frame(width: 58, height: 58)
+          .background(NookColors.mocha, in: Circle())
+      }
+      .frame(width: 76, height: 88)
+      .shadow(color: NookColors.mocha.opacity(0.5), radius: 22)
+      routeLine
+      avatar(name: otherName, photo: otherPhoto)
+    }
+      .frame(maxWidth: 310)
+    .onAppear {
+      withAnimation(.linear(duration: 1.05).repeatForever(autoreverses: false)) {
+        dashPhase = -18
+      }
+      withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+        pulse = true
+      }
+    }
+  }
+
+  private var routeLine: some View {
+    GeometryReader { proxy in
+      Path { path in
+        path.move(to: CGPoint(x: 0, y: proxy.size.height / 2))
+        path.addLine(to: CGPoint(x: proxy.size.width, y: proxy.size.height / 2))
+      }
+      .stroke(
+        NookColors.caramelSoft.opacity(0.95),
+        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [3, 7], dashPhase: dashPhase)
+      )
+    }
+      .frame(maxWidth: 22, minHeight: 12, maxHeight: 12)
+      .shadow(color: NookColors.mocha.opacity(0.35), radius: 4)
+  }
+
+  private func avatar(name: String, photo: String?) -> some View {
+    ProfileImage(url: photo, name: name)
+      .frame(width: 78, height: 78)
+      .clipShape(Circle())
+      .overlay(Circle().stroke(.white.opacity(0.82), lineWidth: 2.5))
+      .shadow(color: .black.opacity(0.28), radius: 10, y: 5)
+      .accessibilityLabel(name)
+  }
+}
+
 private struct SmartCoffeeSearch: View {
   let person: DiscoverProfile?
   let ownName: String?
   let ownCity: String?
   let ownPhoto: String?
   let meetingArea: String?
+  var otherName: String? = nil
+  var otherPhoto: String? = nil
   let title: String
   var minimal = false
   @State private var active = false
@@ -1012,6 +1415,9 @@ private struct SmartCoffeeSearch: View {
       let tileWidth = (galleryWidth - gap * 2) / 3
       let tileHeight = max(142, proxy.size.height / 4.75)
       ZStack {
+        if minimal {
+          NookColors.warmBlack.ignoresSafeArea()
+        }
         HStack(alignment: .center, spacing: gap) {
           ForEach(0..<3, id: \.self) { column in
             VStack(spacing: gap) {
@@ -1042,25 +1448,10 @@ private struct SmartCoffeeSearch: View {
           Spacer()
           VStack(spacing: 9) {
             if minimal {
-              ZStack {
-                Circle().stroke(.white.opacity(0.2), lineWidth: 4)
-                  .frame(width: 74, height: 74)
-                Circle()
-                  .trim(from: 0, to: minimalRing ? 0.96 : 0.08)
-                  .stroke(
-                    AngularGradient(
-                      colors: [NookColors.mocha, .white, NookColors.latte, NookColors.mocha],
-                      center: .center),
-                    style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
-                  .frame(width: 74, height: 74)
-                  .rotationEffect(.degrees(minimalRingRotation ? 270 : -90))
-                Image(systemName: "location.fill")
-                  .font(.system(size: 25, weight: .bold))
-                  .foregroundStyle(NookColors.inverseText)
-                  .frame(width: 62, height: 62)
-                  .background(NookColors.mocha, in: Circle())
-              }
-              .shadow(color: NookColors.mocha.opacity(0.38), radius: 22)
+              MidpointPeopleRoute(
+                ownName: ownName ?? "Tú", ownPhoto: ownPhoto,
+                otherName: otherName ?? person?.name ?? "Tu café",
+                otherPhoto: otherPhoto ?? person?.photos.first?.url)
             } else {
               NookAILogo()
             }
@@ -1127,8 +1518,9 @@ private struct SmartCoffeeSearch: View {
 
   private func galleryTile(index: Int, width: CGFloat, height: CGFloat) -> some View {
     NookRemoteImage(url: URL(string: photos[index % photos.count])) {
-      NookColors.offWhite.overlay(
-        Image(systemName: "cup.and.saucer").foregroundStyle(NookColors.mocha))
+      (minimal ? NookColors.warmBlack : NookColors.offWhite).overlay(
+        Image(systemName: "cup.and.saucer")
+          .foregroundStyle(minimal ? NookColors.caramelSoft : NookColors.mocha))
     }
     .frame(width: width, height: height).clipped()
     .overlay {
@@ -1183,80 +1575,150 @@ struct NookCoffeeShopCard: View {
   let shop: CoffeeShop
   let namespace: Namespace.ID
   var recommended = false
+  let choose: () -> Void
+  let details: () -> Void
   @State private var selectedPhoto = 0
-  @State private var choiceBorderGlow = false
   private var gallery: [String] {
     var values = shop.photoUrls ?? []
     if let cover = shop.photoUrl, !values.contains(cover) { values.insert(cover, at: 0) }
     return values.isEmpty ? [""] : values
   }
   var body: some View {
-    GeometryReader { proxy in
-      ZStack(alignment: .bottomLeading) {
+    VStack(alignment: .leading, spacing: 0) {
+      ZStack(alignment: .topLeading) {
         TabView(selection: $selectedPhoto) {
           ForEach(Array(gallery.enumerated()), id: \.offset) { index, photo in
             ShopImage(url: photo.isEmpty ? nil : photo, seed: "\(shop.name)-\(index)")
-              .frame(width: proxy.size.width, height: 220)
+              .frame(maxWidth: .infinity).frame(height: 198)
               .tag(index)
           }
         }
-          .tabViewStyle(.page(indexDisplayMode: .never))
-          .matchedGeometryEffect(id: "image-\(shop.id)", in: namespace)
-          .visualEffect { content, geometry in content.offset(y: geometry.frame(in: .scrollView).minY * -0.035) }
-        LinearGradient(colors: [.clear, NookColors.warmBlack.opacity(0.08), NookColors.warmBlack.opacity(0.88)], startPoint: .top, endPoint: .bottom)
-          .allowsHitTesting(false)
+        .frame(height: 198)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .matchedGeometryEffect(id: "image-\(shop.id)", in: namespace)
         if gallery.count > 1 {
-          VStack {
-            HStack(spacing: 5) {
-              Spacer()
+          HStack(spacing: 5) {
               ForEach(gallery.indices, id: \.self) { index in
                 Capsule()
                   .fill(.white.opacity(index == selectedPhoto ? 0.95 : 0.38))
                   .frame(width: index == selectedPhoto ? 14 : 5, height: 5)
               }
-            }
-            Spacer()
           }
-          .padding(16)
+          .padding(12)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
           .animation(.snappy(duration: 0.22), value: selectedPhoto)
           .allowsHitTesting(false)
         }
         if recommended {
-          VStack {
-            HStack {
-              Label("ELECCIÓN NOOK", systemImage: "sparkles").font(.caption.bold()).tracking(0.8)
-                .padding(.horizontal, 11).padding(.vertical, 7).background(NookColors.espresso.opacity(0.9), in: Capsule())
-              Spacer()
-            }
-            Spacer()
-          }.foregroundStyle(NookColors.inverseText).padding(14)
+          Label("ELECCIÓN NOOK", systemImage: "sparkles")
+            .font(.system(size: 10, weight: .bold, design: .default)).tracking(0.9)
+            .foregroundStyle(NookColors.inverseText)
+            .padding(.horizontal, 11).frame(height: 30)
+            .background(NookColors.espresso.opacity(0.92), in: Capsule())
+            .padding(12)
         }
-        VStack(alignment: .leading, spacing: 7) {
-          if recommended { Text("Pinta genial para los dos").font(.caption.bold()).tracking(0.4).foregroundStyle(.white.opacity(0.78)) }
-          Text(shop.name).font(NookTypography.business(23, weight: .bold)).tracking(-0.2).lineLimit(1)
-          HStack(spacing: 12) {
-            if let rating = shop.rating { Label(rating.formatted(), systemImage: "star.fill") }
-            Label(shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km", systemImage: "location")
-            Text(shop.vibeLabel)
-          }.font(.system(size: 13, weight: .semibold, design: .default))
-        }.foregroundStyle(.white).padding(16)
       }
-    }
-    .frame(height: 220)
-    .clipped()
-    .overlay(alignment: .leading) {
-      if recommended {
-        Rectangle()
-          .fill(NookColors.nookGold.opacity(choiceBorderGlow ? 1 : 0.62))
-          .frame(width: 3)
+
+      VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+          Text(shop.name).font(NookTypography.business(22, weight: .bold)).tracking(-0.25)
+            .foregroundStyle(NookColors.primaryCoffeePressed)
+            .lineLimit(1).minimumScaleFactor(0.78)
+          Spacer(minLength: 4)
+          if let openNow = shop.openNow {
+            Text(openNow ? "Abierto" : "Cerrado")
+              .font(.system(size: 11, weight: .bold, design: .default))
+              .foregroundStyle(openNow ? Color.green.opacity(0.82) : NookColors.error)
+          }
+        }
+
+        HStack(spacing: 8) {
+          if let rating = shop.rating {
+            HStack(spacing: 4) {
+              Image(systemName: "star.fill").font(.system(size: 11, weight: .bold))
+              Text(rating.formatted(.number.precision(.fractionLength(1))))
+              if let reviews = shop.reviewCount { Text("(\(reviews))").foregroundStyle(NookColors.warmGray) }
+            }.foregroundStyle(NookColors.mocha)
+            metadataDot
+          }
+          Label(distanceText, systemImage: "location.fill")
+        }
+        .font(.system(size: 12, weight: .semibold, design: .default))
+        .foregroundStyle(NookColors.espresso.opacity(0.68))
+        .lineLimit(1)
+
+        HStack(spacing: 8) {
+          Image(systemName: "mappin.and.ellipse").foregroundStyle(NookColors.mocha)
+          Text(shop.neighborhood ?? shop.address).lineLimit(1)
+        }
+        .font(.system(size: 13, weight: .medium, design: .default))
+        .foregroundStyle(NookColors.espresso.opacity(0.64))
+
+        Label(shop.todayHoursText ?? "Horario no disponible", systemImage: "clock")
+          .font(.system(size: 12, weight: .semibold, design: .default))
+          .foregroundStyle(NookColors.espresso.opacity(0.72)).lineLimit(1)
+
+        Text(shop.description ?? shop.nookEditorialFallback)
+          .font(.system(size: 13, weight: .regular, design: .default))
+          .foregroundStyle(NookColors.espresso.opacity(0.62)).lineLimit(2).lineSpacing(2)
+
+        HStack {
+          Button("Más información", action: details)
+            .font(.system(size: 12, weight: .semibold, design: .default))
+            .foregroundStyle(NookColors.espresso.opacity(0.62))
+          Spacer()
+          Button(action: choose) {
+            Text("Elegir").font(.system(size: 14, weight: .bold, design: .default))
+              .foregroundStyle(NookColors.inverseText)
+              .padding(.horizontal, 20).frame(height: 38)
+              .background(NookColors.espresso, in: Capsule())
+          }.buttonStyle(.plain)
+        }
+        .padding(.top, 2)
       }
+      .padding(15)
+      .frame(height: 194, alignment: .top)
     }
+    .background(Color.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .shadow(color: NookColors.espresso.opacity(0.09), radius: 18, y: 7)
+  }
+
+  private var metadataDot: some View {
+    Circle().fill(NookColors.espresso.opacity(0.22)).frame(width: 3, height: 3)
+  }
+  private var distanceText: String {
+    shop.distanceKm < 1 ? "\(Int(shop.distanceKm * 1000)) m" : "\(shop.distanceKm.formatted()) km"
+  }
+}
+
+private struct CoffeePlaceCardSkeleton: View {
+  @State private var pulse = false
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      skeleton(radius: 0).frame(height: 198)
+      VStack(alignment: .leading, spacing: 11) {
+        skeleton().frame(width: 210, height: 22)
+        skeleton().frame(width: 155, height: 12)
+        skeleton().frame(maxWidth: .infinity).frame(height: 12)
+        HStack {
+          skeleton().frame(width: 98, height: 12)
+          Spacer()
+          skeleton(radius: 19).frame(width: 78, height: 38)
+        }.padding(.top, 8)
+      }.padding(15).frame(height: 194, alignment: .top)
+    }
+    .background(Color.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    .shadow(color: NookColors.espresso.opacity(0.07), radius: 14, y: 6)
+    .opacity(pulse ? 0.58 : 1)
     .onAppear {
-      guard recommended else { return }
-      withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-        choiceBorderGlow = true
-      }
+      withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
     }
+  }
+  private func skeleton(radius: CGFloat = 7) -> some View {
+    RoundedRectangle(cornerRadius: radius, style: .continuous)
+      .fill(NookColors.espresso.opacity(0.09))
   }
 }
 
@@ -1387,9 +1849,7 @@ struct ProposalSheet: View {
   var existingProposal: CoffeeDate? = nil
   @State private var step = 0
   @State private var selectedMatch: UUID?
-  // Payment is deliberately not part of the proposal funnel. A first coffee should
-  // take four decisions at most; the API keeps its backwards-compatible value.
-  private let payment = PaymentPreference.split
+  @State private var payment = PaymentPreference.split
   @State private var date = Date().addingTimeInterval(86_400)
   @State private var selectedSlot: Date?
   @State private var confirmed = false
@@ -1400,21 +1860,17 @@ struct ProposalSheet: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookInteriorBackdrop()
+        Color.white.ignoresSafeArea()
         if confirmed {
           proposalSent
             .transition(.scale(scale: 0.94).combined(with: .opacity))
         } else {
-          VStack(spacing: 13) {
-          HStack {
-            ForEach(0..<totalSteps, id: \.self) { i in
-              Capsule().fill(i <= step ? NookColors.espresso : NookColors.oat.opacity(0.5)).frame(
-                height: 4)
-            }
-          }
+          VStack(spacing: 12) {
+          proposalTopBar
+          stepProgress
           ScrollView {
             if needsPersonChoice && step == 0 {
-              choiceStep("¿Con quién?", "Elige la persona para este café") {
+              choiceStep("¿Con quién?", "Elige tu compañero de café") {
                 if matches.isEmpty {
                   NookEmptyState(icon: "person.2", title: "Aún no hay personas", text: "Cuando tengáis café, podrás proponer un lugar desde aquí.")
                 }
@@ -1433,16 +1889,18 @@ struct ProposalSheet: View {
                       Spacer()
                       Image(systemName: selectedMatch == match.id ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(NookColors.mocha)
-                    }.foregroundStyle(NookColors.espresso).padding(NookSpacing.md)
-                      .background(NookColors.surfaceRaised, in: RoundedRectangle(cornerRadius: NookRadius.control))
+                    }.foregroundStyle(NookColors.espresso).padding(.vertical, 11)
+                      .overlay(alignment: .bottom) {
+                        Rectangle().fill(NookColors.espresso.opacity(0.09)).frame(height: 0.7)
+                      }
                   }.buttonStyle(.plain)
                 }
               }
             } else if flowStep == 0 {
-              choiceStep("¿Qué día?", "Elige el día que mejor os venga") {
+              choiceStep("¿Qué día os va bien?", "Un día para parar y tomar café") {
                 DatePicker("Fecha", selection: $date, in: Date()..., displayedComponents: .date)
-                  .datePickerStyle(.graphical).tint(NookColors.espresso).padding(12)
-                  .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: NookRadius.large))
+                  .datePickerStyle(.graphical).tint(NookColors.mocha)
+                  .padding(.horizontal, -6)
                 if let hours = shop.openingHours {
                   Label(hours, systemImage: "clock").font(.caption.weight(.semibold))
                     .foregroundStyle(NookColors.mocha)
@@ -1452,7 +1910,7 @@ struct ProposalSheet: View {
                 }
               }
             } else if flowStep == 1 {
-              choiceStep("¿A qué hora?", shop.openingHours == nil ? "Elige una hora para proponérsela" : "Dentro del horario del café") {
+              choiceStep("¿A qué hora?", shop.openingHours == nil ? "Elige vuestro momento" : "Estas horas encajan con el café") {
                 if let slots = shop.availableTimes(on: date) {
                   if slots.isEmpty {
                     NookEmptyState(icon: "clock.badge.xmark", title: "Cerrado este día", text: "Elige otro día para ver sus franjas disponibles.")
@@ -1465,9 +1923,10 @@ struct ProposalSheet: View {
                         } label: {
                           Text(slot.formatted(date: .omitted, time: .shortened))
                             .font(.system(size: 14, weight: .bold, design: .default))
-                            .frame(maxWidth: .infinity).frame(height: 42)
+                            .frame(maxWidth: .infinity).frame(height: 44)
                             .foregroundStyle(selectedSlot == slot ? NookColors.inverseText : NookColors.espresso)
-                            .background(selectedSlot == slot ? NookColors.mocha : NookColors.offWhite, in: Capsule())
+                            .background(selectedSlot == slot ? NookColors.mocha : NookColors.espresso.opacity(0.06), in: Capsule())
+                            .overlay(Capsule().stroke(NookColors.espresso.opacity(selectedSlot == slot ? 0 : 0.10)))
                         }.buttonStyle(.plain)
                       }
                     }
@@ -1477,26 +1936,42 @@ struct ProposalSheet: View {
                     .datePickerStyle(.wheel).labelsHidden().frame(maxWidth: .infinity)
                 }
               }
+            } else if flowStep == 2 {
+              choiceStep("¿Quién invita?", "Dejadlo claro antes de pedir el primer café") {
+                VStack(spacing: 11) {
+                  paymentChoice(
+                    .split, icon: "person.2.fill", title: "Cada uno paga lo suyo",
+                    subtitle: "Fácil, natural y sin cuentas pendientes")
+                  paymentChoice(
+                    .iInvite, icon: "gift.fill", title: "Invito yo",
+                    subtitle: "Este primer café corre de mi cuenta")
+                  paymentChoice(
+                    .theyInvite, icon: "cup.and.saucer.fill", title: "Invitas tú",
+                    subtitle: "La otra persona se encarga del café")
+                }
+              }
             } else {
-              choiceStep("Se lo enviamos a \(selectedPersonName)", "Revisa el plan antes de enviarlo") {
-                NookCard {
-                  VStack(alignment: .leading, spacing: 14) {
+              choiceStep("¿Listos para el café?", "Esto es lo que recibirá \(selectedPersonName)") {
+                  VStack(alignment: .leading, spacing: 0) {
                     if isNookChoice {
                       Label("ELECCIÓN NOOK", systemImage: "sparkles")
                         .font(.caption.bold()).tracking(1).foregroundStyle(NookColors.mocha)
+                        .padding(.bottom, 12)
                     }
-                    Label(selectedPersonName, systemImage: "person.crop.circle")
-                    Label(shop.name, systemImage: "mappin.and.ellipse")
-                    Label(date.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
-                  }.font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-                }
+                    reviewRow("person.crop.circle.fill", selectedPersonName)
+                    reviewRow("cup.and.saucer.fill", shop.name)
+                    reviewRow("calendar", date.formatted(date: .abbreviated, time: .shortened))
+                    reviewRow("eurosign.circle.fill", paymentDisplayTitle)
+                  }
+                  .font(.headline).frame(maxWidth: .infinity, alignment: .leading)
               }
             }
           }
+          .contentMargins(.horizontal, 10, for: .scrollContent)
           .scrollIndicators(.hidden)
           .frame(maxHeight: .infinity)
             NookButton(
-              title: sending ? "ENVIANDO PROPUESTA…" : (isReview ? "ENVIAR" : "CONTINUAR"),
+              title: sending ? "PREPARANDO EL CAFÉ…" : (isReview ? "ENVIAR PROPUESTA" : "SIGUIENTE"),
               icon: isReview ? "paperplane" : "arrow.right", isLoading: sending
             ) {
               guard !sending else { return }
@@ -1533,20 +2008,15 @@ struct ProposalSheet: View {
           // The custom full-bleed backdrop makes the sheet content extend beneath
           // the translucent navigation bar. Reserve its visual height so the step
           // indicator and first heading never collide with the toolbar.
-          .safeAreaPadding(.top, 30)
+          .safeAreaPadding(.top, 0)
           .safeAreaPadding(.bottom, 10)
-          .navigationTitle("Nuevo café").navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-              ToolbarItem(placement: .topBarLeading) {
-                Button { if step == 0 { dismiss() } else { withAnimation(NookMotion.spring) { step -= 1 } } } label: {
-                  Image(systemName: step == 0 ? "xmark" : "chevron.left")
-                }.accessibilityLabel(step == 0 ? "Cerrar" : "Volver")
-              }
-            }
+          .toolbar(.hidden, for: .navigationBar)
         }
         if sending { CoffeeBeanTransition().allowsHitTesting(false).transition(.opacity) }
       }
-    }.alert("No hemos podido enviarlo", isPresented: Binding(
+    }
+    .preferredColorScheme(.light)
+    .alert("No hemos podido enviarlo", isPresented: Binding(
       get: { submitError != nil }, set: { if !$0 { submitError = nil } }
     )) { Button("Entendido") { submitError = nil } } message: { Text(submitError ?? "") }
     .alert("Cafetería cerrada", isPresented: Binding(
@@ -1563,13 +2033,69 @@ struct ProposalSheet: View {
         let proposedDate = ISO8601DateFormatter.nook.date(from: existingProposal.proposedAt)
       {
         date = proposedDate
+        payment = existingProposal.paymentPreference
       }
     }
   }
   private var needsPersonChoice: Bool { app.selectedCoffeeMatch == nil }
+
+  private var proposalTopBar: some View {
+    HStack(spacing: 12) {
+      Button {
+        if step == 0 { dismiss() }
+        else { withAnimation(NookMotion.spring) { step -= 1 } }
+      } label: {
+        Image(systemName: step == 0 ? "xmark" : "chevron.left")
+          .font(.system(size: 13, weight: .bold))
+          .foregroundStyle(NookColors.espresso)
+          .frame(width: 36, height: 36)
+          .background(NookColors.espresso.opacity(0.06), in: Circle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(step == 0 ? "Cerrar" : "Volver")
+
+      Text(shop.name)
+        .font(NookTypography.business(21, weight: .bold))
+        .foregroundStyle(NookColors.primaryCoffeePressed)
+        .lineLimit(2)
+        .minimumScaleFactor(0.76)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .frame(minHeight: 44)
+  }
+
   private var flowStep: Int { step - (needsPersonChoice ? 1 : 0) }
-  private var totalSteps: Int { needsPersonChoice ? 4 : 3 }
+  private var totalSteps: Int { needsPersonChoice ? 5 : 4 }
   private var isReview: Bool { step == totalSteps - 1 }
+  private var stepIcons: [String] {
+    needsPersonChoice
+      ? ["person.fill", "calendar", "clock.fill", "eurosign", "paperplane.fill"]
+      : ["calendar", "clock.fill", "eurosign", "paperplane.fill"]
+  }
+  private var stepProgress: some View {
+    HStack(spacing: 7) {
+      ForEach(0..<totalSteps, id: \.self) { index in
+        ZStack {
+          Circle()
+            .fill(index <= step ? NookColors.espresso : NookColors.espresso.opacity(0.07))
+          Image(systemName: index < step ? "checkmark" : stepIcons[index])
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(index <= step ? NookColors.inverseText : NookColors.espresso.opacity(0.38))
+        }
+        .frame(width: index == step ? 34 : 28, height: index == step ? 34 : 28)
+        .shadow(color: index == step ? NookColors.espresso.opacity(0.16) : .clear, radius: 8, y: 4)
+        if index < totalSteps - 1 {
+          Capsule()
+            .fill(index < step ? NookColors.mocha : NookColors.espresso.opacity(0.10))
+            .frame(height: 2)
+        }
+      }
+    }
+    .padding(.horizontal, 4).frame(height: 38)
+    .animation(.spring(response: 0.42, dampingFraction: 0.82), value: step)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Paso \(step + 1) de \(totalSteps)")
+  }
   private var canContinue: Bool {
     if needsPersonChoice && step == 0 { return selectedMatch != nil }
     if flowStep == 1, shop.availableTimes(on: date) != nil { return selectedSlot != nil }
@@ -1662,14 +2188,79 @@ struct ProposalSheet: View {
   private func choiceStep<C: View>(
     _ title: String, _ subtitle: String, @ViewBuilder content: () -> C
   ) -> some View {
-    VStack(alignment: .leading, spacing: NookSpacing.md) {
-      VStack(alignment: .leading, spacing: NookSpacing.xs) {
-        Text(title).font(NookTypography.business(28, weight: .bold))
+    VStack(alignment: .leading, spacing: 18) {
+      VStack(alignment: .leading, spacing: 5) {
+        Text("PASO \(step + 1) DE \(totalSteps)")
+          .font(.system(size: 9, weight: .bold, design: .default)).tracking(1.5)
+          .foregroundStyle(NookColors.mocha)
+        Text(title).font(NookTypography.business(31, weight: .bold)).tracking(-0.45)
         Text(subtitle).font(NookTypography.secondary).foregroundStyle(NookColors.textSecondary)
       }
       content()
     }.frame(maxWidth: .infinity, alignment: .leading).transition(
       .move(edge: .trailing).combined(with: .opacity))
+  }
+  private func reviewRow(_ icon: String, _ text: String) -> some View {
+    HStack(spacing: 13) {
+      Image(systemName: icon).font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(NookColors.mocha).frame(width: 24)
+      Text(text).lineLimit(2)
+      Spacer()
+    }
+    .padding(.vertical, 15)
+    .overlay(alignment: .bottom) {
+      Rectangle().fill(NookColors.espresso.opacity(0.09)).frame(height: 0.7)
+    }
+  }
+  private var paymentDisplayTitle: String {
+    switch payment {
+    case .split: "Cada uno paga lo suyo"
+    case .iInvite: "Invito yo"
+    case .theyInvite: "Invitas tú"
+    case .decideThere: "Lo decidimos allí"
+    }
+  }
+  private func paymentChoice(
+    _ value: PaymentPreference, icon: String, title: String, subtitle: String
+  ) -> some View {
+    let selected = payment == value
+    return Button {
+      Haptics.selection()
+      withAnimation(NookMotion.spring) { payment = value }
+    } label: {
+      HStack(spacing: 14) {
+        Image(systemName: icon)
+          .font(.system(size: 18, weight: .semibold))
+          .foregroundStyle(selected ? NookColors.inverseText : NookColors.mocha)
+          .frame(width: 44, height: 44)
+          .background(selected ? NookColors.mocha : NookColors.primaryCoffeeSoft.opacity(0.55), in: Circle())
+        VStack(alignment: .leading, spacing: 3) {
+          Text(title)
+            .font(.system(size: 16, weight: .bold))
+            .foregroundStyle(NookColors.primaryCoffeePressed)
+          Text(subtitle)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(NookColors.textSecondary)
+            .lineLimit(2)
+        }
+        Spacer(minLength: 8)
+        Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+          .font(.system(size: 20, weight: .semibold))
+          .foregroundStyle(selected ? NookColors.mocha : NookColors.border)
+      }
+      .padding(.horizontal, 15)
+      .frame(minHeight: 76)
+      .background(
+        selected ? NookColors.primaryCoffeeSoft.opacity(0.34) : Color.white,
+        in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+      .overlay {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+          .stroke(selected ? NookColors.mocha.opacity(0.72) : NookColors.border.opacity(0.7), lineWidth: selected ? 1.5 : 1)
+      }
+      .shadow(color: selected ? NookColors.mocha.opacity(0.12) : NookColors.espresso.opacity(0.035), radius: 12, y: 5)
+    }
+    .buttonStyle(.plain)
+    .accessibilityAddTraits(selected ? .isSelected : [])
   }
   private func choice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
     Button {

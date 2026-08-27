@@ -32,7 +32,7 @@ extension Notification.Name { static let nookDeviceToken=Notification.Name("Nook
   }
   var body: some Scene {
     WindowGroup {
-      RootView().environmentObject(app).tint(NookColors.primaryCoffee).preferredColorScheme(.light).task {
+      RootView().environmentObject(app).tint(NookColors.primaryCoffee).task {
         #if DEBUG
           if ProcessInfo.processInfo.environment["NOOK_PREVIEW_ONBOARDING"] == "1" {
             await app.enterOfflineDemo()
@@ -139,13 +139,13 @@ struct DiscoverSnapshot {
     #endif
   }
   func restore() async {
-    let minimumIntro = Task { try? await Task.sleep(for: .seconds(1.8)) }
+    let minimumIntro = Task { try? await Task.sleep(for: .milliseconds(700)) }
     do {
       let restored = try await withThrowingTaskGroup(of: Me?.self) { group in
         let repository = self.repository
         group.addTask { try await repository.restore() }
         group.addTask {
-          try await Task.sleep(for: .seconds(90))
+          try await Task.sleep(for: .seconds(6))
           throw StartupTimeout()
         }
         guard let first = try await group.next() else { throw StartupTimeout() }
@@ -161,8 +161,10 @@ struct DiscoverSnapshot {
       return
     } catch {
       await minimumIntro.value
-      stage = .startupError(
-        "Nook está tardando en despertar. Tu sesión sigue guardada; comprueba la conexión y vuelve a intentarlo.")
+      await repository.clearLocalSession()
+      me = nil
+      resetNavigation()
+      stage = .welcome
     }
   }
   func login(_ email: String, _ password: String) async throws {
