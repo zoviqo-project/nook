@@ -220,6 +220,13 @@ struct CoffeeShopsView: View {
               selected = nil
               await vm.searchVisibleArea(GeoPoint(center), repo: app.repository)
               await preloadVisibleShopImages()
+            } backToDiscover: {
+              Haptics.selection()
+              // Keep the destination immersive during the tab replacement. The
+              // disappearing map must not briefly restore the regular layout.
+              app.tabBarHidden = true
+              app.selectedTab = 0
+              app.selectedCoffeeMatch = nil
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -273,7 +280,9 @@ struct CoffeeShopsView: View {
     .sheet(isPresented: $showAreaPicker) { areaPicker }
     .onDisappear {
       location.stop()
-      app.tabBarHidden = false
+      if app.selectedTab != 0 {
+        app.tabBarHidden = false
+      }
     }
     .onChange(of: location.location?.timestamp) { _, timestamp in
       guard timestamp != nil, !locationHandled, vm.origin == nil, let current = location.location else { return }
@@ -732,6 +741,7 @@ private struct CoffeeDiscoveryMap: View {
   @Binding var selected: CoffeeShop?
   let select: (CoffeeShop) -> Void
   let searchHere: @MainActor (CLLocationCoordinate2D) async -> Void
+  let backToDiscover: () -> Void
   @State private var camera: MapCameraPosition = .automatic
   @State private var visibleRegion: MKCoordinateRegion?
   @State private var searchedRegion: MKCoordinateRegion?
@@ -792,6 +802,23 @@ private struct CoffeeDiscoveryMap: View {
       }
       .mapStyle(.standard(elevation: .flat))
       .environment(\.colorScheme, .light)
+
+      Button(action: backToDiscover) {
+        NookCoffeeLogo(size: 42, animated: true)
+          .clipShape(Circle())
+          .padding(5)
+          .background(.white.opacity(0.94), in: Circle())
+          .overlay {
+            Circle()
+              .stroke(.white.opacity(0.92), lineWidth: 1.5)
+          }
+          .shadow(color: NookColors.warmBlack.opacity(0.22), radius: 12, y: 5)
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Volver a descubrir personas")
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.leading, 16)
+      .padding(.top, 56)
 
       if userMovedMap, let region = visibleRegion {
         Button {
@@ -1434,6 +1461,10 @@ private struct SmartCoffeeSearch: View {
         .offset(x: active ? 0 : -18, y: active ? 0 : 20)
         .animation(.easeOut(duration: 1.1), value: active)
         .frame(width: proxy.size.width, height: proxy.size.height).clipped()
+
+        if minimal {
+          Color.black.opacity(0.24).ignoresSafeArea()
+        }
 
         if !minimal {
           LinearGradient(

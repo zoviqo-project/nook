@@ -303,6 +303,7 @@ struct NookScreenContainer<Content: View>: View {
   let title: String
   var solidBackground: Color? = nil
   var brandedHeader = true
+  var cinematicHeader = false
   var actionIcon: String? = nil
   var actionLabel = "Acción"
   var action: (() -> Void)? = nil
@@ -328,7 +329,7 @@ struct NookScreenContainer<Content: View>: View {
         secondaryActionLabel: secondaryActionLabel,
         secondaryAction: secondaryAction, secondaryActionActive: secondaryActionActive,
         secondaryActionAnimated: secondaryActionAnimated,
-        secondaryActionRing: secondaryActionRing, cinematic: false)
+        secondaryActionRing: secondaryActionRing, cinematic: cinematicHeader)
         .frame(height: headerHeight)
         .zIndex(1)
       content()

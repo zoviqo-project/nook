@@ -6,38 +6,38 @@ private enum NookDemoProfiles {
   static let people: [DiscoverProfile] = [
     person("D0000000-0000-0000-0000-000000000001", "Laura", 29,
       "Arquitecta, conciertos y cafeterías pequeñas.", 1.4, "Café con leche",
-      "asset://NookDemoProfile"),
+      "asset://NookDemoProfile", .casualCoffee),
     person("D0000000-0000-0000-0000-000000000002", "Clara", 28,
       "Diseño, vinilos y sobremesas largas.", 1.8, "Cortado",
-      "asset://NookDemoProfile3"),
+      "asset://NookDemoProfile3", .friendship),
     person("D0000000-0000-0000-0000-000000000003", "Elena", 32,
       "Cine, cocina y rincones tranquilos.", 2.4, "Solo",
-      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1000&q=85"),
+      "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=1000&q=85", .somethingMore),
     person("D0000000-0000-0000-0000-000000000004", "Nora", 26,
       "Ilustración, montaña y probar sitios nuevos.", 3.0, "Matcha",
-      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1000&q=85"),
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1000&q=85", .meetPeople),
     person("D0000000-0000-0000-0000-000000000005", "Julia", 30,
       "Editorial, teatro y escapadas de domingo.", 3.7, "Latte",
-      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85"),
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85", .project),
     person("D0000000-0000-0000-0000-000000000006", "Marc", 30,
       "Diseño de producto, rutas urbanas y café de filtro.", 4.1, "V60",
-      "asset://NookDemoProfile2"),
+      "asset://NookDemoProfile2", .friendship),
     person("D0000000-0000-0000-0000-000000000007", "Kenji", 32,
       "Fotografía, jazz y descubrir barras de café tranquilas.", 4.8, "Flat white",
-      "asset://NookDemoProfile4")
+      "asset://NookDemoProfile4", .seeWhatHappens)
   ]
 
   static func contains(_ id: UUID) -> Bool { people.contains { $0.id == id } }
 
   private static func person(
     _ id: String, _ name: String, _ age: Int, _ bio: String, _ distance: Double,
-    _ coffee: String, _ photo: String
+    _ coffee: String, _ photo: String, _ lookingFor: LookingFor
   ) -> DiscoverProfile {
     DiscoverProfile(
       id: UUID(uuidString: id)!, name: name, age: age, bio: bio, city: "Barcelona",
       distanceKm: distance, coffeePersonality: coffee, preferredPlan: "LONG_TALKS",
       preferredVibe: "CALM", coffeesPerDay: 2, favoriteCoffeeMoment: "AFTERWORK",
-      lookingFor: .seeWhatHappens, coffeePreferences: [coffee.uppercased()],
+      lookingFor: lookingFor, coffeePreferences: [coffee.uppercased()],
       photos: demoPhotos(for: photo))
   }
 
@@ -167,12 +167,14 @@ struct DiscoverView: View {
   @State private var photoSwipeOffset: CGFloat = 0
   @State private var liking = false
   @State private var entrance = false
+  @State private var firstCardArrived = false
   @State private var showFilters = false
   @State private var showProfile = false
   @AppStorage("didSeeDiscoveryPhotoSwipeHint") private var didSeeSwipeHint = false
   @State private var showSwipeHint = false
   @State private var swipeHintPulse = false
   @State private var matchProgress = false
+  @State private var showMyCafes = false
   var body: some View {
     GeometryReader { screen in
       let safeArea = activeWindowSafeAreaInsets
@@ -180,7 +182,7 @@ struct DiscoverView: View {
         NookInteriorBackdrop().ignoresSafeArea()
         Group {
           if vm.loading && vm.people.isEmpty {
-            NookSkeletonScreen(layout: .profileCard)
+            DiscoverProfilesLoadingState()
               .ignoresSafeArea()
           } else if let person = vm.people.first {
             if vm.match != nil {
@@ -191,11 +193,17 @@ struct DiscoverView: View {
                 person, topInset: safeArea.top,
                 bottomInset: safeArea.bottom)
                 .ignoresSafeArea()
+                .opacity(entrance && firstCardArrived ? 1 : 0)
+                .blur(radius: entrance && firstCardArrived ? 0 : 7)
+                .scaleEffect(firstCardArrived ? 1 : 0.94)
+                .rotationEffect(.degrees(firstCardArrived ? 0 : -2.4))
+                .offset(y: firstCardArrived ? 0 : 44)
 
               matchingChrome(
                 person, topInset: safeArea.top,
                 bottomInset: safeArea.bottom,
                 leadingInset: safeArea.left, trailingInset: safeArea.right)
+                .opacity(entrance ? 1 : 0)
             }
           } else if let error = vm.error {
             NookErrorView(message: error) { Task { await vm.load(app.repository) } }
@@ -217,6 +225,7 @@ struct DiscoverView: View {
           .transition(.opacity.combined(with: .scale(scale: 0.97)))
           .zIndex(50)
         }
+
       }
       .frame(width: screen.size.width, height: screen.size.height)
       .ignoresSafeArea()
@@ -228,17 +237,24 @@ struct DiscoverView: View {
     .onAppear {
       app.tabBarHidden = true
       setLightStatusBar(true)
+      entrance = false
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+        withAnimation(.easeOut(duration: 0.42)) { entrance = true }
+      }
     }
     .onDisappear {
       app.tabBarHidden = false
       setLightStatusBar(false)
     }
     .task {
-      if let cache = app.discoverCache { vm.seed(cache) }
+      if let cache = app.discoverCache {
+        vm.seed(cache)
+        animateFirstCardIfNeeded()
+      }
       await vm.load(app.repository, showLoader: app.discoverCache == nil)
+      animateFirstCardIfNeeded()
       app.cacheDiscover(vm.people)
       NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
-      entrance = true
       withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
         matchProgress = true
       }
@@ -254,7 +270,17 @@ struct DiscoverView: View {
         app.cacheDiscover(vm.people)
         NookImagePrefetch.schedule(vm.people.prefix(3).flatMap { $0.photos.map(\.url) })
       }
-    }.sheet(isPresented: $showFilters) { DiscoveryFiltersView() }
+    }.sheet(isPresented: $showFilters) {
+      DiscoveryFiltersView()
+        .presentationDragIndicator(.hidden)
+    }
+      .sheet(isPresented: $showMyCafes) {
+        NavigationStack { ChatsView(close: { showMyCafes = false }) }
+          .presentationDetents([.large])
+          .presentationContentInteraction(.scrolls)
+          .presentationDragIndicator(.hidden)
+          .presentationBackground(Color.white)
+      }
       .sheet(isPresented: $showProfile) {
         NavigationStack { ProfileView() }
           // Keep the profile at the large detent. Without an explicit detent/content
@@ -270,6 +296,12 @@ struct DiscoverView: View {
         app.cacheDiscover(people)
         NookImagePrefetch.schedule(people.prefix(3).flatMap { $0.photos.map(\.url) })
       }
+  }
+  private func animateFirstCardIfNeeded() {
+    guard !firstCardArrived, !vm.people.isEmpty else { return }
+    withAnimation(.spring(response: 0.46, dampingFraction: 0.78)) {
+      firstCardArrived = true
+    }
   }
   private func cardStack(
     _ person: DiscoverProfile, topInset: CGFloat, bottomInset: CGFloat
@@ -297,13 +329,13 @@ struct DiscoverView: View {
             DragGesture(minimumDistance: 12)
               .onChanged { value in
                 guard abs(value.translation.height) > abs(value.translation.width),
-                      person.photos.count > 1 else { return }
+                      profilePhotoURLs(for: person).count > 1 else { return }
                 photoSwipeOffset = value.translation.height
               }
               .onEnded { value in
                 guard abs(value.translation.height) > 52,
                       abs(value.translation.height) > abs(value.translation.width),
-                      person.photos.count > 1 else {
+                      profilePhotoURLs(for: person).count > 1 else {
                   withAnimation(NookMotion.spring) { photoSwipeOffset = 0 }
                   return
                 }
@@ -311,11 +343,8 @@ struct DiscoverView: View {
                   in: person, direction: value.translation.height < 0 ? 1 : -1,
                   cardHeight: cardHeight)
               }
-          ).allowsHitTesting(vm.actingOn == nil)
+          ).allowsHitTesting(vm.actingOn == nil && vm.match == nil)
       }
-      .scaleEffect(entrance ? 1 : 0.96)
-      .offset(y: entrance ? 0 : 28)
-      .animation(NookMotion.spring, value: entrance)
       .frame(width: proxy.size.width, height: cardHeight, alignment: .center)
       .frame(width: proxy.size.width, height: proxy.size.height)
     }
@@ -342,32 +371,39 @@ struct DiscoverView: View {
     VStack(spacing: 8) {
       NookHeader(
         eyebrow: "NOOK", title: "Un café con…", branded: true,
-        actionIcon: "slider.horizontal.3", actionLabel: "Filtros",
-        action: { showFilters = true },
-        secondaryActionIcon: "person.crop.circle",
-        secondaryActionLabel: "Mi perfil", secondaryAction: { showProfile = true },
         cinematic: true)
         .frame(height: 56)
 
       HStack {
-        purposeBadge(for: person)
+        ZStack(alignment: .leading) {
+          purposeBadge(for: person)
+            .id(person.id)
+            .transition(.asymmetric(
+              insertion: .move(edge: .leading).combined(with: .opacity),
+              removal: .move(edge: .trailing).combined(with: .opacity)))
+        }
+        .animation(.easeOut(duration: 0.16), value: person.id)
         Spacer()
-        immersiveNavigation
       }
 
       Spacer(minLength: 0)
 
       actions(person)
         .offset(drag)
-        .allowsHitTesting(vm.actingOn == nil)
+        .allowsHitTesting(vm.actingOn == nil && vm.match == nil)
     }
     .padding(.top, topInset)
     .padding(.leading, leadingInset + 12)
     .padding(.trailing, trailingInset + 12)
     .padding(.bottom, bottomInset + 10)
+    .overlay(alignment: .topTrailing) {
+      immersiveNavigation
+        .padding(.top, topInset + 8)
+        .padding(.trailing, trailingInset + 8)
+    }
     .overlay(alignment: .trailing) {
       nextPhotoThumbnail(for: person)
-        .padding(.trailing, trailingInset + 12)
+        .padding(.trailing, trailingInset + 19)
     }
   }
 
@@ -382,7 +418,7 @@ struct DiscoverView: View {
     UIApplication.shared.setStatusBarStyle(light ? .lightContent : .darkContent, animated: true)
   }
   @ViewBuilder private func photoSwipeHint(for person: DiscoverProfile) -> some View {
-    if showSwipeHint && person.photos.count > 1 {
+    if showSwipeHint && profilePhotoURLs(for: person).count > 1 {
       VStack(spacing: 5) {
         Image(systemName: "arrow.up.and.down")
         Text("MÁS FOTOS")
@@ -407,42 +443,46 @@ struct DiscoverView: View {
   }
 
   private func selectedPhotoURL(for person: DiscoverProfile) -> String? {
-    guard !person.photos.isEmpty else { return nil }
-    return person.photos[min(photoIndex, person.photos.count - 1)].url
+    let photos = profilePhotoURLs(for: person)
+    guard !photos.isEmpty else { return nil }
+    return photos[min(photoIndex, photos.count - 1)]
   }
 
   private func adjacentPhotoURL(for person: DiscoverProfile) -> String? {
-    guard person.photos.count > 1 else { return nil }
+    let photos = profilePhotoURLs(for: person)
+    guard photos.count > 1 else { return nil }
     let direction = photoSwipeOffset > 0 ? -1 : 1
-    let index = (photoIndex + direction + person.photos.count) % person.photos.count
-    return person.photos[index].url
+    let index = (photoIndex + direction + photos.count) % photos.count
+    return photos[index]
   }
 
   @ViewBuilder private func photoProgress(for person: DiscoverProfile) -> some View {
-    if person.photos.count > 1 {
+    let photos = profilePhotoURLs(for: person)
+    if photos.count > 1 {
       HStack(spacing: 4) {
-        ForEach(person.photos.indices, id: \.self) { index in
+        ForEach(photos.indices, id: \.self) { index in
           Capsule()
             .fill(index == photoIndex ? Color.white : Color.white.opacity(0.36))
             .frame(width: index == photoIndex ? 18 : 7, height: 3)
         }
       }
       .animation(.easeInOut(duration: 0.2), value: photoIndex)
-      .accessibilityLabel("Foto \(photoIndex + 1) de \(person.photos.count)")
+      .accessibilityLabel("Foto \(photoIndex + 1) de \(photos.count)")
     }
   }
 
   @ViewBuilder private func nextPhotoThumbnail(for person: DiscoverProfile) -> some View {
-    if person.photos.count > 1 {
-      let nextIndex = (photoIndex + 1) % person.photos.count
+    let photos = profilePhotoURLs(for: person)
+    if photos.count > 1 {
+      let nextIndex = (photoIndex + 1) % photos.count
       VStack(spacing: 7) {
         VStack(spacing: -10) {
-          ProfileImage(url: person.photos[photoIndex].url, name: person.name)
+          ProfileImage(url: photos[min(photoIndex, photos.count - 1)], name: person.name)
             .frame(width: 44, height: 58)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .opacity(0.72)
             .scaleEffect(0.92)
-          ProfileImage(url: person.photos[nextIndex].url, name: person.name)
+          ProfileImage(url: photos[nextIndex], name: person.name)
             .frame(width: 56, height: 74)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: darkThumbnailShadow, radius: 10, y: 5)
@@ -472,18 +512,28 @@ struct DiscoverView: View {
   private func completePhotoSwipe(
     in person: DiscoverProfile, direction: Int, cardHeight: CGFloat
   ) {
-    guard person.photos.count > 1 else { return }
+    let photos = profilePhotoURLs(for: person)
+    guard photos.count > 1 else { return }
     dismissSwipeHint()
     Haptics.selection()
     withAnimation(.easeOut(duration: 0.24)) {
       photoSwipeOffset = CGFloat(-direction) * max(cardHeight, 500)
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
-      photoIndex = (photoIndex + direction + person.photos.count) % person.photos.count
+      photoIndex = (photoIndex + direction + photos.count) % photos.count
       var transaction = Transaction()
       transaction.disablesAnimations = true
       withTransaction(transaction) { photoSwipeOffset = 0 }
     }
+  }
+  private func profilePhotoURLs(for person: DiscoverProfile) -> [String] {
+    let urls = person.photos.map(\.url)
+    guard urls.count == 1, let url = urls.first,
+          let range = url.range(of: "/api/v1/demo/photos/", options: .backwards) else {
+      return urls
+    }
+    let prefix = String(url[..<range.upperBound])
+    return (0..<4).map { prefix + String($0) }
   }
 
   private func actions(_ person: DiscoverProfile) -> some View {
@@ -606,15 +656,75 @@ struct DiscoverView: View {
   }
 
   private var immersiveNavigation: some View {
-    HStack(spacing: 8) {
-      immersiveNavigationButton(
-        icon: "cup.and.saucer.fill", label: "Mis cafés", destination: 1)
+    VStack(alignment: .trailing, spacing: 10) {
+      immersiveProfileButton
+      immersiveActionButton(icon: "slider.horizontal.3", label: "Filtros") {
+        showFilters = true
+      }
+      immersiveActionButton(icon: "cup.and.saucer.fill", label: "Mis cafés") {
+        showMyCafes = true
+      }
       immersiveNavigationButton(
         icon: "bubble.left.and.bubble.right.fill", label: "Chats", destination: 2)
     }
-    .padding(5)
-    .background(.black.opacity(0.18), in: Capsule())
-    .overlay(Capsule().stroke(.white.opacity(0.14), lineWidth: 1))
+    // The icon column shares the same visual axis as the 56pt photo stack below.
+    .padding(.trailing, 11)
+  }
+
+  private var immersiveProfileButton: some View {
+    Button {
+      Haptics.selection()
+      showProfile = true
+    } label: {
+      Group {
+        if let photoURL = ownProfilePhotoURL {
+          ProfileImage(url: photoURL, name: app.me?.name ?? "N", faceAware: false)
+        } else {
+          Image(systemName: "person.crop.circle")
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black.opacity(0.38))
+        }
+      }
+      .frame(width: 40, height: 40)
+      .clipShape(Circle())
+      .overlay(
+        Circle()
+          .strokeBorder(NookColors.nookGold, lineWidth: 1.5)
+      )
+      .shadow(color: .black.opacity(0.34), radius: 6, y: 3)
+      .contentShape(Circle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel("Mi perfil")
+  }
+
+  private var ownProfilePhotoURL: String? {
+    app.me?.photos.sorted {
+      if ($0.isPrimary == true) != ($1.isPrimary == true) { return $0.isPrimary == true }
+      return $0.position < $1.position
+    }.first?.url
+  }
+
+  private func immersiveActionButton(
+    icon: String, label: String, action: @escaping () -> Void
+  ) -> some View {
+    Button {
+      Haptics.selection()
+      action()
+    } label: {
+      Image(systemName: icon)
+        .font(.system(size: 17, weight: .semibold))
+        .foregroundStyle(.white)
+        .frame(width: 40, height: 40)
+        .background(.black.opacity(0.38), in: Circle())
+        .overlay(Circle().stroke(Color.white.opacity(0.34), lineWidth: 1))
+        .shadow(color: .black.opacity(0.34), radius: 6, y: 3)
+        .contentShape(Circle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(label)
   }
 
   private func purposeBadge(for person: DiscoverProfile) -> some View {
@@ -647,15 +757,16 @@ struct DiscoverView: View {
   ) -> some View {
     Button {
       Haptics.selection()
-      if destination == 1 { app.selectedCoffeeMatch = nil }
       app.selectedTab = destination
     } label: {
       Image(systemName: icon)
-        .font(.system(size: 15, weight: .semibold))
+        .font(.system(size: 17, weight: .semibold))
         .foregroundStyle(.white)
-        .frame(width: 38, height: 38)
-        .background(.black.opacity(0.34), in: Circle())
-        .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1))
+        .frame(width: 40, height: 40)
+        .background(.black.opacity(0.38), in: Circle())
+        .overlay(Circle().stroke(Color.white.opacity(0.34), lineWidth: 1))
+        .shadow(color: .black.opacity(0.34), radius: 6, y: 3)
+        .contentShape(Circle())
     }
     .buttonStyle(.plain)
     .accessibilityLabel(label)
@@ -674,6 +785,190 @@ struct DiscoverView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     .multilineTextAlignment(.center)
     .padding(32)
+  }
+}
+
+private struct CoffeeCalendarLoadingView: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var animate = false
+
+  var body: some View {
+    ZStack {
+      NookColors.espresso.opacity(0.96).ignoresSafeArea()
+
+      VStack(spacing: 18) {
+        ZStack {
+          Circle()
+            .stroke(Color.white.opacity(0.20), lineWidth: 2)
+            .frame(width: 104, height: 104)
+            .scaleEffect(animate && !reduceMotion ? 1.16 : 0.94)
+            .opacity(animate && !reduceMotion ? 0.12 : 0.7)
+
+          Image(systemName: "calendar")
+            .font(.system(size: 58, weight: .regular))
+            .foregroundStyle(.white)
+
+          Image(systemName: "cup.and.saucer.fill")
+            .font(.system(size: 17, weight: .bold))
+            .foregroundStyle(.white)
+            .offset(y: animate && !reduceMotion ? 11 : 17)
+            .scaleEffect(animate && !reduceMotion ? 1.08 : 0.92)
+        }
+
+        VStack(spacing: 5) {
+          Text("PREPARANDO TU AGENDA")
+            .font(.system(size: 10, weight: .bold))
+            .tracking(1.8)
+            .foregroundStyle(.white.opacity(0.68))
+          Text("Buscando tus cafés…")
+            .font(NookTypography.business(23, weight: .semibold))
+            .foregroundStyle(.white)
+        }
+      }
+    }
+    .onAppear {
+      withAnimation(.easeInOut(duration: 0.34).repeatForever(autoreverses: true)) {
+        animate = true
+      }
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityLabel("Cargando tus citas de café")
+  }
+}
+
+private struct DiscoverProfilesLoadingState: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var pulse = false
+  @State private var rotation = false
+  @State private var profilesDrift = false
+
+  var body: some View {
+    ZStack {
+      LinearGradient(
+        colors: [NookColors.primaryCoffeePressed, NookColors.warmBlack],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+        .ignoresSafeArea()
+
+      GeometryReader { proxy in
+        let assets = ["NookDemoProfile", "NookDemoProfile3", "NookDemoProfile2", "NookDemoProfile4"]
+        let names = ["Laura", "Clara", "Marc", "Kenji", "Elena", "Nora", "Julia", "Aina"]
+        HStack(spacing: 9) {
+          ForEach(0..<3, id: \.self) { column in
+            VStack(spacing: 9) {
+              ForEach(0..<6, id: \.self) { row in
+                let index = row * 3 + column
+                loadingProfile(
+                  assets[index % assets.count],
+                  name: names[index % names.count], age: 25 + (index * 3) % 9)
+              }
+            }
+            .offset(
+              y: CGFloat(column - 1) * 54
+                + CGFloat(profilesDrift
+                  ? (column.isMultiple(of: 2) ? -20 : 20)
+                  : (column.isMultiple(of: 2) ? 20 : -20)))
+          }
+        }
+        .frame(width: proxy.size.width * 1.14)
+        .rotationEffect(.degrees(-3.5))
+        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+      }
+      .ignoresSafeArea()
+
+      Color.black.opacity(0.46).ignoresSafeArea()
+
+      Circle()
+        .fill(NookColors.mocha.opacity(0.3))
+        .frame(width: 330, height: 330)
+        .blur(radius: 70)
+        .scaleEffect(pulse ? 1.12 : 0.88)
+
+      VStack(spacing: 26) {
+        ZStack {
+          Circle()
+            .stroke(NookColors.caramelSoft.opacity(0.18), lineWidth: 1)
+            .frame(width: 126, height: 126)
+            .scaleEffect(pulse ? 1.12 : 0.94)
+            .opacity(pulse ? 0.18 : 0.78)
+
+          Circle()
+            .trim(from: 0.08, to: 0.78)
+            .stroke(
+              AngularGradient(
+                colors: [.clear, NookColors.caramelSoft, NookColors.nookGold, .clear],
+                center: .center),
+              style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            .frame(width: 110, height: 110)
+            .rotationEffect(.degrees(rotation ? 360 : 0))
+
+          NookCoffeeLogo(size: 84, animated: true)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(.white.opacity(0.22), lineWidth: 1.5))
+            .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+        }
+
+        VStack(spacing: 9) {
+          Text("Buscando perfiles")
+            .font(NookTypography.business(27, weight: .bold))
+            .foregroundStyle(.white)
+          Text("Preparando personas que encajan contigo")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white.opacity(0.68))
+
+          HStack(spacing: 7) {
+            ForEach(0..<3) { index in
+              Circle()
+                .fill(NookColors.caramelSoft)
+                .frame(width: 6, height: 6)
+                .scaleEffect(pulse ? 1 : 0.55)
+                .opacity(pulse ? 1 : 0.4)
+                .animation(
+                  reduceMotion ? nil : .easeInOut(duration: 0.75)
+                    .repeatForever(autoreverses: true).delay(Double(index) * 0.16),
+                  value: pulse)
+            }
+          }
+          .padding(.top, 5)
+        }
+      }
+    }
+    .onAppear {
+      guard !reduceMotion else { return }
+      withAnimation(.easeInOut(duration: 1.55).repeatForever(autoreverses: true)) {
+        pulse = true
+      }
+      withAnimation(.linear(duration: 2.8).repeatForever(autoreverses: false)) {
+        rotation = true
+      }
+      withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
+        profilesDrift = true
+      }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Buscando perfiles")
+  }
+
+  private func loadingProfile(_ asset: String, name: String, age: Int) -> some View {
+    ZStack(alignment: .bottomLeading) {
+      Image(asset)
+        .resizable()
+        .scaledToFill()
+        .frame(width: 142, height: 196)
+        .clipped()
+      LinearGradient(
+        colors: [.clear, .black.opacity(0.82)], startPoint: .center, endPoint: .bottom)
+      Text("\(name), \(age)")
+        .font(NookTypography.business(16, weight: .bold))
+        .foregroundStyle(.white)
+        .padding(12)
+    }
+    .frame(width: 142, height: 196)
+    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+    .overlay {
+      RoundedRectangle(cornerRadius: 20, style: .continuous)
+        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+    }
+    .shadow(color: .black.opacity(0.34), radius: 16, y: 9)
   }
 }
 
@@ -704,6 +999,8 @@ struct NookProfileCard: View {
   var onNameTap: (() -> Void)? = nil
   var expandableInfo = false
   var immersive = false
+  var editorialPhotoEffect = false
+  var showImmersiveIntent = false
   var contentTopInset: CGFloat = 0
   var contentBottomInset: CGFloat = 0
   @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -714,9 +1011,11 @@ struct NookProfileCard: View {
         if let nextPhotoURL {
           ProfileImage(url: nextPhotoURL, name: person.name)
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .modifier(ProfileCardPhotoEffect(enabled: editorialPhotoEffect))
         }
         ProfileImage(url: photoURL ?? person.photos.first?.url, name: person.name)
           .frame(width: proxy.size.width, height: proxy.size.height)
+          .modifier(ProfileCardPhotoEffect(enabled: editorialPhotoEffect))
           .offset(y: photoOffset)
         LinearGradient(
           gradient: Gradient(stops: [
@@ -757,7 +1056,7 @@ struct NookProfileCard: View {
             expandedProfileInfo
               .transition(.opacity.combined(with: .move(edge: .top)))
           }
-          if !immersive {
+          if !immersive || showImmersiveIntent {
             Text(person.intent?.subcategoryName ?? person.lookingFor.profileTitle)
               .font(NookTypography.business(13, weight: .bold))
               .textCase(.uppercase)
@@ -1218,25 +1517,20 @@ struct DiscoveryFiltersView: View {
   var body: some View {
     NavigationStack {
       ZStack {
-        NookRegalCoffeeBackground()
+        Color.white.ignoresSafeArea()
         ScrollView {
-          VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 7) {
-              Text("TU PRÓXIMO CAFÉ").font(NookTypography.caption).tracking(1.8)
-                .foregroundStyle(NookColors.mocha)
-              Text("¿A quién te apetece conocer?").font(NookTypography.business(30, weight: .bold))
-                .tracking(-0.5).fixedSize(horizontal: false, vertical: true)
-              Text("Afina lo justo. Lo interesante también ocurre por sorpresa.")
-                .font(.subheadline).foregroundStyle(NookColors.warmGray).lineSpacing(3)
-            }.padding(.bottom, 4)
+          VStack(spacing: 0) {
+            filtersHeroHeader
 
-            filterBlock("CERCA DE TI", "\(Int(minAge))–\(Int(maxAge)) años · hasta \(Int(distance)) km", "location.fill") {
-              VStack(spacing: 15) {
-                rangeRow("Edad mínima", "\(Int(minAge))") { Slider(value: $minAge, in: 18...maxAge, step: 1) }
-                rangeRow("Edad máxima", "\(Int(maxAge))") { Slider(value: $maxAge, in: minAge...80, step: 1) }
-                rangeRow("Distancia", "\(Int(distance)) km") { Slider(value: $distance, in: 1...100, step: 1) }
-              }.tint(NookColors.mocha)
-            }
+            VStack(alignment: .leading, spacing: 14) {
+
+              filterBlock("CERCA DE TI", "\(Int(minAge))–\(Int(maxAge)) años · hasta \(Int(distance)) km", "location.fill") {
+                VStack(spacing: 15) {
+                  rangeRow("Edad mínima", "\(Int(minAge))") { Slider(value: $minAge, in: 18...maxAge, step: 1) }
+                  rangeRow("Edad máxima", "\(Int(maxAge))") { Slider(value: $maxAge, in: minAge...80, step: 1) }
+                  rangeRow("Distancia", "\(Int(distance)) km") { Slider(value: $distance, in: 1...100, step: 1) }
+                }.tint(NookColors.mocha)
+              }
 
             filterBlock("LA INTENCIÓN", intentions.isEmpty ? "Cualquier buena conversación" : "\(intentions.count) preferencias", "sparkles") {
               LazyVGrid(columns: columns, spacing: 9) {
@@ -1293,14 +1587,18 @@ struct DiscoveryFiltersView: View {
                 .padding(.horizontal, 18).frame(height: 50)
                 .background(NookColors.espresso, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }.buttonStyle(.plain).disabled(saving).opacity(saving ? 0.65 : 1)
+              .shadow(color: NookColors.espresso.opacity(0.18), radius: 10, y: 5)
 
-            Button("Restablecer filtros") { reset() }
-              .font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.warmGray)
-              .frame(maxWidth: .infinity).padding(.vertical, 8)
-          }.padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 28)
+              Button("Restablecer filtros") { reset() }
+                .font(.subheadline.weight(.semibold)).foregroundStyle(NookColors.warmGray)
+                .frame(maxWidth: .infinity).padding(.vertical, 8)
+            }
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 28)
+          }
         }
-      }.toolbarBackground(.hidden, for: .navigationBar)
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { dismiss() } label: { Image(systemName: "xmark").font(.caption.bold()).frame(width: 36, height: 36).background(NookColors.offWhite.opacity(0.9), in: Circle()) }.foregroundStyle(NookColors.espresso).accessibilityLabel("Cerrar filtros") } }
+        .ignoresSafeArea(edges: .top)
+      }.background(Color.white)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
           minAge = Double(app.me?.minAge ?? 22); maxAge = Double(app.me?.maxAge ?? 40)
           distance = Double(app.me?.maxDistanceKm ?? 25)
@@ -1313,6 +1611,65 @@ struct DiscoveryFiltersView: View {
           Button("Entendido") { error = nil }
         } message: { Text(error ?? "") }
     }
+    .background(Color.white.ignoresSafeArea())
+    .preferredColorScheme(.light)
+  }
+  private var filtersHeroHeader: some View {
+    ZStack(alignment: .bottomLeading) {
+      filtersHeroImage
+
+      LinearGradient(
+        stops: [
+          .init(color: .black.opacity(0.08), location: 0),
+          .init(color: .clear, location: 0.34),
+          .init(color: NookColors.espresso.opacity(0.76), location: 1),
+        ],
+        startPoint: .top, endPoint: .bottom)
+
+      VStack(alignment: .leading, spacing: 5) {
+        Label("TU PRÓXIMO CAFÉ", systemImage: "slider.horizontal.3")
+          .font(.system(size: 10, weight: .bold))
+          .tracking(1.35)
+          .foregroundStyle(.white.opacity(0.78))
+        Text("Filtros")
+          .font(.system(size: 34, weight: .bold, design: .rounded))
+          .tracking(-1)
+          .foregroundStyle(.white)
+        Text("Elige lo importante y deja espacio para la sorpresa.")
+          .font(.system(size: 13, weight: .medium))
+          .foregroundStyle(.white.opacity(0.86))
+      }
+      .padding(.horizontal, 20)
+      .padding(.bottom, 20)
+      .shadow(color: .black.opacity(0.22), radius: 8, y: 2)
+
+      filtersSheetGrabber
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .padding(.top, 8)
+        .allowsHitTesting(false)
+    }
+    .frame(height: 218)
+    .background(NookColors.espresso)
+  }
+  private var filtersSheetGrabber: some View {
+    Capsule()
+      .fill(Color.white.opacity(0.96))
+      .frame(width: 38, height: 5)
+      .overlay(Capsule().stroke(Color.black.opacity(0.18), lineWidth: 0.6))
+      .shadow(color: .black.opacity(0.28), radius: 3, y: 1)
+      .accessibilityHidden(true)
+  }
+  private var filtersHeroImage: some View {
+    GeometryReader { proxy in
+      let imageHeight = proxy.size.width * 1812 / 868
+      let overflow = max(0, imageHeight - proxy.size.height)
+      Image("NookMyCafesHero")
+        .resizable()
+        .frame(width: proxy.size.width, height: imageHeight)
+        .offset(y: -overflow * 0.72)
+        .accessibilityHidden(true)
+    }
+    .clipped()
   }
   private var vibeSummary: String {
     ["CALM": "Tranquilo", "SOCIAL": "Con ambiente", "LIVELY": "Animado"]
@@ -1329,8 +1686,8 @@ struct DiscoveryFiltersView: View {
         }
       }
       content()
-    }.padding(16).background(NookColors.offWhite.opacity(0.82), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-      .overlay(RoundedRectangle(cornerRadius: 20).stroke(NookColors.latte.opacity(0.16), lineWidth: 0.8))
+    }.padding(16).background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+      .overlay(RoundedRectangle(cornerRadius: 20).stroke(NookColors.espresso.opacity(0.10), lineWidth: 0.8))
   }
   private func rangeRow<C: View>(_ title: String, _ value: String, @ViewBuilder control: () -> C) -> some View {
     VStack(spacing: 5) {
@@ -1353,8 +1710,8 @@ struct DiscoveryFiltersView: View {
         Spacer(minLength: 0)
       }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 44)
         .foregroundStyle(selected ? NookColors.inverseText : NookColors.espresso)
-        .background(selected ? NookColors.espresso : NookColors.cream.opacity(0.42), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? Color.clear : NookColors.oat.opacity(0.18)))
+        .background(selected ? NookColors.espresso : Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? Color.clear : NookColors.espresso.opacity(0.14)))
     }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
   }
   private func reset() {
@@ -1368,6 +1725,7 @@ struct DiscoveryFiltersView: View {
 struct ProfileView: View {
   @EnvironmentObject var app: AppSession
   @AppStorage("coffeeSoundsEnabled") private var sounds = true
+  @AppStorage("profileCardPhotoEffectEnabled") private var cardPhotoEffect = false
   @State private var bio = ""
   @State private var visible = true
   @State private var looking = LookingFor.casualCoffee
@@ -1384,216 +1742,288 @@ struct ProfileView: View {
   @State private var saved = false
   @State private var profileError: String?
   @State private var currentIntent: UserIntent?
+  @State private var heroPhotoIndex = 0
+  @State private var showProfilePreview = false
   var body: some View {
-    NookScreenContainer(
-      eyebrow: visible ? "PERFIL VISIBLE" : "PERFIL EN PAUSA",
-      title: "Este eres tú"
-    ) {
+    GeometryReader { geometry in
+      let heroHeight = max(360, min(430, geometry.size.height * 0.5))
+      ZStack(alignment: .topTrailing) {
+        Color.white.ignoresSafeArea()
+
       ScrollView {
-        VStack(spacing: 18) {
-          ZStack(alignment: .bottomLeading) {
-            ProfileImage(
-              url: orderedPhotos.first?.url, name: app.me?.name ?? "N", faceAware: false
-            ).frame(
-              height: 320)
-            LinearGradient(
-              colors: [.clear, NookColors.warmBlack.opacity(0.82)], startPoint: .center,
-              endPoint: .bottom)
-            VStack(alignment: .leading, spacing: 5) {
-              Text("\(app.me?.name ?? "Tu perfil"), \(app.me?.age ?? 18)").font(NookTypography.business(30, weight: .bold))
-              HStack(spacing: 6) {
-                Image(systemName: "mappin.and.ellipse")
-                Text(app.me?.city ?? "Añade tu ciudad")
+        VStack(spacing: 0) {
+            profileHero(height: heroHeight)
+
+            VStack(alignment: .leading, spacing: 0) {
+              HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(app.me?.name ?? "Tu perfil")
+                  .font(.system(size: 30, weight: .bold, design: .rounded))
+                  .tracking(-0.9)
+                  .foregroundStyle(NookColors.espresso)
+                Text("\(app.me?.age ?? 18)")
+                  .font(.system(size: 25, weight: .medium, design: .rounded))
+                  .foregroundStyle(NookColors.warmGray)
+                Spacer(minLength: 12)
+                HStack(spacing: 6) {
+                  Circle().fill(visible ? NookColors.mocha : NookColors.warmGray).frame(width: 7, height: 7)
+                  Text(visible ? "VISIBLE" : "EN PAUSA")
+                    .font(.system(size: 10, weight: .bold)).tracking(1.1)
+                }
+                .foregroundStyle(NookColors.espresso.opacity(0.66))
               }
-              .font(.subheadline.weight(.semibold)).foregroundStyle(.white.opacity(0.82))
-            }.foregroundStyle(.white).padding(18)
-            if orderedPhotos.isEmpty {
-              PhotosPicker(selection: $photoItems, maxSelectionCount: 1, matching: .images) {
-                Label(uploading ? "Subiendo…" : "Añadir foto principal", systemImage: "camera.fill")
-                  .font(.system(size: 14, weight: .bold, design: .default))
-                  .foregroundStyle(.white).padding(.horizontal, 15).frame(height: 42)
-                  .background(.black.opacity(0.54), in: Capsule())
-              }.disabled(uploading).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            }
-          }.clipShape(RoundedRectangle(cornerRadius: 24)).padding(.horizontal, 16)
 
-          if let currentIntent {
-            NookIntentBadge(intent: currentIntent, prominent: true)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .padding(.horizontal, 22)
-          }
+              Label(app.me?.city ?? "Añade tu ciudad", systemImage: "location")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(NookColors.warmGray)
+                .padding(.top, 7)
 
-          VStack(alignment: .leading, spacing: 12) {
-            HStack {
-              Text("TUS FOTOS").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-              Spacer()
-              Text("\(app.me?.photos.count ?? 0) / 8").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+              Button {
+                Haptics.selection()
+                showProfilePreview = true
+              } label: {
+                Label("Vista previa de mi perfil", systemImage: "eye")
+                  .font(.system(size: 13, weight: .semibold))
+                  .foregroundStyle(NookColors.espresso)
+                  .padding(.horizontal, 14)
+                  .frame(height: 38)
+                  .background(NookColors.offWhite, in: Capsule())
+                  .overlay(Capsule().stroke(NookColors.espresso.opacity(0.08), lineWidth: 0.8))
+              }
+              .buttonStyle(.plain)
+              .padding(.top, 14)
             }
-            ScrollView(.horizontal) {
-              HStack(spacing: 9) {
-                ForEach(orderedPhotos) { photo in
-                  ZStack(alignment: .topTrailing) {
-                    ProfileImage(url: photo.url, name: app.me?.name ?? "N").frame(width: 86, height: 108)
-                      .clipShape(RoundedRectangle(cornerRadius: 17))
-                      .overlay(alignment: .bottomLeading) {
-                        if photo.isPrimary == true {
-                          Text("PRINCIPAL").font(.system(size: 8, weight: .heavy)).tracking(0.7)
-                            .foregroundStyle(.white).padding(.horizontal, 7).frame(height: 22)
-                            .background(.black.opacity(0.58), in: Capsule()).padding(6)
-                        }
-                      }
-                    Menu {
-                      if photo.isPrimary != true {
-                        Button("Usar como principal", systemImage: "star.fill") {
-                          Task { await makePrimary(photo.id) }
-                        }
-                      }
-                      Button("Mover a la izquierda", systemImage: "arrow.left") {
-                        Task { await move(photo.id, offset: -1) }
-                      }.disabled(orderedPhotos.first?.id == photo.id)
-                      Button("Mover a la derecha", systemImage: "arrow.right") {
-                        Task { await move(photo.id, offset: 1) }
-                      }.disabled(orderedPhotos.last?.id == photo.id)
-                      Button("Eliminar foto", systemImage: "trash", role: .destructive) {
-                        photoToDelete = photo
-                      }
-                    } label: {
-                      Image(systemName: "ellipsis").font(.caption.bold()).foregroundStyle(.white)
-                        .frame(width: 30, height: 30).background(.black.opacity(0.52), in: Circle()).padding(5)
-                    }.disabled(uploading || photoOperation != nil)
-                    if photoOperation == photo.id {
-                      ProgressView().tint(.white).frame(width: 86, height: 108)
-                        .background(.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 17))
-                    }
+            .padding(.horizontal, 20)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
+
+            VStack(spacing: 0) {
+              Toggle(isOn: $visible) {
+                VStack(alignment: .leading, spacing: 4) {
+                  Text("Aparecer en Descubrir")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(NookColors.espresso)
+                  Text(visible ? "Otras personas pueden encontrar tu perfil" : "Tu perfil está temporalmente oculto")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(NookColors.warmGray)
+                }
+              }
+              .tint(NookColors.mocha)
+            }
+            .profileFieldSurface()
+            .padding(.horizontal, 20)
+
+            VStack(alignment: .leading, spacing: 16) {
+              profileSectionTitle("Fotos", detail: "\(app.me?.photos.count ?? 0) de 8")
+              Toggle(isOn: $cardPhotoEffect) {
+                HStack(spacing: 12) {
+                  Image(systemName: "rectangle.portrait.on.rectangle.portrait")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(cardPhotoEffect ? NookColors.nookGold : NookColors.warmGray)
+                    .frame(width: 34, height: 34)
+                    .background(
+                      cardPhotoEffect ? NookColors.espresso : NookColors.espresso.opacity(0.055),
+                      in: Circle())
+                  VStack(alignment: .leading, spacing: 3) {
+                    Text("Retrato editorial Nook")
+                      .font(.system(size: 15, weight: .semibold))
+                      .foregroundStyle(NookColors.espresso)
+                    Text(cardPhotoEffect ? "Luz cálida y contraste de las fotos demo" : "Mantener el aspecto original")
+                      .font(.system(size: 12))
+                      .foregroundStyle(NookColors.warmGray)
                   }
                 }
-                if (app.me?.photos.count ?? 0) < 8 {
-                  PhotosPicker(
-                    selection: $photoItems,
-                    maxSelectionCount: max(1, 8 - (app.me?.photos.count ?? 0)),
-                    matching: .images
-                  ) {
-                    VStack(spacing: 7) {
-                      Image(systemName: uploading ? "hourglass" : "photo.badge.plus").font(.headline)
-                      Text(uploading ? "Subiendo" : "Añadir fotos").font(.caption2.bold())
-                    }.frame(width: 104, height: 98).foregroundStyle(NookColors.espresso)
-                      .background(NookColors.latte.opacity(0.20), in: RoundedRectangle(cornerRadius: 17))
-                      .overlay(RoundedRectangle(cornerRadius: 17).stroke(NookColors.mocha.opacity(0.35)))
-                  }.disabled(uploading)
+              }
+              .tint(NookColors.mocha)
+              .profileFieldSurface(insets: 13)
+              .animation(.easeInOut(duration: 0.22), value: cardPhotoEffect)
+
+              ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                  ForEach(orderedPhotos) { photo in
+                    ZStack(alignment: .topTrailing) {
+                      ProfileImage(url: photo.url, name: app.me?.name ?? "N")
+                        .frame(width: 92, height: 122)
+                        .modifier(ProfileCardPhotoEffect(enabled: cardPhotoEffect))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(alignment: .bottomLeading) {
+                          if photo.isPrimary == true {
+                            Text("PRINCIPAL")
+                              .font(.system(size: 8, weight: .bold)).tracking(0.8)
+                              .foregroundStyle(.white)
+                              .padding(.horizontal, 8).frame(height: 22)
+                              .background(.black.opacity(0.48), in: Capsule()).padding(7)
+                          }
+                        }
+                      Menu {
+                        if photo.isPrimary != true {
+                          Button("Usar como principal", systemImage: "star.fill") { Task { await makePrimary(photo.id) } }
+                        }
+                        Button("Mover a la izquierda", systemImage: "arrow.left") { Task { await move(photo.id, offset: -1) } }
+                          .disabled(orderedPhotos.first?.id == photo.id)
+                        Button("Mover a la derecha", systemImage: "arrow.right") { Task { await move(photo.id, offset: 1) } }
+                          .disabled(orderedPhotos.last?.id == photo.id)
+                        Button("Eliminar foto", systemImage: "trash", role: .destructive) { photoToDelete = photo }
+                      } label: {
+                        Image(systemName: "ellipsis")
+                          .font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                          .frame(width: 30, height: 30).background(.black.opacity(0.42), in: Circle()).padding(6)
+                      }.disabled(uploading || photoOperation != nil)
+                      if photoOperation == photo.id {
+                        ProgressView().tint(.white).frame(width: 92, height: 122)
+                          .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 14))
+                      }
+                    }
+                  }
+                  if (app.me?.photos.count ?? 0) < 8 {
+                    PhotosPicker(
+                      selection: $photoItems,
+                      maxSelectionCount: max(1, 8 - (app.me?.photos.count ?? 0)), matching: .images
+                    ) {
+                      VStack(spacing: 9) {
+                        Image(systemName: uploading ? "hourglass" : "plus")
+                          .font(.system(size: 18, weight: .medium))
+                        Text(uploading ? "Subiendo" : "Añadir")
+                          .font(.system(size: 12, weight: .semibold))
+                      }
+                      .frame(width: 92, height: 120)
+                      .foregroundStyle(NookColors.espresso)
+                      .background(NookColors.offWhite, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                      .overlay(RoundedRectangle(cornerRadius: 14).stroke(NookColors.espresso.opacity(0.08)))
+                    }.disabled(uploading)
+                  }
+                }
+              }.scrollIndicators(.hidden)
+            }.profileSection()
+
+            VStack(alignment: .leading, spacing: 16) {
+              profileSectionTitle("Datos del perfil")
+              HStack(spacing: 12) {
+                Image(systemName: "location").frame(width: 20).foregroundStyle(NookColors.warmGray)
+                TextField("Ciudad o pueblo", text: $city)
+                  .font(.system(size: 16, weight: .medium))
+              }.profileFieldSurface()
+              Text("Solo mostramos una ubicación aproximada.")
+                .font(.system(size: 12, weight: .regular)).foregroundStyle(NookColors.warmGray)
+            }.profileSection()
+
+            VStack(alignment: .leading, spacing: 14) {
+              profileSectionTitle("Sobre ti", detail: "\(bio.count) / 500")
+              TextEditor(text: $bio)
+                .font(.system(size: 16, weight: .regular))
+                .lineSpacing(4)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 116)
+                .profileFieldSurface(insets: 14)
+            }.profileSection()
+
+            VStack(alignment: .leading, spacing: 16) {
+              profileSectionTitle("Qué te apetece")
+              Menu {
+                ForEach(LookingFor.registrationChoices) { intent in
+                  Button(intent.title) { withAnimation(NookMotion.spring) { looking = intent } }
+                }
+              } label: {
+                HStack(spacing: 13) {
+                  Image(systemName: looking.icon)
+                    .font(.system(size: 16, weight: .semibold)).frame(width: 24)
+                    .foregroundStyle(NookColors.mocha)
+                  VStack(alignment: .leading, spacing: 3) {
+                    Text(looking.profileTitle).font(.system(size: 16, weight: .semibold))
+                    Text(looking.detail).font(.system(size: 12)).foregroundStyle(NookColors.warmGray).lineLimit(2)
+                  }
+                  Spacer(minLength: 8)
+                  Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(NookColors.warmGray)
+                }.foregroundStyle(NookColors.espresso).profileFieldSurface()
+              }
+              if let currentIntent {
+                NookIntentBadge(intent: currentIntent, prominent: true)
+                  .frame(maxWidth: .infinity, alignment: .leading)
+              }
+            }.profileSection()
+
+            VStack(alignment: .leading, spacing: 16) {
+              profileSectionTitle("Tu forma de tomar café")
+              VStack(spacing: 0) {
+                profileMenu("cup.and.saucer", coffeePersonality, values: [
+                  ("Solo", "Solo"), ("Cortado", "Cortado"), ("Café con leche", "Café con leche"),
+                  ("Iced coffee", "Iced coffee"), ("Matcha", "Matcha"), ("Té", "Té")
+                ]) { coffeePersonality = $0 }
+                profileHairline()
+                profileMenu("sparkles", vibeCopy(preferredVibe), values: [
+                  ("CALM", "Sitios tranquilos"), ("SOCIAL", "Con ambiente"), ("LIVELY", "Sitios animados")
+                ]) { preferredVibe = $0 }
+                profileHairline()
+                profileMenu("clock", momentCopy(favoriteMoment), values: [
+                  ("MORNING", "Por la mañana"), ("MIDDAY", "Al mediodía"), ("AFTERWORK", "Afterwork"), ("EVENING", "Por la tarde")
+                ]) { favoriteMoment = $0 }
+                profileHairline()
+                profileMenu("figure.walk", planCopy(preferredPlan), values: [
+                  ("QUICK", "Café rápido"), ("LONG_TALKS", "Sin prisas"), ("WALK", "Café y paseo"), ("IMPROVISE", "Improvisar")
+                ]) { preferredPlan = $0 }
+              }.profileFieldSurface(insets: 0)
+              if let preferences = app.me?.coffeePreferences, !preferences.isEmpty {
+                HStack(spacing: 7) {
+                  ForEach(preferences.prefix(3), id: \.self) { value in
+                    Text(coffeeCopy(value)).font(.system(size: 11, weight: .semibold))
+                      .padding(.horizontal, 10).padding(.vertical, 7)
+                      .background(NookColors.offWhite, in: Capsule())
+                  }
                 }
               }
-            }.scrollIndicators(.hidden)
-          }.padding(.horizontal, 22)
+            }.profileSection()
 
-          VStack(alignment: .leading, spacing: 14) {
-            Text("DATOS DEL PERFIL").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-            HStack(spacing: 12) {
-              Image(systemName: "mappin.and.ellipse").frame(width: 22).foregroundStyle(NookColors.mocha)
-              TextField("Ciudad o pueblo", text: $city)
-                .font(.system(size: 16, weight: .semibold, design: .default))
-            }.padding(.vertical, 9)
-            Divider().overlay(NookColors.oat.opacity(0.25))
-            Text("Solo mostramos una ubicación aproximada.").font(.caption).foregroundStyle(NookColors.warmGray)
-          }.profileSurface()
+            VStack(alignment: .leading, spacing: 16) {
+              profileSectionTitle("Preferencias")
+              VStack(spacing: 0) {
+                Toggle(isOn: $sounds) {
+                  Label("Sonidos de café", systemImage: "speaker.wave.2")
+                    .font(.system(size: 15, weight: .medium))
+                }.tint(NookColors.mocha).padding(.vertical, 4)
+                profileHairline()
+                HStack(alignment: .top, spacing: 12) {
+                  Image(systemName: "location.slash").frame(width: 20).foregroundStyle(NookColors.warmGray)
+                  Text("Tu ubicación exacta nunca aparece en tu perfil.")
+                    .font(.system(size: 13)).foregroundStyle(NookColors.warmGray)
+                  Spacer()
+                }.padding(.vertical, 5)
+              }.profileFieldSurface()
+            }.profileSection()
 
-          VStack(alignment: .leading, spacing: 11) {
-            Text("SOBRE TI").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-            TextEditor(text: $bio).font(.system(size: 18, weight: .medium, design: .default))
-              .scrollContentBackground(.hidden).frame(minHeight: 92)
-            Text("\(bio.count) / 500").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-              .frame(maxWidth: .infinity, alignment: .trailing)
-          }.profileSurface()
-
-          VStack(alignment: .leading, spacing: 14) {
-            Text("¿PARA QUÉ TE APETECE QUEDAR?").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-            Menu {
-              ForEach(LookingFor.registrationChoices) { intent in
-                Button(intent.title) { withAnimation(NookMotion.spring) { looking = intent } }
+            Button { saveProfile() } label: {
+              HStack(spacing: 9) {
+                if saving { ProgressView().tint(.white).controlSize(.small) }
+                Image(systemName: saved ? "checkmark" : "arrow.down")
+                Text(saved ? "Guardado" : "Guardar cambios")
               }
-            } label: {
-              HStack(spacing: 14) {
-                Image(systemName: looking.icon).font(.headline).frame(width: 28, height: 28)
-                VStack(alignment: .leading, spacing: 3) {
-                  Text(looking.profileTitle).font(.headline)
-                  Text(looking.detail).font(.caption).foregroundStyle(NookColors.espresso.opacity(0.58)).lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "chevron.up.chevron.down").font(.caption.bold()).foregroundStyle(.secondary)
-              }.foregroundStyle(NookColors.espresso)
+              .font(.system(size: 16, weight: .semibold))
+              .foregroundStyle(.white).frame(maxWidth: .infinity).frame(height: 54)
+              .background(NookColors.espresso, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
-          }.profileSurface()
+            .buttonStyle(.plain).disabled(saving)
+            .padding(.horizontal, 20).padding(.top, 34)
 
-          VStack(alignment: .leading, spacing: 15) {
-            Text("TU FORMA DE TOMAR CAFÉ").font(.caption.bold()).tracking(1.35).foregroundStyle(NookColors.mocha)
-            profileMenu("cup.and.saucer.fill", coffeePersonality, values: [
-              ("Solo", "Solo"), ("Cortado", "Cortado"), ("Café con leche", "Café con leche"),
-              ("Iced coffee", "Iced coffee"), ("Matcha", "Matcha"), ("Té", "Té")
-            ]) { coffeePersonality = $0 }
-            Divider().overlay(NookColors.oat.opacity(0.25))
-            profileMenu("sparkles", vibeCopy(preferredVibe), values: [
-              ("CALM", "Sitios tranquilos"), ("SOCIAL", "Con ambiente"), ("LIVELY", "Sitios animados")
-            ]) { preferredVibe = $0 }
-            Divider().overlay(NookColors.oat.opacity(0.25))
-            profileMenu("clock", momentCopy(favoriteMoment), values: [
-              ("MORNING", "Por la mañana"), ("MIDDAY", "Al mediodía"), ("AFTERWORK", "Afterwork"), ("EVENING", "Por la tarde")
-            ]) { favoriteMoment = $0 }
-            Divider().overlay(NookColors.oat.opacity(0.25))
-            profileMenu("figure.walk", planCopy(preferredPlan), values: [
-              ("QUICK", "Café rápido"), ("LONG_TALKS", "Sin prisas"), ("WALK", "Café y paseo"), ("IMPROVISE", "Improvisar")
-            ]) { preferredPlan = $0 }
-            if let preferences = app.me?.coffeePreferences, !preferences.isEmpty {
-              HStack(spacing: 7) {
-                ForEach(preferences.prefix(3), id: \.self) { value in
-                  Text(coffeeCopy(value)).font(.caption.bold()).padding(.horizontal, 10).padding(.vertical, 7)
-                    .background(NookColors.oat.opacity(0.28), in: Capsule())
-                }
-              }
-            }
-          }.profileSurface()
-
-          VStack(spacing: 0) {
-            Toggle(isOn: $visible) {
-              Label("Aparecer en Descubrir", systemImage: "eye")
-            }.padding(.vertical, 15)
-            Divider()
-            Toggle(isOn: $sounds) {
-              Label("Sonidos de café", systemImage: "speaker.wave.2")
-            }.padding(.vertical, 15)
-            Divider()
-            HStack(alignment: .top, spacing: 12) {
-              Image(systemName: "location.slash").frame(width: 22)
-              Text("Tu ubicación exacta nunca aparece en tu perfil.").font(.callout).foregroundStyle(.secondary)
-              Spacer()
-            }.padding(.vertical, 15)
-          }.font(.system(size: 15, weight: .semibold, design: .default)).tint(NookColors.mocha).profileSurface()
-
-          Button { saveProfile() } label: {
-            HStack(spacing: 8) {
-              if saving {
-                Image(systemName: "cup.and.saucer.fill")
-                  .symbolEffect(.pulse, options: .repeating)
-              }
-              Image(systemName: saved ? "checkmark" : "arrow.down")
-              Text(saved ? "Guardado" : "Guardar cambios")
-            }.font(.system(size: 15, weight: .bold, design: .default)).foregroundStyle(.white)
-              .padding(.horizontal, 22).frame(height: 48).background(NookColors.espresso, in: Capsule())
-          }.disabled(saving)
-
-          Button("Cerrar sesión", role: .destructive) { Task { await app.logout() } }
-            .font(.callout.weight(.semibold)).padding(.top, 5)
-        }
-        .frame(maxWidth: .infinity, alignment: .top)
-        .padding(.bottom, 18)
+            Button("Cerrar sesión", role: .destructive) { Task { await app.logout() } }
+              .font(.system(size: 14, weight: .medium))
+              .padding(.top, 20)
+              .padding(.bottom, max(28, geometry.safeAreaInsets.bottom + 16))
+          }
+          .frame(maxWidth: .infinity, alignment: .top)
       }
+      .ignoresSafeArea(edges: .top)
       .scrollIndicators(.hidden)
       .scrollBounceBehavior(.basedOnSize)
       .defaultScrollAnchor(.top)
-      // Image loading and profile refreshes must not inherit the perpetual
-      // animations running in DiscoverView behind this sheet.
-      .transaction { transaction in
-        transaction.animation = nil
+      .background(Color.white)
+      .transaction { transaction in transaction.animation = nil }
+
+        profileSheetGrabber
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .padding(.top, 8)
+          .allowsHitTesting(false)
       }
-    }.alert("No hemos podido guardar", isPresented: Binding(
+    }
+    .alert("No hemos podido guardar", isPresented: Binding(
       get: { profileError != nil }, set: { if !$0 { profileError = nil } }
     )) { Button("Entendido") { profileError = nil } } message: { Text(profileError ?? "") }
     .confirmationDialog(
@@ -1621,9 +2051,108 @@ struct ProfileView: View {
       preferredPlan = app.me?.preferredPlan ?? "IMPROVISE"
     }.task { currentIntent = try? await app.repository.currentIntent() }
       .onChange(of: photoItems) { _, items in upload(items) }
+      .onChange(of: orderedPhotos.map(\.id)) { _, photos in
+        heroPhotoIndex = min(heroPhotoIndex, max(0, photos.count - 1))
+      }
       .onChange(of: bio) { _, value in if value.count > 500 { bio = String(value.prefix(500)) } }
       .onChange(of: sounds) { _, value in NookSoundManager.shared.enabled = value }
       .toolbar(.hidden, for: .navigationBar)
+      .preferredColorScheme(.light)
+      .sheet(isPresented: $showProfilePreview) {
+        ProfilePreviewSheet(
+          person: previewProfile,
+          viewer: app.me,
+          editorialPhotoEffect: cardPhotoEffect)
+          .presentationDetents([.large])
+          .presentationContentInteraction(.scrolls)
+          .presentationDragIndicator(.hidden)
+          .presentationBackground(NookColors.warmBlack)
+      }
+  }
+  private var profileSheetGrabber: some View {
+    Capsule()
+      .fill(Color.white.opacity(0.96))
+      .frame(width: 38, height: 5)
+      .overlay(Capsule().stroke(Color.black.opacity(0.18), lineWidth: 0.6))
+      .shadow(color: .black.opacity(0.28), radius: 3, y: 1)
+      .accessibilityHidden(true)
+  }
+  private func profileHero(height: CGFloat) -> some View {
+    ZStack {
+      if orderedPhotos.isEmpty {
+        ProfileImage(
+          url: nil, name: app.me?.name ?? "N", alignment: .top, faceAware: false
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+
+        PhotosPicker(selection: $photoItems, maxSelectionCount: 1, matching: .images) {
+          Label(uploading ? "Subiendo…" : "Añadir foto", systemImage: "camera")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16).frame(height: 42)
+            .background(.black.opacity(0.34), in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.28), lineWidth: 0.7))
+        }.disabled(uploading)
+      } else {
+        TabView(selection: $heroPhotoIndex) {
+          ForEach(Array(orderedPhotos.enumerated()), id: \.element.id) { index, photo in
+            ProfileImage(
+              url: photo.url, name: app.me?.name ?? "N", alignment: .top, faceAware: false
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .modifier(ProfileCardPhotoEffect(enabled: cardPhotoEffect))
+            .clipped()
+            .tag(index)
+            .accessibilityLabel("Foto \(index + 1) de \(orderedPhotos.count)")
+          }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: height)
+
+        if orderedPhotos.count > 1 {
+          HStack(spacing: 5) {
+            ForEach(orderedPhotos.indices, id: \.self) { index in
+              Capsule()
+                .fill(.white.opacity(index == heroPhotoIndex ? 0.96 : 0.42))
+                .frame(width: index == heroPhotoIndex ? 18 : 6, height: 6)
+            }
+          }
+          .padding(.horizontal, 10).frame(height: 24)
+          .background(.black.opacity(0.20), in: Capsule())
+          .padding(.bottom, 12)
+          .frame(maxHeight: .infinity, alignment: .bottom)
+          .allowsHitTesting(false)
+          .accessibilityHidden(true)
+        }
+      }
+    }
+    .frame(maxWidth: .infinity)
+    .frame(height: height)
+    .clipped()
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("Foto principal del perfil")
+  }
+  private func profileSectionTitle(_ title: String, detail: String? = nil) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      Text(title)
+        .font(.system(size: 19, weight: .semibold, design: .rounded))
+        .tracking(-0.25)
+        .foregroundStyle(NookColors.espresso)
+      Spacer()
+      if let detail {
+        Text(detail)
+          .font(.system(size: 12, weight: .medium))
+          .foregroundStyle(NookColors.warmGray)
+      }
+    }
+  }
+  private func profileHairline() -> some View {
+    Rectangle()
+      .fill(NookColors.espresso.opacity(0.07))
+      .frame(height: 0.7)
+      .padding(.leading, 36)
   }
   private func saveProfile() {
     saving = true; saved = false
@@ -1658,6 +2187,24 @@ struct ProfileView: View {
       if ($0.isPrimary == true) != ($1.isPrimary == true) { return $0.isPrimary == true }
       return $0.position < $1.position
     }
+  }
+  private var previewProfile: DiscoverProfile {
+    DiscoverProfile(
+      id: app.me?.id ?? UUID(),
+      name: app.me?.name ?? "Tu perfil",
+      age: app.me?.age ?? 18,
+      bio: bio.isEmpty ? "Añade una bio para contar algo sobre ti." : bio,
+      city: city.isEmpty ? app.me?.city : city,
+      distanceKm: 0,
+      coffeePersonality: coffeePersonality,
+      preferredPlan: preferredPlan,
+      preferredVibe: preferredVibe,
+      coffeesPerDay: app.me?.coffeesPerDay,
+      favoriteCoffeeMoment: favoriteMoment,
+      lookingFor: looking,
+      coffeePreferences: app.me?.coffeePreferences ?? [],
+      photos: orderedPhotos,
+      intent: currentIntent)
   }
   @MainActor private func refreshPhotos() async throws {
     app.me = try await app.repository.me()
@@ -1702,11 +2249,15 @@ struct ProfileView: View {
       ForEach(values, id: \.0) { value in Button(value.1) { select(value.0) } }
     } label: {
       HStack(spacing: 12) {
-        Image(systemName: icon).frame(width: 22).foregroundStyle(NookColors.mocha)
-        Text(text).font(.system(size: 15, weight: .semibold, design: .default))
+        Image(systemName: icon).frame(width: 22).foregroundStyle(NookColors.warmGray)
+        Text(text).font(.system(size: 15, weight: .medium, design: .default))
         Spacer()
-        Image(systemName: "chevron.down").font(.caption.bold()).foregroundStyle(NookColors.warmGray)
-      }.foregroundStyle(NookColors.espresso).contentShape(Rectangle())
+        Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(NookColors.warmGray)
+      }
+      .foregroundStyle(NookColors.espresso)
+      .frame(minHeight: 52)
+      .padding(.horizontal, 16)
+      .contentShape(Rectangle())
     }
   }
   private func vibeCopy(_ value: String?) -> String { value == "CALM" ? "Sitios tranquilos" : value == "LIVELY" ? "Sitios animados" : "Con ambiente" }
@@ -1715,13 +2266,224 @@ struct ProfileView: View {
   private func coffeeCopy(_ value: String) -> String { value.replacingOccurrences(of: "_", with: " ").capitalized }
 }
 
+private struct ProfilePreviewSheet: View {
+  let person: DiscoverProfile
+  let viewer: Me?
+  let editorialPhotoEffect: Bool
+  @State private var photoIndex = 0
+
+  var body: some View {
+    GeometryReader { proxy in
+      let windowInsets = activeWindowSafeAreaInsets
+      let safeArea = EdgeInsets(
+        top: windowInsets.top, leading: windowInsets.left,
+        bottom: windowInsets.bottom, trailing: windowInsets.right)
+      ZStack {
+        NookColors.warmBlack.ignoresSafeArea()
+
+        if person.photos.isEmpty {
+          previewCard(photoURL: nil, height: proxy.size.height, safeArea: safeArea)
+        } else {
+          TabView(selection: $photoIndex) {
+            ForEach(Array(person.photos.enumerated()), id: \.element.id) { index, photo in
+              previewCard(
+                photoURL: photo.url, height: proxy.size.height, safeArea: safeArea)
+                .tag(index)
+            }
+          }
+          .tabViewStyle(.page(indexDisplayMode: .never))
+          .ignoresSafeArea()
+        }
+
+        previewChrome(safeArea: safeArea)
+          .allowsHitTesting(false)
+
+        Capsule()
+          .fill(Color.white.opacity(0.96))
+          .frame(width: 38, height: 5)
+          .overlay(Capsule().stroke(Color.black.opacity(0.18), lineWidth: 0.6))
+          .shadow(color: .black.opacity(0.28), radius: 3, y: 1)
+          .padding(.top, 8)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .allowsHitTesting(false)
+
+        HStack(spacing: 40) {
+          CircleAction(icon: "xmark", size: 48, action: {})
+          ZStack {
+            Circle().fill(NookColors.offWhite).frame(width: 70, height: 70)
+              .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
+            NookCoffeeLogo(size: 62, animated: false).clipShape(Circle())
+          }
+        }
+        .allowsHitTesting(false)
+        .opacity(0.94)
+        .padding(.bottom, safeArea.bottom + 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+      }
+    }
+    .ignoresSafeArea()
+    .preferredColorScheme(.dark)
+    .accessibilityElement(children: .contain)
+  }
+
+  private func previewChrome(safeArea: EdgeInsets) -> some View {
+    let topChromeLift: CGFloat = 16
+    return ZStack {
+      VStack(spacing: 8) {
+        NookHeader(
+          eyebrow: "NOOK", title: "Un café con…", branded: true, cinematic: true)
+          .frame(height: 56)
+
+        HStack {
+          Label(person.lookingFor.profileTitle, systemImage: person.lookingFor.icon)
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 11).frame(height: 30)
+            .background(.black.opacity(0.28), in: Capsule())
+            .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 0.7))
+          Spacer()
+        }
+
+        Spacer()
+      }
+      .padding(.top, max(0, safeArea.top - topChromeLift))
+      .padding(.leading, safeArea.leading + 12)
+      .padding(.trailing, safeArea.trailing + 12)
+      .padding(.bottom, safeArea.bottom + 10)
+
+      VStack(alignment: .trailing, spacing: 10) {
+        previewProfileButton
+        previewSideButton(icon: "slider.horizontal.3")
+        previewSideButton(icon: "cup.and.saucer.fill")
+        previewSideButton(icon: "bubble.left.and.bubble.right.fill")
+      }
+      .padding(.top, max(0, safeArea.top + 8 - topChromeLift))
+      .padding(.trailing, safeArea.trailing + 8)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+
+      if person.photos.count > 1 {
+        VStack(spacing: -9) {
+          ForEach(person.photos.indices, id: \.self) { index in
+            ProfileImage(url: person.photos[index].url, name: person.name, faceAware: false)
+              .frame(width: index == photoIndex ? 48 : 38, height: index == photoIndex ? 62 : 48)
+              .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+              .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                  .stroke(index == photoIndex ? Color.white : Color.white.opacity(0.42), lineWidth: index == photoIndex ? 2 : 1)
+              }
+              .shadow(color: .black.opacity(0.28), radius: 5, y: 3)
+              .zIndex(index == photoIndex ? 2 : 1)
+          }
+        }
+        .padding(.trailing, safeArea.trailing + 19)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+      }
+    }
+  }
+
+  private var previewProfileButton: some View {
+    Group {
+      if let photo = viewer?.photos.first {
+        ProfileImage(url: photo.url, name: viewer?.name ?? "N", faceAware: false)
+      } else {
+        Image(systemName: "person.crop.circle")
+          .font(.system(size: 17, weight: .semibold))
+          .foregroundStyle(.white)
+          .background(.black.opacity(0.38))
+      }
+    }
+    .frame(width: 40, height: 40)
+    .clipShape(Circle())
+    .overlay(Circle().strokeBorder(NookColors.nookGold, lineWidth: 1.5))
+    .shadow(color: .black.opacity(0.34), radius: 6, y: 3)
+  }
+
+  private func previewSideButton(icon: String) -> some View {
+    Image(systemName: icon)
+      .font(.system(size: 17, weight: .semibold))
+      .foregroundStyle(.white)
+      .frame(width: 40, height: 40)
+      .background(.black.opacity(0.38), in: Circle())
+      .overlay(Circle().stroke(Color.white.opacity(0.34), lineWidth: 1))
+      .shadow(color: .black.opacity(0.34), radius: 6, y: 3)
+  }
+
+  private func previewCard(
+    photoURL: String?, height: CGFloat, safeArea: EdgeInsets
+  ) -> some View {
+    NookProfileCard(
+      person: person,
+      viewer: viewer,
+      height: height,
+      photoURL: photoURL,
+      expandableInfo: false,
+      immersive: true,
+      editorialPhotoEffect: editorialPhotoEffect,
+      showImmersiveIntent: true,
+      contentTopInset: safeArea.top,
+      contentBottomInset: safeArea.bottom)
+      .ignoresSafeArea()
+      .allowsHitTesting(false)
+  }
+
+  private var activeWindowSafeAreaInsets: UIEdgeInsets {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let window = scenes.flatMap(\.windows).first { $0.isKeyWindow }
+      ?? scenes.flatMap(\.windows).first
+    return window?.safeAreaInsets ?? .zero
+  }
+}
+
+private struct ProfileCardPhotoEffect: ViewModifier {
+  let enabled: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .saturation(enabled ? 0.92 : 1)
+      .contrast(enabled ? 1.11 : 1)
+      .brightness(enabled ? 0.012 : 0)
+      .hueRotation(.degrees(enabled ? -2.5 : 0))
+      .overlay {
+        if enabled {
+          ZStack {
+            Color(red: 0.93, green: 0.55, blue: 0.25)
+              .opacity(0.10)
+              .blendMode(.softLight)
+            RadialGradient(
+              stops: [
+                .init(color: .clear, location: 0.46),
+                .init(color: profileCardDarkCoffee.opacity(0.08), location: 0.73),
+                .init(color: profileCardDarkCoffee.opacity(0.27), location: 1),
+              ],
+              center: .center, startRadius: 10, endRadius: 520)
+              .blendMode(.multiply)
+          }
+          .allowsHitTesting(false)
+        }
+      }
+      .animation(.easeInOut(duration: 0.28), value: enabled)
+  }
+
+  private var profileCardDarkCoffee: Color {
+    Color(red: 0.16, green: 0.075, blue: 0.035)
+  }
+}
+
 private extension View {
-  func profileSurface() -> some View {
-    self.padding(NookSpacing.md)
-      .background(
-        NookColors.surfaceRaised,
-        in: RoundedRectangle(cornerRadius: NookRadius.card, style: .continuous))
-      .padding(.horizontal, NookSpacing.md)
+  func profileSection() -> some View {
+    self
+      .padding(.horizontal, 20)
+      .padding(.top, 30)
+  }
+
+  func profileFieldSurface(insets: CGFloat = 16) -> some View {
+    self
+      .padding(insets)
+      .background(NookColors.offWhite.opacity(0.88), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+          .stroke(NookColors.espresso.opacity(0.055), lineWidth: 0.7)
+      )
   }
 }
 

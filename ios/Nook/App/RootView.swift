@@ -21,6 +21,9 @@ struct RootView: View {
     }
     .animation(.easeInOut(duration: 0.62), value: app.stage)
     .onChange(of: app.stage) { _, stage in
+      #if DEBUG
+        guard ProcessInfo.processInfo.environment["NOOK_OFFLINE_DEMO"] != "1" else { return }
+      #endif
       guard stage == .app,
         !UserDefaults.standard.bool(forKey: permissionFlowKey) else { return }
       Task { await requestSystemPermissions() }

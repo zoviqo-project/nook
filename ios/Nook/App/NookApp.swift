@@ -110,6 +110,7 @@ struct DiscoverSnapshot {
   let loadedAt: Date
 }
 @MainActor final class AppSession: ObservableObject {
+  private static let cachedUserKey = "nook.cachedAuthenticatedUser.v1"
   private struct StartupTimeout: LocalizedError {
     var errorDescription: String? { "El servidor está tardando demasiado en responder." }
   }
@@ -139,6 +140,11 @@ struct DiscoverSnapshot {
     #endif
   }
   func restore() async {
+    if let cachedUser = loadCachedUser() {
+      enterAuthenticated(cachedUser)
+      Task { await refreshCachedSession() }
+      return
+    }
     let minimumIntro = Task { try? await Task.sleep(for: .milliseconds(700)) }
     do {
       let restored = try await withThrowingTaskGroup(of: Me?.self) { group in
@@ -184,22 +190,53 @@ struct DiscoverSnapshot {
   }
   func saveOnboarding(_ update: ProfileUpdate) async throws {
     me = try await repository.updateProfile(update)
+    persistCurrentUser()
   }
   func finish(_ p: ProfileUpdate) async throws {
     me = try await repository.updateProfile(p)
+    persistCurrentUser()
     stage = .app
   }
   func logout() async {
     if let deviceToken { try? await repository.removeDeviceToken(deviceToken) }
     await repository.logout()
+    clearCachedUser()
     me = nil
     resetNavigation()
     stage = .welcome
   }
   private func enterAuthenticated(_ user: Me) {
     me = user
+    persistCurrentUser()
     resetNavigation()
     stage = user.onboardingComplete ? .app : .onboarding
+  }
+  private func refreshCachedSession() async {
+    do {
+      if let refreshed = try await repository.restore() {
+        me = refreshed
+        persistCurrentUser()
+        if !refreshed.onboardingComplete { stage = .onboarding }
+      } else {
+        clearCachedUser()
+        me = nil
+        resetNavigation()
+        stage = .welcome
+      }
+    } catch {
+      // Keep the cached session usable while the server or network is unavailable.
+    }
+  }
+  private func loadCachedUser() -> Me? {
+    guard let data = UserDefaults.standard.data(forKey: Self.cachedUserKey) else { return nil }
+    return try? JSONDecoder().decode(Me.self, from: data)
+  }
+  private func persistCurrentUser() {
+    guard let me, let data = try? JSONEncoder().encode(me) else { return }
+    UserDefaults.standard.set(data, forKey: Self.cachedUserKey)
+  }
+  private func clearCachedUser() {
+    UserDefaults.standard.removeObject(forKey: Self.cachedUserKey)
   }
   private func resetNavigation() {
     selectedTab = 0
